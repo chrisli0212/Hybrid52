@@ -2241,12 +2241,12 @@ def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
 
 
 def _multi_symbol_bar_chart(agg_df, column, title, window_minutes=30,
-                            height=340, color_by_sign=False):
-    """Create a grouped-bar chart with one bar group per symbol for a metric.
+                            height=340, color_by_sign=False, legend_title=None):
+    """Hybrid chart: SPXW as bars, SPY/QQQ/IWM as overlay lines.
 
-    If *color_by_sign* is True, each bar is green/red based on its value
-    (useful for Net GEX, Net Premium). Otherwise uses the symbol's palette
-    color.
+    If *color_by_sign* is True, SPXW bars are green/red based on value
+    (useful for Net GEX, Net Premium). Secondary symbols always use their
+    palette color at reduced opacity.
     """
     fig = go.Figure()
     has_data = False
@@ -2258,28 +2258,44 @@ def _multi_symbol_bar_chart(agg_df, column, title, window_minutes=30,
         if y.isna().all():
             continue
         x_time = parse_agg_timestamps(sym_df)
-        if color_by_sign:
-            bar_colors = [C['call'] if v >= 0 else C['put'] for v in y]
+        if sym == 'SPXW':
+            # Primary symbol: bar chart
+            if color_by_sign:
+                bar_colors = [C['call'] if v >= 0 else C['put'] for v in y]
+            else:
+                bar_colors = _RATIO_COLORS.get(sym, '#3b82f6')
+            fig.add_trace(go.Bar(
+                x=x_time, y=y,
+                marker=dict(color=bar_colors, opacity=0.85),
+                name=sym,
+            ))
         else:
-            bar_colors = _RATIO_COLORS.get(sym, '#888')
-        fig.add_trace(go.Bar(
-            x=x_time, y=y,
-            marker=dict(color=bar_colors, opacity=0.85),
-            name=sym,
-        ))
+            # Secondary symbols: line chart with reduced opacity
+            fig.add_trace(go.Scatter(
+                x=x_time, y=y, mode='lines',
+                line=dict(color=_RATIO_COLORS.get(sym, '#888'),
+                          width=_RATIO_WIDTHS.get(sym, 1.8)),
+                opacity=_RATIO_OPACITIES.get(sym, 0.45),
+                name=sym,
+            ))
         has_data = True
     if not has_data:
         return None
     fig.update_xaxes(gridcolor=C['grid'], showgrid=True, type='date', tickformat='%H:%M')
     fig.update_yaxes(gridcolor=C['grid'], showgrid=True)
     fig.update_layout(
-        height=height, barmode='group', showlegend=True,
+        height=height, showlegend=True,
         title=dict(text=title, font=dict(size=13)),
         paper_bgcolor=C['bg_dark'], plot_bgcolor=C['bg_card'],
         font=dict(color=C['text'], size=11),
         margin=dict(l=60, r=20, t=40, b=30), hovermode='x unified',
-        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0,
-                    font=dict(size=11)),
+        legend=dict(
+            x=0.01, y=0.99, xanchor='left', yanchor='top',
+            font=dict(size=11, color=C['text']),
+            bgcolor='rgba(0,0,0,0)', bordercolor='rgba(0,0,0,0)',
+            title=dict(text=legend_title or title.split('(')[0].strip(),
+                       font=dict(size=11, color=C['text_sec'])),
+        ),
     )
     return fig
 
