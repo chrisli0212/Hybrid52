@@ -2192,7 +2192,7 @@ def _single_ts_chart(x_time, y_data, title, chart_type='line', color=None,
 
 
 def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
-                           hline=None, height=340):
+                           hline=None, height=340, legend_title=None):
     """Create a multi-symbol overlay line chart (SPXW, SPY, QQQ, IWM).
 
     Returns a Plotly Figure with one line per symbol, styled to match the
@@ -2233,7 +2233,8 @@ def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
             x=0.01, y=0.99, xanchor='left', yanchor='top',
             font=dict(size=11, color=C['text']),
             bgcolor='rgba(0,0,0,0)', bordercolor='rgba(0,0,0,0)',
-            title=dict(text='Put/Call Ratio', font=dict(size=11, color=C['text_sec'])),
+            title=dict(text=legend_title or title.split('(')[0].strip(),
+                       font=dict(size=11, color=C['text_sec'])),
         ),
     )
     return fig
