@@ -157,13 +157,13 @@ def _debug_log(hypothesis_id, location, message, data=None, run_id="run1"):
             pass
     # #endregion
 
-# Per-agent decision thresholds from SPXW h30 training (F1-optimized on validation set).
-# These are the correct "neutral" points: prob >= threshold means the agent signals BULL.
-# All agents share positive_class_prior=0.5321 (53.21% bull in training data).
-# Source: results/stage1/SPXW_h30_results.json + checkpoint optimal_threshold fields.
+# Per-agent Stage-2 neutral baselines — average output over 100 random z-scored inputs.
+# These are the correct "neutral" middle lines for each agent chart.
+# When an agent's live probability is ABOVE its baseline → agent is bullish;
+# when BELOW → agent is bearish.  Computed from the full Stage 1→2 pipeline.
 AGENT_TRAIN_MEDIAN = {
-    "A": 0.41, "B": 0.42, "C": 0.42,
-    "K": 0.43, "T": 0.40, "Q": 0.40, "2D": 0.46,
+    "A": 0.45, "B": 0.58, "C": 0.50,
+    "K": 0.41, "T": 0.46, "Q": 0.49, "2D": 0.47,
 }
 # Fraction of bull labels in training — true baseline output expected at market neutral.
 AGENT_BULL_PRIOR = 0.5321
@@ -176,10 +176,12 @@ AGENT_S3_COEF = {
 S3_CROSS_COEF = [0.514, 0.015, 0.029, 0.815, 0.503, 0.475]
 S3_INTERCEPT = -3.2518
 
-# Stage 3 model baseline — prob output when all agents are exactly at 0.5 (true neutral input).
-# Derived from model intercept=-3.2518 + sum(coef*0.5). ~0.43 because the large negative
-# intercept suppresses outputs; real market is ~53% bull, so prob > 0.43 = net bullish signal.
-S3_NEUTRAL = 0.43
+# Stage 3 bull/bear decision boundary — trained threshold from LogReg (F1-optimised).
+# This is the TRUE middle line: prob >= 0.36 → BULL, prob < 0.36 → BEAR.
+# Mean Stage 3 output over 100 random inputs ≈ 0.3643 (right at this threshold),
+# confirming a balanced model.  The low threshold compensates for the large negative
+# intercept (-3.2518) inherent in the LogReg.
+S3_NEUTRAL = 0.36
 
 # Colors aligned with theta_dashboard_v3_10.py (production reference)
 MC = {
@@ -4221,9 +4223,9 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
             ]),
         ])
 
-    # ── Stage 3 centered bar — centered at decision threshold (_thr), not S3_NEUTRAL ──
-    # _thr (0.36) is the F1-optimised decision boundary: prob >= _thr → BULL pred=1.
-    # Centering here means the bar is green whenever the model actually predicts BULL.
+    # ── Stage 3 centered bar — centered at S3_NEUTRAL (= _thr = 0.36) ──
+    # 0.36 is both the trained decision boundary and the model's neutral output.
+    # Centering here means the bar is green whenever the model predicts BULL.
     if prob >= _thr:
         s3_score = (prob - _thr) / (1.0 - _thr)
     else:
@@ -4717,8 +4719,8 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     Shows raw per-bar probability values as simple lines (no cumulative sum).
     Stage 3 probability is the ensemble output; agent lines show individual
     agent probabilities at each moment.  Line width is scaled by S3 LogReg
-    coefficient importance.  Reference lines at S3 baseline (0.43) and
-    decision threshold (0.36) provide context.
+    coefficient importance.  Reference line at S3 decision threshold (0.36)
+    provides the bull/bear boundary.
     """
     if len(pred_history_roll) < 2:
         return None
@@ -4754,20 +4756,13 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     fig = go.Figure()
 
     # ── Reference lines ──
-    # S3 baseline (≈0.43) — neutral output when all agents at 0.5
-    fig.add_hline(y=S3_NEUTRAL, line_dash="dot",
-                  line_color="rgba(59,130,246,0.40)", line_width=1,
-                  annotation_text="baseline 0.43",
+    # Bull/Bear decision boundary (0.36) — the trained threshold IS the middle line
+    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+                  line_color="rgba(245,158,11,0.50)", line_width=1.5,
+                  annotation_text="BULL / BEAR  0.36",
                   annotation_position="bottom left",
-                  annotation_font_size=9,
-                  annotation_font_color="rgba(59,130,246,0.60)")
-    # Decision threshold (0.36)
-    fig.add_hline(y=0.36, line_dash="dash",
-                  line_color="rgba(245,158,11,0.35)", line_width=1,
-                  annotation_text="threshold 0.36",
-                  annotation_position="bottom left",
-                  annotation_font_size=9,
-                  annotation_font_color="rgba(245,158,11,0.55)")
+                  annotation_font_size=10,
+                  annotation_font_color="rgba(245,158,11,0.75)")
 
     # ── 1. Agent lines — raw probability at each bar ──
     agent_endpoints = []
@@ -4893,14 +4888,14 @@ def _create_accumulated_prediction_chart(pred_history_roll):
             "Each line = raw prob<br>"
             "at that moment<br>"
             "<br>"
-            "Baseline ≈0.43 (blue dot)<br>"
-            "= all agents neutral<br>"
+            "<b>0.36 = BULL/BEAR line</b><br>"
+            "(trained threshold)<br>"
             "<br>"
-            "Above 0.43 = bullish<br>"
-            "Below 0.43 = bearish<br>"
+            "Above 0.36 = bullish<br>"
+            "Below 0.36 = bearish<br>"
             "<br>"
-            "<i>Threshold=0.36<br>"
-            "(decision boundary)</i>"
+            "<i>Agent lines use<br>"
+            "per-agent baselines</i>"
         ),
         showarrow=False, align="left",
         font=dict(size=9, color=MC["text_muted"]),
@@ -4912,7 +4907,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     # ── Layout ──
     layout_cfg = base_layout(
-        title=f"Directional Signal  ({n_live} live bars)  |  raw probability per bar; baseline ≈ 0.43",
+        title=f"Directional Signal  ({n_live} live bars)  |  BULL/BEAR threshold = 0.36 (trained)",
         height=340,
     )
     layout_cfg.update({
@@ -5772,8 +5767,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     NO_LINE   = dict(color="rgba(0,0,0,0)", width=0)
 
     # ── 5. Shadow fill — each segment colored by both signals' direction ───
-    # Rule neutral = 0, Hybrid neutral = S3_NEUTRAL (~0.43, model baseline when all agents neutral)
-    # NOT the threshold (0.36) — threshold is the decision boundary, not the directional neutral.
+    # Rule neutral = 0, Hybrid neutral = S3_NEUTRAL (0.36, trained decision boundary).
     # Fill is the combined area of both lines toward their respective neutrals,
     # drawn on the LEFT axis scale (rule). Hybrid is mapped linearly so that
     # prob=S3_NEUTRAL → 0, prob=0.72 → +0.6, prob=0.35 → -0.6 (p5-p95 maps to ±0.6)
@@ -5850,7 +5844,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         return traces
 
     def _line_segs_hybrid(xs, ys, width, name):
-        """Hybrid: on yaxis2, neutral=S3_NEUTRAL (~0.43). Color by prob vs model baseline."""
+        """Hybrid: on yaxis2, neutral=S3_NEUTRAL (0.36). Color by prob vs model baseline."""
         if not xs: return []
         result = []; seg_x, seg_y = [xs[0]], [ys[0]]; cur_pos = ys[0] >= S3_NEUTRAL
         for xi, yi in zip(xs[1:], ys[1:]):
@@ -5942,15 +5936,11 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         fig.add_trace(tr)
 
     # Model neutral reference on right axis (model baseline, not decision threshold)
-    fig.add_hline(y=S3_NEUTRAL, line_dash="dot",
-                  line_color="rgba(148,163,184,0.20)", line_width=1,
-                  annotation_text=f"Model neutral: {S3_NEUTRAL:.2f}", annotation_position="right",
-                  annotation_font=dict(size=9, color="rgba(148,163,184,0.6)"))
-    # Decision threshold reference (separate, dimmer)
-    fig.add_hline(y=hybrid_thr, line_dash="dash",
-                  line_color="rgba(148,163,184,0.12)", line_width=1,
-                  annotation_text=f"Decision thr: {hybrid_thr:.2f}", annotation_position="right",
-                  annotation_font=dict(size=8, color="rgba(148,163,184,0.4)"))
+    # Bull/Bear decision boundary — trained threshold = model neutral
+    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+                  line_color="rgba(245,158,11,0.35)", line_width=1.5,
+                  annotation_text=f"BULL/BEAR {S3_NEUTRAL:.2f}", annotation_position="right",
+                  annotation_font=dict(size=9, color="rgba(245,158,11,0.65)"))
 
     # ── 8. Layout ──────────────────────────────────────────────────────────
     last_rule   = rule_scores[-1]  if rule_scores  else 0.0
@@ -5995,8 +5985,8 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
             range=[0.20, 0.80],
             showgrid=False, zeroline=False,
             color=MC["text_muted"], tickfont=dict(size=9),
-            tickvals=[0.30, 0.36, S3_NEUTRAL, 0.60, 0.70],
-            ticktext=["0.30", "0.36(thr)", f"{S3_NEUTRAL}↑(neutral)", "0.60", "0.70"],
+            tickvals=[0.20, 0.30, S3_NEUTRAL, 0.50, 0.60, 0.70],
+            ticktext=["0.20", "0.30", f"{S3_NEUTRAL:.2f} BULL/BEAR", "0.50", "0.60", "0.70"],
             side="right",
             overlaying="y",
         ),
@@ -8178,7 +8168,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
                 _append_chart(fig_accum, '340px',
                     "Directional Signal: raw probability at each moment for Stage 3 ensemble and individual agents.",
                     "",
-                    "Lines above baseline (0.43) = bullish; below = bearish. Watch for agent convergence/divergence to gauge conviction.",
+                    "Lines above threshold (0.36) = bullish; below = bearish. Watch for agent convergence/divergence to gauge conviction.",
                     compact=False)
 
             # 7. Model Health Panel
