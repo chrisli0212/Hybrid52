@@ -4712,11 +4712,13 @@ def _create_expected_move_chart(df_agg, symbol, model_out, pred_history_roll):
 
 
 def _create_accumulated_prediction_chart(pred_history_roll):
-    """Running cumulative sum of (prob - training_median) for Stage 3 and all 7 agents.
+    """Instantaneous probability lines for Stage 3 and all 7 agents.
 
-    Each agent uses its own training-data median as neutral (not 0.5), so the
-    cumulative reflects genuine deviation from that agent's learned baseline.
-    Line width is scaled by Stage 3 LogReg coefficient importance.
+    Shows raw per-bar probability values as simple lines (no cumulative sum).
+    Stage 3 probability is the ensemble output; agent lines show individual
+    agent probabilities at each moment.  Line width is scaled by S3 LogReg
+    coefficient importance.  Reference lines at S3 baseline (0.43) and
+    decision threshold (0.36) provide context.
     """
     if len(pred_history_roll) < 2:
         return None
@@ -4724,44 +4726,21 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     hist = pred_history_roll
     x    = [h["ts"] for h in hist]
 
-    # Market-hours gate: rows outside 8:30–17:00 ET contribute 0 delta
-    _open_min  = MARKET_OPEN_ET[0]  * 60 + MARKET_OPEN_ET[1]
-    _close_min = MARKET_CLOSE_ET[0] * 60 + MARKET_CLOSE_ET[1]
-    def _in_market(h):
-        try:
-            ts = pd.to_datetime(str(h["ts"])[:19], errors="coerce")
-            if pd.isna(ts):
-                return True
-            ts_et = ts.tz_localize("UTC").tz_convert(ET) if ts.tzinfo is None else ts.tz_convert(ET)
-            m = ts_et.hour * 60 + ts_et.minute
-            return _open_min <= m <= _close_min
-        except Exception:
-            return True
-
     # Per-agent training medians and S3 coefficients defined at module level
-    # (AGENT_TRAIN_MEDIAN, AGENT_S3_COEF)
     _coef_max = max(AGENT_S3_COEF.values())
-    # Width: most important agent=3.0, least=0.8
     def _agent_width(label):
         return 0.8 + 2.2 * (AGENT_S3_COEF[label] / _coef_max)
 
-    # Stage 3 cumulative — deviation from model baseline (~0.43).
-    # 0.43 = prob when all agents neutral (model intercept=-3.25 suppresses outputs).
-    # Above 0.43 = net bullish signal; below = bearish. Threshold 0.36 is F1-optimised decision boundary.
-    s3_deltas = [
-        (h["prob"] - S3_NEUTRAL)
-        if (not h.get("suppressed", True) and _in_market(h)) else 0.0
-        for h in hist
-    ]
-    s3_cum    = list(np.cumsum(s3_deltas))
+    # ── Stage 3 raw probability (None for suppressed bars) ──
+    s3_prob = [None if h.get("suppressed", True) else h["prob"] for h in hist]
+    n_live  = sum(1 for v in s3_prob if v is not None)
 
-    final_val  = s3_cum[-1] if s3_cum else 0.0
-    is_bull    = final_val >= 0
-    s3_color   = MC["call"] if is_bull else MC["put"]
-    fill_color = "rgba(16,185,129,0.13)" if is_bull else "rgba(239,68,68,0.13)"
+    # Determine colour from latest live value
+    last_val = next((v for v in reversed(s3_prob) if v is not None), S3_NEUTRAL)
+    is_bull  = last_val >= S3_NEUTRAL
+    s3_color = MC["call"] if is_bull else MC["put"]
 
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
-
     AGENT_COLORS = {
         "A":  "rgba(139,92,246,0.85)",   # violet
         "B":  "rgba(251,146,60,0.85)",   # orange
@@ -4774,56 +4753,58 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     fig = go.Figure()
 
-    # Zero reference line
-    fig.add_hline(y=0, line_dash="dot",
-                  line_color="rgba(148,163,184,0.35)", line_width=1)
+    # ── Reference lines ──
+    # S3 baseline (≈0.43) — neutral output when all agents at 0.5
+    fig.add_hline(y=S3_NEUTRAL, line_dash="dot",
+                  line_color="rgba(59,130,246,0.40)", line_width=1,
+                  annotation_text="baseline 0.43",
+                  annotation_position="bottom left",
+                  annotation_font_size=9,
+                  annotation_font_color="rgba(59,130,246,0.60)")
+    # Decision threshold (0.36)
+    fig.add_hline(y=0.36, line_dash="dash",
+                  line_color="rgba(245,158,11,0.35)", line_width=1,
+                  annotation_text="threshold 0.36",
+                  annotation_position="bottom left",
+                  annotation_font_size=9,
+                  annotation_font_color="rgba(245,158,11,0.55)")
 
-    # ── 1. Agent lines — width scaled by S3 coefficient, neutral = training median ──
+    # ── 1. Agent lines — raw probability at each bar ──
     agent_endpoints = []
     for label in agent_keys:
         neutral = AGENT_TRAIN_MEDIAN.get(label, 0.5)
-        a_deltas = [
-            (h.get("stage2_probs", {}).get(label, neutral) - neutral)
-            if (not h.get("suppressed", True) and _in_market(h)) else 0.0
+        a_prob = [
+            None if h.get("suppressed", True)
+            else h.get("stage2_probs", {}).get(label, neutral)
             for h in hist
         ]
-        a_cum = list(np.cumsum(a_deltas))
-        end_val = a_cum[-1] if a_cum else 0.0
+        end_val = next((v for v in reversed(a_prob) if v is not None), neutral)
         agent_endpoints.append((label, end_val))
         fig.add_trace(go.Scatter(
-            x=x, y=a_cum,
+            x=x, y=a_prob,
             mode="lines",
             name=f"Agent {label}",
             showlegend=False,
+            connectgaps=True,
             line=dict(color=AGENT_COLORS[label], width=_agent_width(label)),
             hovertemplate=f"Agent {label}: %{{y:.3f}}<extra></extra>",
         ))
 
-    # ── 2. Stage 3 area fill base ──
+    # ── 2. Stage 3 thick line (on top) ──
     fig.add_trace(go.Scatter(
-        x=x, y=s3_cum,
-        mode="none",
-        fill="tozeroy",
-        fillcolor=fill_color,
-        showlegend=False,
-        hoverinfo="skip",
-    ))
-
-    # ── 3. Stage 3 thick line (on top) ──
-    n_live = sum(1 for h in hist if not h.get("suppressed", True))
-    fig.add_trace(go.Scatter(
-        x=x, y=s3_cum,
+        x=x, y=s3_prob,
         mode="lines",
         name="Stage 3 Ensemble",
         showlegend=False,
+        connectgaps=True,
         line=dict(color=s3_color, width=4.5),
         hovertemplate="<b>Stage 3: %{y:.3f}</b><extra></extra>",
     ))
 
-    # ── 4. Endpoint marker on Stage 3 ──
-    if x and s3_cum:
+    # ── 3. Endpoint marker on Stage 3 ──
+    if x and last_val is not None:
         fig.add_trace(go.Scatter(
-            x=[x[-1]], y=[s3_cum[-1]],
+            x=[x[-1]], y=[last_val],
             mode="markers",
             marker=dict(color=s3_color, size=10, symbol="circle",
                         line=dict(color="#0f172a", width=2)),
@@ -4831,7 +4812,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
             hoverinfo="skip",
         ))
 
-        # Inline labels at the right end of each line (instead of a separate legend).
+        # Inline labels at the right end of each agent line
         for label, end_val in agent_endpoints:
             a_probs = [h.get("stage2_probs", {}).get(label, AGENT_TRAIN_MEDIAN[label])
                        for h in hist if not h.get("suppressed", True)]
@@ -4857,9 +4838,9 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 borderpad=2,
             )
         fig.add_annotation(
-            x=x[-1], y=s3_cum[-1],
+            x=x[-1], y=last_val,
             xref="x", yref="y",
-            text="Stage 3",
+            text=f"S3 {last_val:.3f}",
             showarrow=False,
             xanchor="left",
             xshift=10,
@@ -4903,24 +4884,23 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 width=140,
             )
 
-    # ── Reading guide annotation (right margin, vertical) ──
+    # ── Reading guide annotation (right margin) ──
     fig.add_annotation(
         xref="paper", yref="paper", x=1.02, y=0.5,
         text=(
             "<b>How to read</b><br>"
             "─────────────<br>"
-            "Zero = model baseline<br>"
-            "(all agents neutral)<br>"
+            "Each line = raw prob<br>"
+            "at that moment<br>"
             "<br>"
-            "Rising = above baseline<br>"
-            "= net bullish signal<br>"
+            "Baseline ≈0.43 (blue dot)<br>"
+            "= all agents neutral<br>"
             "<br>"
-            "Falling = below baseline<br>"
-            "= net bearish signal<br>"
+            "Above 0.43 = bullish<br>"
+            "Below 0.43 = bearish<br>"
             "<br>"
-            "<i>BULL/BEAR label uses<br>"
-            "threshold=0.36<br>"
-            "baseline≈0.43</i>"
+            "<i>Threshold=0.36<br>"
+            "(decision boundary)</i>"
         ),
         showarrow=False, align="left",
         font=dict(size=9, color=MC["text_muted"]),
@@ -4932,16 +4912,14 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     # ── Layout ──
     layout_cfg = base_layout(
-        title=f"Accumulated Directional Signal  ({n_live} live bars)  |  S3 zero = model baseline (≈0.43); agents zero = own baseline",
+        title=f"Directional Signal  ({n_live} live bars)  |  raw probability per bar; baseline ≈ 0.43",
         height=340,
     )
     layout_cfg.update({
         "margin": dict(l=55, r=160, t=50, b=40),
         "yaxis": dict(
-            title="Cumulative (prob − baseline)",
-            zeroline=True,
-            zerolinecolor="rgba(59,130,246,0.30)",
-            zerolinewidth=1,
+            title="Probability",
+            zeroline=False,
             gridcolor="rgba(51,65,85,0.5)",
         ),
         "xaxis": dict(
@@ -8193,14 +8171,14 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
                     "Watch for probability crossing 0.5 with rising confidence — signals a directional regime change. Flat confidence = indecisive market.",
                     compact=False)
 
-            # 6. Accumulated Signal Chart
+            # 6. Directional Signal Chart (instantaneous probability lines)
             fig_accum = _create_accumulated_prediction_chart(pred_history_roll)
             if fig_accum is not None:
-                content.append(_mc_section_header("Accumulated Signal"))
+                content.append(_mc_section_header("Directional Signal"))
                 _append_chart(fig_accum, '340px',
-                    "Accumulated Signal: cumulative sum of (prob - threshold) for Stage 3 over time; agent lines use (prob - 0.5).",
+                    "Directional Signal: raw probability at each moment for Stage 3 ensemble and individual agents.",
                     "",
-                    "Divergence between agents and Stage 3 line signals disagreement. Converging upward = strong bullish conviction across the ensemble.",
+                    "Lines above baseline (0.43) = bullish; below = bearish. Watch for agent convergence/divergence to gauge conviction.",
                     compact=False)
 
             # 7. Model Health Panel
