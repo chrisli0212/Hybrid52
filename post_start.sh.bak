@@ -1,0 +1,39 @@
+#!/bin/bash
+
+echo "→ Starting post-start setup..."
+
+# === Jupyter ===
+echo "→ Setting up Jupyter..."
+/usr/bin/python3.11 -m pip install jupyterlab -q
+pkill -f "python3.10.*jupyter" 2>/dev/null || true
+nohup /usr/bin/python3.11 -m jupyter lab \
+  --allow-root --no-browser --port=8888 --ip=* \
+  --FileContentsManager.delete_to_trash=False \
+  --ServerApp.terminado_settings='{"shell_command":["/bin/bash"]}' \
+  --ServerApp.token='' --ServerApp.password='' \
+  --ServerApp.allow_origin=* \
+  --ServerApp.preferred_dir=/workspace \
+  &> /jupyter.log &
+
+# === Editor persistence ===
+echo "→ Restoring Cursor & Windsurf..."
+bash /workspace/init_windsurf.sh || echo "Warning: Windsurf init failed"
+bash /workspace/init_cursor.sh   || echo "Warning: Cursor init failed"
+
+# === Venv + packages ===
+echo "→ Setting up venv..."
+grep -q 'workspace/venv' /root/.bashrc 2>/dev/null || echo 'source /workspace/venv/bin/activate' >> /root/.bashrc
+source /workspace/venv/bin/activate
+
+if [ -f /workspace/requirements.txt ]; then
+    echo "→ Restoring packages from requirements.txt..."
+    bash /workspace/pip-install.sh
+else
+    echo "→ No requirements.txt yet — skipping"
+fi
+
+# Jupyter kernel
+python -c "import ipykernel" 2>/dev/null || pip install ipykernel -q
+python -m ipykernel install --user --name=venv --display-name "Python (venv)"
+
+echo "✓ Post-start complete (Jupyter at port 8888)"

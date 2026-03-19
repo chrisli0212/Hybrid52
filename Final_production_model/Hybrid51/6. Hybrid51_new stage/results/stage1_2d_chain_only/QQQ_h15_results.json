@@ -1,0 +1,27 @@
+{
+  "agent_2D_classifier": {
+    "accuracy": 0.5202,
+    "f1": 0.6844,
+    "auc": 0.5403,
+    "ic": 0.077,
+    "brier": 0.24877,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -5.0266,
+      "q2": 1.8272,
+      "q3": 1.0947,
+      "q4": 0.8839,
+      "q5": 3.7328
+    },
+    "quintile_spread_bp": 8.7595,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5202,
+        "f1": 0.6844,
+        "coverage": 1.0,
+        "n": 77734
+      }
+    },
+    "n_params": 678469
+  }
+}

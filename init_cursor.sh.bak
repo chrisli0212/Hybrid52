@@ -1,0 +1,20 @@
+#!/bin/bash
+mkdir -p /workspace/.persist/cursor-server
+mkdir -p /workspace/.persist/cursor-config
+
+if [ -d /root/.cursor-server ] && [ ! -L /root/.cursor-server ]; then
+    cp -a /root/.cursor-server/* /workspace/.persist/cursor-server/ 2>/dev/null || true
+fi
+if [ -d /root/.config/Cursor ] && [ ! -L /root/.config/Cursor ]; then
+    mkdir -p /workspace/.persist/cursor-config
+    cp -a /root/.config/Cursor/* /workspace/.persist/cursor-config/ 2>/dev/null || true
+fi
+
+rm -rf /root/.cursor-server
+ln -s /workspace/.persist/cursor-server /root/.cursor-server
+
+mkdir -p /root/.config
+rm -rf /root/.config/Cursor
+ln -s /workspace/.persist/cursor-config /root/.config/Cursor
+
+echo "✓ Cursor persistence restored"

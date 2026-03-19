@@ -1,0 +1,8 @@
+{
+  "n_samples": 83,
+  "n_snapshots_attempted": 83,
+  "n_failed": 0,
+  "feat_dim": 325,
+  "n_zero_variance": 162,
+  "computation_date": "2026-03-13T15:22:03.626579"
+}

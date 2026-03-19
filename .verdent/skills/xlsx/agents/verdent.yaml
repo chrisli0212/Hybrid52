@@ -1,0 +1,8 @@
+interface:
+  display_name: 'Spreadsheet'
+  short_description: 'Create, edit, and analyze spreadsheets'
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  default_prompt: 'Create, edit, or analyze this spreadsheet and summarize key insights or changes.'
+  builtin: true
+  hidden: true

@@ -1,0 +1,33 @@
+{
+  "agent_2D_classifier": {
+    "accuracy": 0.6205,
+    "f1": 0.6756,
+    "auc": 0.6558,
+    "ic": 0.2827,
+    "brier": 0.232666,
+    "threshold": 0.45,
+    "quintile_mean_returns_bp": {
+      "q1": -10.2946,
+      "q2": -3.1014,
+      "q3": 2.4716,
+      "q4": 3.7749,
+      "q5": 8.9229
+    },
+    "quintile_spread_bp": 19.2174,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6205,
+        "f1": 0.6756,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6679,
+        "f1": 0.599,
+        "coverage": 0.4887,
+        "n": 33300
+      }
+    },
+    "n_params": 678469
+  }
+}

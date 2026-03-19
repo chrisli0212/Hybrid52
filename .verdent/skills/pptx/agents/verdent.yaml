@@ -1,0 +1,8 @@
+interface:
+  display_name: 'PPT'
+  short_description: 'Create, read, edit, or modify .pptx files.'
+  icon_dark: './assets/icon-dark.png'
+  icon_light: './assets/icon-light.png'
+  default_prompt: 'Create, edit, or review this PowerPoint presentation.'
+  builtin: true
+  hidden: true

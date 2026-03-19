@@ -1,0 +1,339 @@
+# Theta Options Pro Dashboard — Cursor AI Rules
+# ═══════════════════════════════════════════════════════════════════════════════
+# This file teaches Cursor IDE the architecture, conventions, and rules for
+# theta_dashboard_v4_modern.py — an 8,460-line Dash dashboard with a built-in
+# AI multi-agent pipeline for SPX prediction.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+## Project Overview
+
+This is a single-file Python Dash dashboard (`theta_dashboard_v4_modern.py`)
+that serves two purposes:
+1. **Theta Options Terminal** — live options data visualization (charts, tables,
+   heatmaps, Greek surfaces) fed by CSV files from a Theta Data API fetcher.
+2. **AI Multi-Agent Analyst** — a 7-agent pipeline that calls 3 different LLM
+   APIs (Perplexity, xAI, OpenRouter) to predict SPX intraday direction using
+   the same CSV data plus live web search.
+
+The dashboard runs on **port 8050** via `app.run(debug=True, host='0.0.0.0', port=8050)`.
+It is deployed on **RunPod** (remote GPU cloud, Linux environment).
+
+---
+
+## File Structure (Single File, ~8,460 Lines)
+
+```
+theta_dashboard_v4_modern.py
+├── Lines 1–104      Imports + constants
+├── Lines 105–123    MC = {} color palette dictionary
+├── Lines 124–6290   Data loading, chart builders, insight generators
+│                    (theta_agg.csv, theta_snapshot.csv, prediction.csv)
+├── Lines 6291–6819  Dash app init + main layout (top bar, dropdowns,
+│                    dashboard-content div, intervals)
+├── Lines 6820–7064  AI MULTI-AGENT ANALYST panel layout
+│                    ├── Section header
+│                    ├── 3 API key input bars (Perplexity, xAI, OpenRouter)
+│                    ├── RUN AI PIPELINE button + status bar
+│                    ├── Chat history display
+│                    ├── Manual Q&A row (model dropdown + question input
+│                    │   + ASK AI button + CLEAR button)
+│                    └── Hidden stores (ai-chat-store, ai-pipeline-state)
+├── Lines 7065–7796  Original dashboard callbacks (pause, fetcher, update)
+├── Lines 7797–8216  AI backend (API callers, pipeline agents, execution)
+├── Lines 8217–8300  Chat history renderer (_render_chat_history)
+├── Lines 8301–8456  AI callbacks (run_pipeline_callback, manual_qa_callback)
+└── Lines 8459–8461  if __name__ == '__main__': app.run(...)
+```
+
+---
+
+## Key Global Variables & Constants
+
+```python
+SCRIPT_DIR = Path(__file__).resolve().parent       # Directory containing the script
+DATA_DIR   = SCRIPT_DIR / "daily_data"             # CSV data directory
+AGG_FILE       = DATA_DIR / "theta_agg.csv"        # Aggregated options flow
+SNAPSHOT_FILE  = DATA_DIR / "theta_snapshot.csv"    # Strike-level options data
+STATUS_FILE    = DATA_DIR / ".fetcher_status"       # Fetcher process status
+
+ET = ZoneInfo("America/New_York")                  # All market times in ET
+
+MC = {                                              # Master Color palette
+    "bg_dark":       "#0f172a",                    # Page background
+    "bg_card":       "#1e293b",                    # Card/panel background
+    "bg_input":      "#334155",                    # Input field background
+    "border":        "rgba(59,130,246,0.15)",      # Default borders
+    "text":          "#f1f5f9",                    # Primary text
+    "text_sec":      "#cbd5e1",                    # Secondary text
+    "text_muted":    "#94a3b8",                    # Muted/label text
+    "accent":        "#3b82f6",                    # Blue accent
+    "call":          "#10b981",                    # Green (bullish/success)
+    "put":           "#ef4444",                    # Red (bearish/error)
+    "warning":       "#f59e0b",                    # Amber warning
+}
+
+app = dash.Dash(__name__, title="Theta Options Pro Terminal")  # Line 6294
+```
+
+---
+
+## AI Panel Architecture
+
+### Layout Component IDs
+
+| Dash ID                | Type          | Purpose                                  |
+|------------------------|---------------|------------------------------------------|
+| `ai-pplx-key`         | `dcc.Input`   | Perplexity API key (password field)      |
+| `ai-xai-key`          | `dcc.Input`   | xAI API key (password field)             |
+| `ai-api-key`          | `dcc.Input`   | OpenRouter API key (password field)      |
+| `ai-pipeline-btn`     | `html.Button` | RUN AI PIPELINE trigger button           |
+| `ai-pipeline-status`  | `html.Div`    | Status bar showing pipeline progress     |
+| `ai-chat-history`     | `html.Div`    | Visible chat messages area               |
+| `ai-model-select`     | `dcc.Dropdown`| Model selector for manual Q&A            |
+| `ai-question-input`   | `dcc.Input`   | Free-text question input for manual Q&A  |
+| `ai-send-btn`         | `html.Button` | ASK AI button (manual Q&A)               |
+| `ai-clear-btn`        | `html.Button` | CLEAR chat history button                |
+| `ai-chat-store`       | `dcc.Store`   | JSON store for chat history persistence  |
+| `ai-pipeline-state`   | `dcc.Store`   | Pipeline running state tracker           |
+| `ai-pipeline-tick`    | `dcc.Interval`| (Currently disabled) pipeline tick       |
+
+### Model Dropdown Format
+
+The `ai-model-select` dropdown uses `provider|model_id` format:
+```
+"openrouter|openai/gpt-5.4"
+"openrouter|anthropic/claude-sonnet-4.6"
+"openrouter|anthropic/claude-opus-4-6"
+"openrouter|google/gemini-3.1-pro"
+"openrouter|deepseek/deepseek-v3.2"
+"openrouter|x-ai/grok-4.20-multi-agent-beta"
+"openrouter|openrouter/free"
+"perplexity|sonar-pro"
+"perplexity|sonar-reasoning-pro"
+"xai|grok-4-0709"
+"xai|grok-4.20-beta-latest-non-reasoning"
+```
+To add a new model, add an entry to the `options` list and optionally add a
+display label in `label_map` inside `manual_qa_callback`.
+
+---
+
+## Three API Callers
+
+### 1. OpenRouter (`_call_openrouter`)
+- **Endpoint:** `POST https://openrouter.ai/api/v1/chat/completions`
+- **Auth:** `Authorization: Bearer {key}`
+- **Headers:** Also sends `HTTP-Referer` and `X-Title`
+- **Format:** Standard OpenAI chat completions (messages array, model string)
+- **Response:** `choices[0].message.content`
+
+### 2. Perplexity (`_call_perplexity`)
+- **Endpoint:** `POST https://api.perplexity.ai/chat/completions`
+- **Auth:** `Authorization: Bearer {key}`
+- **Format:** OpenAI-compatible chat completions
+- **Response:** `choices[0].message.content` + appends `citations[]` if present
+- **Models:** `sonar-pro`, `sonar-reasoning-pro`
+
+### 3. xAI Grok (`_call_xai`)
+- **Endpoint:** `POST https://api.x.ai/v1/responses` (Responses API, NOT /chat/completions)
+- **Auth:** `Authorization: Bearer {key}`
+- **Format:** Uses `input` array (not `messages`), with `tools: [{"type": "web_search"}, {"type": "x_search"}]`
+- **Response:** `output[].content[].text` where item type is "message" and content type is "output_text"
+- **Models:** `grok-4-0709`, `grok-4.20-beta-latest-non-reasoning`
+- **Important:** xAI uses the Responses API, not the deprecated chat completions. The message
+  format is `input: [{role, content}]` not `messages: [{role, content}]`.
+
+### Router (`_route_api_call`)
+```python
+def _route_api_call(provider, model_id, messages, keys, timeout=120):
+    # provider: "perplexity" | "xai" | "openrouter"
+    # keys dict: {"pplx": "...", "xai": "...", "openrouter": "..."}
+```
+
+---
+
+## 7-Agent Pipeline Architecture
+
+### Pipeline Definition (`_PIPELINE_AGENTS` list)
+
+| Order | Agent ID | Name                          | Provider    | Model                               | Stage |
+|-------|----------|-------------------------------|-------------|--------------------------------------|-------|
+| 0     | 1        | Agent 1a: Online Data (Pplx)  | perplexity  | sonar-pro                            | 1     |
+| 1     | 2        | Agent 1b: X Sentiment (Grok)  | xai         | grok-4.20-beta-latest-non-reasoning  | 1     |
+| 2     | 3        | Agent 2: CSV Analyst (Claude)  | openrouter  | anthropic/claude-sonnet-4.6          | 1     |
+| 3     | 4        | Agent 3: Model Reader (Gemini)| openrouter  | google/gemini-3.1-pro                | 1     |
+| 4     | 5        | Agent 5: Validator (GPT-5.4)  | openrouter  | openai/gpt-5.4                       | 1     |
+| 5     | 6        | Agent 4: Historical (DeepSeek)| openrouter  | deepseek/deepseek-v3.2               | 2     |
+| 6     | 7        | Agent 6: Synthesizer (Opus)   | openrouter  | anthropic/claude-opus-4-6            | 3     |
+| 7     | 8        | Agent 7: Auditor (Grok)       | xai         | grok-4-0709                          | 4     |
+
+### Execution Flow (`_run_pipeline_sync`)
+
+```
+Stage 1 (PARALLEL via threading)
+  ├── Agent 1a: Perplexity Sonar Pro → web search for market news
+  ├── Agent 1b: xAI Grok 4.20 → X/Twitter sentiment scan
+  ├── Agent 2: Claude Sonnet → CSV data analysis (theta_agg, theta_snapshot)
+  ├── Agent 3: Gemini Pro → prediction.csv ML model interpretation
+  └── Agent 5: GPT-5.4 → cross-validation of data
+          ↓ all Stage 1 outputs collected
+Stage 2 (SEQUENTIAL)
+  └── Agent 4: DeepSeek V3.2 → historical pattern comparison
+          ↓ receives Stage 1 outputs as context
+Stage 3 (SEQUENTIAL)
+  └── Agent 6: Claude Opus → master synthesis of all agents
+          ↓ receives Stage 1 + 2 outputs
+Stage 4 (SEQUENTIAL)
+  └── Agent 7: Grok 4 → independent audit of entire pipeline
+          ↓ receives Stage 1 + 2 + 3 outputs
+```
+
+Each sequential stage receives prior agent outputs via string concatenation:
+```python
+prior_context = "\n\n".join(
+    f"--- {a['name']} ---\n{agent_outputs.get(a['id'], '[missing]')}"
+    for a in _PIPELINE_AGENTS if a["stage"] <= current_stage - 1
+)
+```
+
+### Pipeline is SYNCHRONOUS (Blocking)
+The pipeline runs synchronously inside the Dash callback. Dash shows a loading
+spinner on the outputs while the callback blocks. This is intentional — the user
+wants to see all results at once when complete.
+
+---
+
+## Two Dash Callbacks for AI Panel
+
+### 1. `run_pipeline_callback` (Lines 8305–8365)
+- **Trigger:** `ai-pipeline-btn.n_clicks`
+- **Outputs:** `ai-chat-history.children`, `ai-chat-store.data`, `ai-pipeline-status.children`, `ai-pipeline-status.style`
+- **Behavior:** Validates all 3 API keys → runs `_run_pipeline_sync()` → renders results
+- **No `allow_duplicate`** — this is the primary owner of the outputs
+
+### 2. `manual_qa_callback` (Lines 8370–8456)
+- **Triggers:** `ai-send-btn.n_clicks`, `ai-question-input.n_submit`, `ai-clear-btn.n_clicks`
+- **Outputs:** `ai-chat-history.children` (allow_duplicate=True), `ai-chat-store.data` (allow_duplicate=True), `ai-question-input.value`
+- **Behavior:** 
+  - CLEAR → resets chat history
+  - ASK/Enter → parses `provider|model_id` from dropdown → validates key → calls `_route_api_call` → renders
+- **Requires Dash 2.9+** for `allow_duplicate=True`
+
+### Why Two Callbacks?
+Both write to `ai-chat-history` and `ai-chat-store`. The pipeline callback is the
+primary writer; the manual Q&A callback uses `allow_duplicate=True` to share those
+outputs. They cannot be merged because they have different Input triggers.
+
+---
+
+## Chat History Data Format
+
+Chat history is stored in `ai-chat-store` (dcc.Store) as a JSON list of dicts:
+
+```python
+# User message
+{"role": "user", "content": "What's the SPX outlook today?"}
+
+# AI response
+{"role": "assistant", "content": "Based on the data...", "model": "GPT-5.4"}
+
+# Pipeline status bar (purple styled)
+{"role": "system_status", "content": "▶ Stage 1: Running 5 agents in parallel..."}
+
+# Error message (red styled)
+{"role": "error", "content": "Missing: Perplexity API key"}
+```
+
+The `_render_chat_history()` function converts these to Dash HTML:
+- `user` → right-aligned blue bubble
+- `assistant` → left-aligned card with purple model badge
+- `system_status` → purple bar with vertical accent
+- `error` → red background text
+
+---
+
+## CSV Data Context
+
+The function `_read_daily_csv_context()` reads from `DATA_DIR / "daily_data/"`:
+- `theta_agg.csv` (last 30 rows) — aggregated options flow per batch
+- `theta_snapshot.csv` (last 20 rows) — strike-level options data
+- `prediction.csv` (last 15 rows) — Hybrid51 ML model outputs
+
+This text summary is injected into every AI system prompt via `_build_system_prompt()`.
+
+---
+
+## Coding Rules for This Project
+
+### DO:
+- Always use `MC["key"]` for colors — never hardcode hex outside the MC dictionary
+  (exception: AI-specific purples like `#8b5cf6` are OK for the AI panel)
+- Use `_` prefix for all AI backend functions (they are module-private)
+- Keep the single-file architecture — do NOT split into multiple files
+- Use `dcc.Markdown(dangerously_allow_html=True)` for AI response rendering
+- Use `prevent_initial_call=True` on all callbacks
+- Use `no_update` from Dash when a callback output shouldn't change
+- All market times must use `ET = ZoneInfo("America/New_York")`
+- Test API error handling — all callers catch Timeout, HTTPError, and generic Exception
+- Pipeline agents use `timeout=180` for Stage 1, `timeout=180` for Stage 2,
+  `timeout=240` for Stages 3–4
+
+### DON'T:
+- Don't use `dcc.Loading` wrapper on the chat history — the pipeline is blocking
+  and Dash auto-shows loading state on the callback outputs
+- Don't merge the two AI callbacks — they have different triggers and the
+  `allow_duplicate` pattern is correct
+- Don't change the xAI endpoint from `/v1/responses` to `/v1/chat/completions` —
+  the Responses API is required for `web_search` and `x_search` tools
+- Don't change `DATA_DIR` to an absolute path — it must be relative to SCRIPT_DIR
+  so it works on any machine
+- Don't add `import requests` at the top — it's imported as `_requests` at line 7800
+  to avoid conflicts with the `requests` used by the fetcher section
+
+### ADDING A NEW PIPELINE AGENT:
+1. Add entry to `_PIPELINE_AGENTS` list with unique `id`, `name`, `provider`,
+   `model`, `stage`, and `prompt`
+2. Stage 1 agents run in parallel; Stages 2+ run sequentially and receive prior outputs
+3. No callback changes needed — the pipeline loop handles any number of agents
+
+### ADDING A NEW MODEL TO MANUAL Q&A DROPDOWN:
+1. Add `{"label": "Display Name", "value": "provider|model_id"}` to the `options`
+   list in `ai-model-select` (around line 6997)
+2. Add display label to `label_map` dict in `manual_qa_callback` (around line 8442)
+3. If it's a new provider (not openrouter/perplexity/xai), add a new `_call_*`
+   function and update `_route_api_call`
+
+### ADDING A NEW API PROVIDER:
+1. Create `_call_newprovider(api_key, model_id, messages, timeout)` function
+2. Add to `_route_api_call` with new provider string
+3. Add a new `dcc.Input` for the API key (follow the pattern of existing 3)
+4. Add the new key ID to both callback `State` lists
+5. Update `key_map` in `manual_qa_callback`
+
+---
+
+## Dependencies
+
+```
+dash >= 2.9.0       # Required for allow_duplicate=True
+plotly
+pandas
+numpy
+requests
+```
+
+The dashboard does NOT use PyTorch — prediction.csv is read as a plain CSV.
+The Hybrid51 ML model runs separately and writes prediction.csv.
+
+---
+
+## Running the Dashboard
+
+```bash
+cd /path/to/project
+python theta_dashboard_v4_modern.py
+# → http://0.0.0.0:8050
+```
+
+CSV files must exist at `./daily_data/theta_agg.csv`, `./daily_data/theta_snapshot.csv`,
+and optionally `./daily_data/prediction.csv`.

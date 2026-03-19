@@ -1,0 +1,195 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.5029,
+    "f1": 0.6686,
+    "auc": 0.5214,
+    "ic": 0.0444,
+    "brier": 0.249732,
+    "threshold": 0.41,
+    "quintile_mean_returns_bp": {
+      "q1": -1.2412,
+      "q2": -2.1103,
+      "q3": -0.0361,
+      "q4": -0.2292,
+      "q5": 1.746
+    },
+    "quintile_spread_bp": 2.9872,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5029,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      },
+      "conf>=0.2": {
+        "accuracy": 0.7545,
+        "f1": 0.4,
+        "coverage": 0.002,
+        "n": 110
+      }
+    },
+    "n_params": 519032
+  },
+  "agent_B_classifier": {
+    "accuracy": 0.5021,
+    "f1": 0.6685,
+    "auc": 0.4996,
+    "ic": 0.0055,
+    "brier": 0.251871,
+    "threshold": 0.39,
+    "quintile_mean_returns_bp": {
+      "q1": -1.6017,
+      "q2": 0.1879,
+      "q3": -0.2602,
+      "q4": -0.1213,
+      "q5": -0.0757
+    },
+    "quintile_spread_bp": 1.526,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5021,
+        "f1": 0.6685,
+        "coverage": 1.0,
+        "n": 53659
+      },
+      "conf>=0.2": {
+        "accuracy": 0.5587,
+        "f1": 0.7169,
+        "coverage": 0.0073,
+        "n": 392
+      }
+    },
+    "n_params": 435523
+  },
+  "agent_K_classifier": {
+    "accuracy": 0.5022,
+    "f1": 0.6686,
+    "auc": 0.498,
+    "ic": -0.0044,
+    "brier": 0.250141,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -0.5059,
+      "q2": 0.0906,
+      "q3": -0.4987,
+      "q4": -0.7164,
+      "q5": -0.2406
+    },
+    "quintile_spread_bp": 0.2653,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5022,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      }
+    },
+    "n_params": 231076
+  },
+  "agent_C_classifier": {
+    "accuracy": 0.5022,
+    "f1": 0.6686,
+    "auc": 0.5083,
+    "ic": 0.0101,
+    "brier": 0.249889,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -1.0162,
+      "q2": -0.2135,
+      "q3": -0.5438,
+      "q4": -0.5185,
+      "q5": 0.4211
+    },
+    "quintile_spread_bp": 1.4373,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5022,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6486,
+        "f1": 0.7869,
+        "coverage": 0.0034,
+        "n": 185
+      }
+    },
+    "n_params": 545328
+  },
+  "agent_T_classifier": {
+    "accuracy": 0.5022,
+    "f1": 0.6686,
+    "auc": 0.4961,
+    "ic": -0.0118,
+    "brier": 0.250092,
+    "threshold": 0.42,
+    "quintile_mean_returns_bp": {
+      "q1": 0.2286,
+      "q2": -0.5004,
+      "q3": -0.8536,
+      "q4": -0.3985,
+      "q5": -0.3472
+    },
+    "quintile_spread_bp": -0.5758,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5022,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      }
+    },
+    "n_params": 161500
+  },
+  "agent_Q_classifier": {
+    "accuracy": 0.5022,
+    "f1": 0.6686,
+    "auc": 0.5103,
+    "ic": 0.0236,
+    "brier": 0.250265,
+    "threshold": 0.31,
+    "quintile_mean_returns_bp": {
+      "q1": -1.7288,
+      "q2": -0.5536,
+      "q3": -0.6084,
+      "q4": 0.0435,
+      "q5": 0.9764
+    },
+    "quintile_spread_bp": 2.7052,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5022,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      }
+    },
+    "n_params": 183692
+  },
+  "agent_2D_classifier": {
+    "accuracy": 0.5022,
+    "f1": 0.6686,
+    "auc": 0.4969,
+    "ic": -0.0058,
+    "brier": 0.25004,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -0.3359,
+      "q2": -0.0444,
+      "q3": 0.2399,
+      "q4": -0.7807,
+      "q5": -0.9499
+    },
+    "quintile_spread_bp": -0.614,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5022,
+        "f1": 0.6686,
+        "coverage": 1.0,
+        "n": 53659
+      }
+    },
+    "n_params": 678469
+  }
+}

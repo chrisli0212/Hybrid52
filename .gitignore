@@ -1,0 +1,17 @@
+venv/
+.cursor-server/
+.persist/
+__pycache__/
+*.pyc
+.venv-build/
+*.log
+nohup.out
+backup.log
+backup_workspace.py
+backup/
+*.zip
+*.pack
+.git/
+Hybrid51_gh/.git/
+Hybrid51/.git/
+Final_production_model/daily_data/theta_snapshot_history.csv
