@@ -367,18 +367,25 @@ def enrich_for_ai(merged_df, batch_id, now_timestamp, atm_strikes):
     if "oi" in df.columns:
         oi_vals = pd.to_numeric(df["oi"], errors="coerce")
         cp_sign_vals = df["cp_sign"] if "cp_sign" in df.columns else 1
+        spot_vals = pd.to_numeric(df["spot"], errors="coerce") if "spot" in df.columns else 1
         for greek in ["gamma", "vega", "theta", "delta"]:
             gcol = next((c for c in df.columns if greek in c.lower()
                          and 'exp' not in c.lower()), None)
             if gcol:
                 greek_vals = pd.to_numeric(df[gcol], errors="coerce")
                 if greek == "delta":
-                    df[f"{greek}_exp"] = greek_vals * oi_vals
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * 100
                 elif greek == "theta":
                     # Negate: API theta is negative (buyer's cost); dealer perspective is positive (premium collected)
-                    df[f"{greek}_exp"] = -greek_vals * oi_vals
+                    df[f"{greek}_exp"] = -greek_vals * oi_vals * 100
+                elif greek == "gamma":
+                    # Dealer GEX: gamma × OI × spot × 100 × cp_sign
+                    # cp_sign (+1 call, -1 put) gives dealer perspective:
+                    #   Calls: +gamma×OI×spot×100 (dealers short calls → long gamma hedge)
+                    #   Puts:  -gamma×OI×spot×100 (dealers short puts → short gamma hedge)
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * spot_vals * 100 * cp_sign_vals
                 else:
-                    df[f"{greek}_exp"] = greek_vals * oi_vals * cp_sign_vals
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * cp_sign_vals * 100
 
     iv_col = next((c for c in df.columns if 'implied_vol' in c.lower()), None)
     track_cols = []

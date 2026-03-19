@@ -1166,16 +1166,15 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
             return empty_chart("No GEX data in ±7% range", 500)
     gex = gex.sort_values('strike', ascending=True).copy()  # ascending data; autorange='reversed' flips display
 
-    # Drop thin/near-zero gamma bars so the chart focuses on actionable levels.
-    # Dynamic floor = max(30th percentile, 3% of max abs gamma).
+    # Light filter: only remove truly negligible bars (<1% of max) to keep
+    # the full profile including potential gamma-flip zones at extremes.
     gex['abs_gamma'] = pd.to_numeric(gex['gamma_exp'], errors='coerce').abs()
     abs_max = float(gex['abs_gamma'].max() or 0.0)
-    abs_q30 = float(gex['abs_gamma'].quantile(0.30) or 0.0)
-    min_abs_gamma = max(abs_q30, abs_max * 0.03)
+    min_abs_gamma = abs_max * 0.01  # 1% of max — keeps flip-zone strikes visible
     if min_abs_gamma > 0:
         gex = gex[gex['abs_gamma'] >= min_abs_gamma].copy()
     if gex.empty:
-        return empty_chart("No significant GEX levels after thin-bar filter", 500)
+        return empty_chart("No significant GEX levels", 500)
     gex = gex.drop(columns=['abs_gamma'], errors='ignore')
 
     # --- Previous slice ---

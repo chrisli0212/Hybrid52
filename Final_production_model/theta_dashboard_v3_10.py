@@ -424,9 +424,9 @@ def calculate_gex_by_strike(options_df, symbol):
     sym = options_df[options_df['symbol'] == symbol].copy()
     if sym.empty or 'gamma_exp' not in sym.columns:
         return None
-    # Dealer GEX: calls positive (dealers long call gamma), puts negative (dealers short put gamma)
-    if 'cp_sign' in sym.columns:
-        sym['gamma_exp'] = sym['gamma_exp'] * sym['cp_sign']
+    # gamma_exp already has dealer-perspective sign from enrich_for_ai():
+    #   calls = +gamma×OI×spot×100, puts = -gamma×OI×spot×100
+    # Do NOT multiply by cp_sign again here.
     gex = sym.groupby('strike').agg({'gamma_exp': 'sum'}).reset_index()
     return gex.sort_values('strike')
 
