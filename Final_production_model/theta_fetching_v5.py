@@ -30,7 +30,14 @@ from zoneinfo import ZoneInfo
 BASE_URL = "http://144.202.59.33:25503"
 SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "VIXW", "TLT"]
 FORMAT = "csv"
-MAX_DTE = 5
+MAX_DTE = {
+    "SPXW": 5,
+    "SPY":  5,
+    "QQQ":  5,
+    "IWM":  5,
+    "TLT":  5,
+    "VIXW": 30,   # VIX weeklies expire weekly — need wider DTE window
+}
 TIMEOUT = 30
 MAX_RETRIES = 2
 SLEEP_SECONDS = 10
@@ -345,8 +352,10 @@ def enrich_for_ai(merged_df, batch_id, now_timestamp, atm_strikes):
     if oi_cache:
         def _oi_lookup(row):
             strike_val = pd.to_numeric(row.get("strike", np.nan), errors="coerce")
+            exp_parsed = parse_expiration(str(row.get("expiration", "")))
+            exp_key = exp_parsed.strftime("%Y-%m-%d") if exp_parsed else str(row.get("expiration", ""))
             key = (str(row.get("symbol", "")),
-                   str(row.get("expiration", "")),
+                   exp_key,
                    str(float(strike_val)) if pd.notna(strike_val) else "",
                    str(row.get("right", "")))
             return oi_cache.get(key, np.nan)
@@ -548,7 +557,8 @@ def run_options_snapshot(client, batch_count):
         expirations = fetch_expirations(client, symbol)
         if not expirations:
             continue
-        expirations = filter_expirations_by_dte(expirations, MAX_DTE)
+        symbol_max_dte = MAX_DTE.get(symbol, 5) if isinstance(MAX_DTE, dict) else MAX_DTE
+        expirations = filter_expirations_by_dte(expirations, symbol_max_dte)
         if not expirations:
             continue
 
@@ -569,7 +579,9 @@ def run_options_snapshot(client, batch_count):
                     oi_col_name = next((c for c in oi_df.columns if 'open_interest' in c.lower()), None)
                     if oi_col_name:
                         for _, row in oi_df.iterrows():
-                            key = (symbol, str(row.get("expiration", exp)),
+                            exp_normalized = parse_expiration(str(row.get("expiration", exp)))
+                            exp_key = exp_normalized.strftime("%Y-%m-%d") if exp_normalized else str(row.get("expiration", exp))
+                            key = (symbol, exp_key,
                                    str(float(row["strike"])) if pd.notna(row.get("strike")) else "",
                                    str(row.get("right", "")))
                             oi_cache[key] = row[oi_col_name]

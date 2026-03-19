@@ -328,6 +328,8 @@ class PredictionService:
             suppression_reason = "no_snapshot_data"
         elif warmup_frac_effective < 0.35:
             suppression_reason = f"warmup_{int(warmup_frac_effective * SEQ_LEN)}_of_{SEQ_LEN}"
+        elif self.bridge.vix_level == 0.0 and warmup_frac_effective >= 1.0:
+            suppression_reason = "vix_level_zero"
 
         if suppression_reason:
             return self._suppressed_result(
