@@ -142,22 +142,35 @@ class PredictionService:
     # ------------------------------------------------------------------
 
     def _load_norm_stats(self, symbol: str) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        horizon   = int(self.config.get("model_info", {}).get("horizon_minutes", 30))
-        data_root = self.config.get("data_paths", {}).get("tier3_binary_root", "")
-        if not data_root:
-            logger.warning(f"  {symbol}: no tier3_binary_root in config — skipping normalisation")
-            return None, None
-        d = Path(data_root) / symbol / f"horizon_{horizon}min"
-        nm_path, ns_path = d / "norm_mean.npy", d / "norm_std.npy"
-        if nm_path.exists() and ns_path.exists():
-            try:
-                nm, ns = np.load(nm_path), np.load(ns_path)
-                logger.info(f"  {symbol}: normalisation loaded")
-                return nm, ns
-            except Exception as e:
-                logger.warning(f"  {symbol}: failed to load normalisation — {e}")
-        else:
-            logger.warning(f"  {symbol}: normalisation files not found at {d}")
+        horizon = int(self.config.get("model_info", {}).get("horizon_minutes", 30))
+        sub     = Path(symbol) / f"horizon_{horizon}min"
+
+        # Build a list of candidate directories to search:
+        #  1. Config-specified tier3_binary_root (absolute path)
+        #  2. Repo-relative: <repo_root>/data/tier3_binary_v5/
+        #  3. Sibling of SCRIPT_DIR: ../data/tier3_binary_v5/
+        candidates: list[Path] = []
+        cfg_root = self.config.get("data_paths", {}).get("tier3_binary_root", "")
+        if cfg_root:
+            candidates.append(Path(cfg_root) / sub)
+        candidates.append(SCRIPT_DIR.parent / "data" / "tier3_binary_v5" / sub)
+        candidates.append(SCRIPT_DIR / "data" / "tier3_binary_v5" / sub)
+
+        for d in candidates:
+            nm_path, ns_path = d / "norm_mean.npy", d / "norm_std.npy"
+            if nm_path.exists() and ns_path.exists():
+                try:
+                    nm, ns = np.load(nm_path), np.load(ns_path)
+                    logger.info(f"  {symbol}: normalisation loaded from {d}")
+                    return nm, ns
+                except Exception as e:
+                    logger.warning(f"  {symbol}: failed to load normalisation from {d} — {e}")
+
+        logger.error(
+            f"  {symbol}: *** NORMALISATION FILES NOT FOUND *** — "
+            f"searched {[str(c) for c in candidates]}.  "
+            f"Model will produce DEGRADED outputs without z-score normalisation!"
+        )
         return None, None
 
     def _load_all_models(self) -> None:
@@ -210,6 +223,21 @@ class PredictionService:
                 logger.warning(f"  Failed to load stage3: {e}")
         else:
             logger.warning(f"  Stage3 model not found: {path3}")
+
+        # ── Normalization health check ─────────────────────────────────
+        syms_missing_norm = [
+            s for s in ALL_SYMBOLS
+            if self.stage1.get(s) and any(
+                b.norm_mean is None for b in self.stage1[s].values()
+            )
+        ]
+        if syms_missing_norm:
+            logger.error(
+                f"  *** CRITICAL: normalisation missing for {syms_missing_norm}. "
+                f"Stage-1 outputs will be UNRELIABLE (model trained on z-scored features). "
+                f"Fix the tier3_binary_root path in config/production_config.json "
+                f"or ensure norm_mean.npy / norm_std.npy exist."
+            )
 
         logger.info(f"Models loaded in {time.perf_counter() - t0:.1f}s")
 
