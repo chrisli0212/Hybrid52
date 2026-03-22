@@ -124,6 +124,8 @@ class PredictionService:
         self.stage1: Dict[str, Dict[str, _Stage1Bundle]] = {s: {} for s in ALL_SYMBOLS}
         self.stage2: Dict[str, Tuple[nn.Module, dict]]   = {}
         self.stage3_model: Optional[Any]                 = None
+        self.stage3_vg: Optional[nn.Module]              = None   # VIX regime-gated fusion
+        self.stage3_vg_threshold: float                  = 0.47
         self.stage3_agent_order: List[str]               = list(ALL_AGENTS)
 
         # Feature bridge (325-dim extractor + rolling histories)
@@ -142,22 +144,35 @@ class PredictionService:
     # ------------------------------------------------------------------
 
     def _load_norm_stats(self, symbol: str) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        horizon   = int(self.config.get("model_info", {}).get("horizon_minutes", 30))
-        data_root = self.config.get("data_paths", {}).get("tier3_binary_root", "")
-        if not data_root:
-            logger.warning(f"  {symbol}: no tier3_binary_root in config — skipping normalisation")
-            return None, None
-        d = Path(data_root) / symbol / f"horizon_{horizon}min"
-        nm_path, ns_path = d / "norm_mean.npy", d / "norm_std.npy"
-        if nm_path.exists() and ns_path.exists():
-            try:
-                nm, ns = np.load(nm_path), np.load(ns_path)
-                logger.info(f"  {symbol}: normalisation loaded")
-                return nm, ns
-            except Exception as e:
-                logger.warning(f"  {symbol}: failed to load normalisation — {e}")
-        else:
-            logger.warning(f"  {symbol}: normalisation files not found at {d}")
+        horizon = int(self.config.get("model_info", {}).get("horizon_minutes", 30))
+        sub     = Path(symbol) / f"horizon_{horizon}min"
+
+        # Build a list of candidate directories to search:
+        #  1. Config-specified tier3_binary_root (absolute path)
+        #  2. Repo-relative: <repo_root>/data/tier3_binary_v5/
+        #  3. Sibling of SCRIPT_DIR: ../data/tier3_binary_v5/
+        candidates: list[Path] = []
+        cfg_root = self.config.get("data_paths", {}).get("tier3_binary_root", "")
+        if cfg_root:
+            candidates.append(Path(cfg_root) / sub)
+        candidates.append(SCRIPT_DIR.parent / "data" / "tier3_binary_v5" / sub)
+        candidates.append(SCRIPT_DIR / "data" / "tier3_binary_v5" / sub)
+
+        for d in candidates:
+            nm_path, ns_path = d / "norm_mean.npy", d / "norm_std.npy"
+            if nm_path.exists() and ns_path.exists():
+                try:
+                    nm, ns = np.load(nm_path), np.load(ns_path)
+                    logger.info(f"  {symbol}: normalisation loaded from {d}")
+                    return nm, ns
+                except Exception as e:
+                    logger.warning(f"  {symbol}: failed to load normalisation from {d} — {e}")
+
+        logger.error(
+            f"  {symbol}: *** NORMALISATION FILES NOT FOUND *** — "
+            f"searched {[str(c) for c in candidates]}.  "
+            f"Model will produce DEGRADED outputs without z-score normalisation!"
+        )
         return None, None
 
     def _load_all_models(self) -> None:
@@ -175,7 +190,14 @@ class PredictionService:
                 try:
                     ckpt  = torch.load(path, map_location="cpu", weights_only=False)
                     model = _build_model_from_ckpt(ckpt, agent_type=agent, device=self.device, symbol=symbol)
-                    self.stage1[symbol][agent] = _Stage1Bundle(model=model, norm_mean=nm, norm_std=ns)
+                    # Per-symbol Platt scaling — calibrates raw logits using
+                    # coefficients fitted during training for each (symbol, agent).
+                    platt_c = float(np.array(ckpt.get("platt_scaler_coef", [[1.0]])).flatten()[0])
+                    platt_i = float(np.array(ckpt.get("platt_scaler_intercept", [0.0])).flatten()[0])
+                    self.stage1[symbol][agent] = _Stage1Bundle(
+                        model=model, norm_mean=nm, norm_std=ns,
+                        platt_coef=platt_c, platt_intercept=platt_i,
+                    )
                     loaded_s1 += 1
                 except Exception as e:
                     logger.warning(f"  Failed to load stage1 {symbol}/{agent}: {e}")
@@ -211,6 +233,46 @@ class PredictionService:
         else:
             logger.warning(f"  Stage3 model not found: {path3}")
 
+        # ── Stage 3 VIX regime-gated fusion (uses learned per-agent gates) ──
+        path3_vg = MODEL_DIR / "stage3/stage3_vix_gated.pt"
+        if path3_vg.exists():
+            try:
+                from hybrid51_models.regime_gated_meta_model import RegimeGatedProbFusion
+                vg_ckpt = torch.load(path3_vg, map_location=self.device, weights_only=False)
+                self.stage3_vg = RegimeGatedProbFusion(
+                    agent_names=vg_ckpt["agent_names"],
+                    vix_feat_dim=vg_ckpt["vix_feat_dim"],
+                    regime_emb_dim=vg_ckpt["regime_emb_dim"],
+                    fusion_hidden_dim=vg_ckpt["fusion_hidden_dim"],
+                    dropout=vg_ckpt["dropout"],
+                ).to(self.device)
+                self.stage3_vg.load_state_dict(vg_ckpt["model_state_dict"], strict=True)
+                self.stage3_vg.eval()
+                self.stage3_vg_threshold = float(vg_ckpt.get("threshold", 0.47))
+                # Align gate order to the checkpoint's trained agent ordering.
+                # Avoids silent misalignment if checkpoint was trained with a
+                # different agent sequence than ALL_AGENTS.
+                if "agent_names" in vg_ckpt:
+                    self.stage3_agent_order = list(vg_ckpt["agent_names"])
+                logger.info("  Stage3-VG: loaded (VIX regime-gated fusion)")
+            except Exception as e:
+                logger.warning(f"  Failed to load stage3 VIX-gated: {e}")
+
+        # ── Normalization health check ─────────────────────────────────
+        syms_missing_norm = [
+            s for s in ALL_SYMBOLS
+            if self.stage1.get(s) and any(
+                b.norm_mean is None for b in self.stage1[s].values()
+            )
+        ]
+        if syms_missing_norm:
+            logger.error(
+                f"  *** CRITICAL: normalisation missing for {syms_missing_norm}. "
+                f"Stage-1 outputs will be UNRELIABLE (model trained on z-scored features). "
+                f"Fix the tier3_binary_root path in config/production_config.json "
+                f"or ensure norm_mean.npy / norm_std.npy exist."
+            )
+
         logger.info(f"Models loaded in {time.perf_counter() - t0:.1f}s")
 
     # ------------------------------------------------------------------
@@ -224,7 +286,14 @@ class PredictionService:
         chain: Optional[np.ndarray],
         bundle: _Stage1Bundle,
     ) -> Tuple[float, float]:
-        """Returns (logit, prob) for one (symbol, agent) pair."""
+        """Returns (logit, prob) for one (symbol, agent) pair.
+
+        Applies per-symbol Platt scaling to the raw model logit before
+        converting to probability.  This uses the calibration coefficients
+        fitted during training (stored in each checkpoint), which stretch
+        the output range and make each symbol's agent more sensitive to
+        changes in the underlying features.
+        """
         x = torch.from_numpy(seq.astype(np.float32)).to(self.device)
         if bundle.norm_mean is not None and bundle.norm_std is not None:
             nm = torch.from_numpy(bundle.norm_mean.astype(np.float32)).to(self.device)
@@ -234,8 +303,16 @@ class PredictionService:
 
         c = torch.from_numpy(chain.astype(np.float32)).to(self.device) if chain is not None else None
         logits = bundle.model(x, chain_2d=c).detach().cpu().numpy().reshape(-1)
-        logit  = float(np.clip(logits[-1], -88.0, 88.0))
-        return logit, float(1.0 / (1.0 + np.exp(-logit)))
+        raw_logit = float(np.clip(logits[-1], -88.0, 88.0))
+
+        # Platt scaling: calibrated_logit = coef * raw_logit + intercept
+        # Trained per (symbol, agent) pair — stretches weak-signal symbols
+        # (e.g. TLT coef~0.01 compresses noise, SPXW coef~1.05 preserves signal).
+        calibrated_logit = float(np.clip(
+            bundle.platt_coef * raw_logit + bundle.platt_intercept,
+            -88.0, 88.0,
+        ))
+        return calibrated_logit, float(1.0 / (1.0 + np.exp(-calibrated_logit)))
 
     # ------------------------------------------------------------------
     # Stage-2 design matrix
@@ -328,6 +405,8 @@ class PredictionService:
             suppression_reason = "no_snapshot_data"
         elif warmup_frac_effective < 0.35:
             suppression_reason = f"warmup_{int(warmup_frac_effective * SEQ_LEN)}_of_{SEQ_LEN}"
+        elif self.bridge.vix_level == 0.0 and warmup_frac_effective >= 1.0:
+            suppression_reason = "vix_level_zero"
 
         if suppression_reason:
             return self._suppressed_result(
@@ -419,9 +498,25 @@ class PredictionService:
 
         prob  = float(self.stage3_model.predict_proba(meta_feat)[0, 1])
         pred  = int(prob > self.threshold)
-        # Gates are uniformly 1.0 — RegimeGatedProbFusion is not deployed in this config.
-        # conf_gate_conviction reflects flat-weighted conviction, not regime-adaptive gates.
+
+        # VIX regime-gated gates — use learned per-agent gates from Stage 3 VG model.
+        # These gates reflect which agents the model trusts in the current VIX regime.
         gates = {a: 1.0 for a in self.stage3_agent_order}
+        if self.stage3_vg is not None:
+            try:
+                vg_agent_t = torch.from_numpy(agent_probs_ordered).unsqueeze(0).to(self.device)
+                # Reuse the already-computed vix_features (built at the top of
+                # _run_inference from real agg_df + snap_df).  Do NOT call
+                # build_vix_features() again — it appends to _vix_spot_history
+                # as a side-effect, which would corrupt the VIX history with a
+                # spurious 0.0 entry on every inference cycle.
+                vg_vix_t   = torch.from_numpy(vix_features.astype(np.float32)).to(self.device)
+                with torch.no_grad():
+                    _, vg_gates, _ = self.stage3_vg(vg_agent_t, vg_vix_t)
+                gate_arr_vg = vg_gates.detach().cpu().numpy().flatten()
+                gates = {a: float(gate_arr_vg[i]) for i, a in enumerate(self.stage3_agent_order)}
+            except Exception as e:
+                logger.debug(f"VG gate inference failed, using uniform gates: {e}")
 
         latency_ms  = round((time.perf_counter() - t0) * 1000.0, 2)
         direction   = "BULL" if pred == 1 else "BEAR"
