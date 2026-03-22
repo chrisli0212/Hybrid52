@@ -188,7 +188,14 @@ class PredictionService:
                 try:
                     ckpt  = torch.load(path, map_location="cpu", weights_only=False)
                     model = _build_model_from_ckpt(ckpt, agent_type=agent, device=self.device, symbol=symbol)
-                    self.stage1[symbol][agent] = _Stage1Bundle(model=model, norm_mean=nm, norm_std=ns)
+                    # Per-symbol Platt scaling — calibrates raw logits using
+                    # coefficients fitted during training for each (symbol, agent).
+                    platt_c = float(np.array(ckpt.get("platt_scaler_coef", [[1.0]])).flatten()[0])
+                    platt_i = float(np.array(ckpt.get("platt_scaler_intercept", [0.0])).flatten()[0])
+                    self.stage1[symbol][agent] = _Stage1Bundle(
+                        model=model, norm_mean=nm, norm_std=ns,
+                        platt_coef=platt_c, platt_intercept=platt_i,
+                    )
                     loaded_s1 += 1
                 except Exception as e:
                     logger.warning(f"  Failed to load stage1 {symbol}/{agent}: {e}")
@@ -252,7 +259,14 @@ class PredictionService:
         chain: Optional[np.ndarray],
         bundle: _Stage1Bundle,
     ) -> Tuple[float, float]:
-        """Returns (logit, prob) for one (symbol, agent) pair."""
+        """Returns (logit, prob) for one (symbol, agent) pair.
+
+        Applies per-symbol Platt scaling to the raw model logit before
+        converting to probability.  This uses the calibration coefficients
+        fitted during training (stored in each checkpoint), which stretch
+        the output range and make each symbol's agent more sensitive to
+        changes in the underlying features.
+        """
         x = torch.from_numpy(seq.astype(np.float32)).to(self.device)
         if bundle.norm_mean is not None and bundle.norm_std is not None:
             nm = torch.from_numpy(bundle.norm_mean.astype(np.float32)).to(self.device)
@@ -262,8 +276,16 @@ class PredictionService:
 
         c = torch.from_numpy(chain.astype(np.float32)).to(self.device) if chain is not None else None
         logits = bundle.model(x, chain_2d=c).detach().cpu().numpy().reshape(-1)
-        logit  = float(np.clip(logits[-1], -88.0, 88.0))
-        return logit, float(1.0 / (1.0 + np.exp(-logit)))
+        raw_logit = float(np.clip(logits[-1], -88.0, 88.0))
+
+        # Platt scaling: calibrated_logit = coef * raw_logit + intercept
+        # Trained per (symbol, agent) pair — stretches weak-signal symbols
+        # (e.g. TLT coef~0.01 compresses noise, SPXW coef~1.05 preserves signal).
+        calibrated_logit = float(np.clip(
+            bundle.platt_coef * raw_logit + bundle.platt_intercept,
+            -88.0, 88.0,
+        ))
+        return calibrated_logit, float(1.0 / (1.0 + np.exp(-calibrated_logit)))
 
     # ------------------------------------------------------------------
     # Stage-2 design matrix
