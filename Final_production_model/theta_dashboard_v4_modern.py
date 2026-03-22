@@ -5587,7 +5587,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
       Prob p5-p95  : 0.35 – 0.72   (normal trade range)
       Prob p10-p90 : 0.45 – 0.70   (tight range)
 
-    Each line is BLUE when bullish (rule>0 / prob>0.5), RED when bearish.
+    Each line is BLUE when bullish (rule>0 / prob>=S3_NEUTRAL), RED when bearish.
     Shadow fill between the line and its own neutral axis:
       Both bull  → blue,  Both bear → red,  Opposite → purple (diverging).
     """
