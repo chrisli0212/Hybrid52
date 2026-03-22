@@ -124,6 +124,8 @@ class PredictionService:
         self.stage1: Dict[str, Dict[str, _Stage1Bundle]] = {s: {} for s in ALL_SYMBOLS}
         self.stage2: Dict[str, Tuple[nn.Module, dict]]   = {}
         self.stage3_model: Optional[Any]                 = None
+        self.stage3_vg: Optional[nn.Module]              = None   # VIX regime-gated fusion
+        self.stage3_vg_threshold: float                  = 0.47
         self.stage3_agent_order: List[str]               = list(ALL_AGENTS)
 
         # Feature bridge (325-dim extractor + rolling histories)
@@ -230,6 +232,26 @@ class PredictionService:
                 logger.warning(f"  Failed to load stage3: {e}")
         else:
             logger.warning(f"  Stage3 model not found: {path3}")
+
+        # ── Stage 3 VIX regime-gated fusion (uses learned per-agent gates) ──
+        path3_vg = MODEL_DIR / "stage3/stage3_vix_gated.pt"
+        if path3_vg.exists():
+            try:
+                from hybrid51_models.regime_gated_meta_model import RegimeGatedProbFusion
+                vg_ckpt = torch.load(path3_vg, map_location=self.device, weights_only=False)
+                self.stage3_vg = RegimeGatedProbFusion(
+                    agent_names=vg_ckpt["agent_names"],
+                    vix_feat_dim=vg_ckpt["vix_feat_dim"],
+                    regime_emb_dim=vg_ckpt["regime_emb_dim"],
+                    fusion_hidden_dim=vg_ckpt["fusion_hidden_dim"],
+                    dropout=vg_ckpt["dropout"],
+                ).to(self.device)
+                self.stage3_vg.load_state_dict(vg_ckpt["model_state_dict"], strict=True)
+                self.stage3_vg.eval()
+                self.stage3_vg_threshold = float(vg_ckpt.get("threshold", 0.47))
+                logger.info("  Stage3-VG: loaded (VIX regime-gated fusion)")
+            except Exception as e:
+                logger.warning(f"  Failed to load stage3 VIX-gated: {e}")
 
         # ── Normalization health check ─────────────────────────────────
         syms_missing_norm = [
@@ -471,9 +493,24 @@ class PredictionService:
 
         prob  = float(self.stage3_model.predict_proba(meta_feat)[0, 1])
         pred  = int(prob > self.threshold)
-        # Gates are uniformly 1.0 — RegimeGatedProbFusion is not deployed in this config.
-        # conf_gate_conviction reflects flat-weighted conviction, not regime-adaptive gates.
+
+        # VIX regime-gated gates — use learned per-agent gates from Stage 3 VG model.
+        # These gates reflect which agents the model trusts in the current VIX regime.
         gates = {a: 1.0 for a in self.stage3_agent_order}
+        if self.stage3_vg is not None:
+            try:
+                vg_agent_t = torch.from_numpy(agent_probs_ordered).unsqueeze(0).to(self.device)
+                vg_vix_t   = torch.from_numpy(
+                    self.bridge.build_vix_features(
+                        pd.DataFrame(), snap_df=None,
+                    ).astype(np.float32)
+                ).to(self.device)
+                with torch.no_grad():
+                    _, vg_gates, _ = self.stage3_vg(vg_agent_t, vg_vix_t)
+                gate_arr_vg = vg_gates.detach().cpu().numpy().flatten()
+                gates = {a: float(gate_arr_vg[i]) for i, a in enumerate(self.stage3_agent_order)}
+            except Exception as e:
+                logger.debug(f"VG gate inference failed, using uniform gates: {e}")
 
         latency_ms  = round((time.perf_counter() - t0) * 1000.0, 2)
         direction   = "BULL" if pred == 1 else "BEAR"
