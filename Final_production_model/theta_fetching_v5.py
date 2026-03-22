@@ -30,7 +30,14 @@ from zoneinfo import ZoneInfo
 BASE_URL = "http://144.202.59.33:25503"
 SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "VIXW", "TLT"]
 FORMAT = "csv"
-MAX_DTE = 5
+MAX_DTE = {
+    "SPXW": 5,
+    "SPY": 5,
+    "QQQ": 5,
+    "IWM": 5,
+    "VIXW": 30,
+    "TLT": 5,
+}
 TIMEOUT = 30
 MAX_RETRIES = 2
 SLEEP_SECONDS = 10
@@ -548,7 +555,8 @@ def run_options_snapshot(client, batch_count):
         expirations = fetch_expirations(client, symbol)
         if not expirations:
             continue
-        expirations = filter_expirations_by_dte(expirations, MAX_DTE)
+        symbol_max_dte = MAX_DTE.get(symbol, 5) if isinstance(MAX_DTE, dict) else MAX_DTE
+        expirations = filter_expirations_by_dte(expirations, symbol_max_dte)
         if not expirations:
             continue
 

@@ -6,7 +6,7 @@ Replaces the old fake formula: confidence = abs(prob - threshold) * 2
 Four components (all derived from actual model internals):
     1. Agent Agreement   (0.40) — std of 7 Stage-2 agent probabilities
     2. Consensus Ratio   (0.20) — fraction of agents on the same side as pred
-    3. Gate Conviction   (0.20) — gate-weighted |agent_prob - 0.5|
+    3. Gate Conviction   (0.20) — gate-weighted |agent_prob - baseline|
     4. Data Quality      (0.20) — feature completeness + warmup fraction
 
 Exports:
@@ -18,6 +18,8 @@ from __future__ import annotations
 from typing import Dict, Tuple
 
 import numpy as np
+
+AGENT_BASELINES = np.array([0.45, 0.58, 0.50, 0.41, 0.46, 0.49, 0.47], dtype=np.float32)
 
 
 def compute_confidence(
@@ -53,25 +55,26 @@ def compute_confidence(
 
     # ── 2. Consensus Ratio (0.20) ──────────────────────────────────────────
     # How many agents agree with the final predicted direction.
+    baselines = AGENT_BASELINES[:n_agents]
     if pred == 1:
-        agreeing = int(np.sum(agent_probs > 0.5))
+        agreeing = int(np.sum(agent_probs >= baselines))
     else:
-        agreeing = int(np.sum(agent_probs <= 0.5))
+        agreeing = int(np.sum(agent_probs < baselines))
     consensus_ratio = float(agreeing / n_agents)
     # 50% agreement → 0 confidence, 100% → 1.0
     conf_consensus = float(np.clip((consensus_ratio - 0.5) * 2.0, 0.0, 1.0))
 
     # ── 3. Gate-Weighted Conviction (0.20) ────────────────────────────────
     # How strongly the trusted agents feel about their calls.
-    # |prob - 0.5| measures distance from uncertainty; max = 0.5.
-    # Practical ceiling ≈ 0.25 → scale so 0.25 maps to 1.0.
-    agent_convictions = np.abs(agent_probs - 0.5)
+    # |prob - baseline| measures distance from each agent's neutral output.
+    # Practical ceiling ≈ 0.15 in live data → scale so 0.15 maps to 1.0.
+    agent_convictions = np.abs(agent_probs - baselines)
     gate_sum = float(np.sum(gate_weights))
     if gate_sum > 1e-8:
         gate_conv = float(np.dot(gate_weights / gate_sum, agent_convictions))
     else:
         gate_conv = float(np.mean(agent_convictions))
-    conf_gate_conviction = float(np.clip(gate_conv / 0.25, 0.0, 1.0))
+    conf_gate_conviction = float(np.clip(gate_conv / 0.15, 0.0, 1.0))
 
     # ── 4. Data Quality (0.20) ────────────────────────────────────────────
     conf_data_quality = float(np.clip(

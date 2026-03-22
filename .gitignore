@@ -15,3 +15,14 @@ backup/
 Hybrid51_gh/.git/
 Hybrid51/.git/
 Final_production_model/daily_data/theta_snapshot_history.csv
+
+# IDE / local agent artifacts (do not commit)
+.cursor/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large runtime outputs (keep out of git)
+Final_production_model/daily_data/snapshots/
+Final_production_model/daily_data/theta_archive/
+Final_production_model/daily_data/.ipynb_checkpoints/
