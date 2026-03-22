@@ -291,8 +291,8 @@ class PredictionService:
         seq: np.ndarray,
         chain: Optional[np.ndarray],
         bundle: _Stage1Bundle,
-    ) -> Tuple[float, float]:
-        """Returns (logit, prob) for one (symbol, agent) pair.
+    ) -> Tuple[float, float, float]:
+        """Returns (raw_logit, calibrated_logit, calibrated_prob) for one (symbol, agent) pair.
 
         Applies per-symbol Platt scaling to the raw model logit before
         converting to probability.  This uses the calibration coefficients
@@ -318,7 +318,8 @@ class PredictionService:
             bundle.platt_coef * raw_logit + bundle.platt_intercept,
             -88.0, 88.0,
         ))
-        return calibrated_logit, float(1.0 / (1.0 + np.exp(-calibrated_logit)))
+        calibrated_prob = float(1.0 / (1.0 + np.exp(-calibrated_logit)))
+        return raw_logit, calibrated_logit, calibrated_prob
 
     @staticmethod
     def _chain_has_real_data(chain: Optional[np.ndarray]) -> bool:
@@ -437,7 +438,11 @@ class PredictionService:
             )
 
         # ── STAGE 1 ───────────────────────────────────────────────────────
+        # Keep both raw and calibrated Stage-1 logits:
+        # - raw logits match Stage-2 training feature distribution
+        # - calibrated logits/probs preserve post-Platt semantics
         stage1_logits: Dict[str, Dict[str, float]] = {s: {} for s in ALL_SYMBOLS}
+        stage1_raw_logits: Dict[str, Dict[str, float]] = {s: {} for s in ALL_SYMBOLS}
         stage1_probs:  Dict[str, Dict[str, float]] = {s: {} for s in ALL_SYMBOLS}
         missing_s1 = 0
         has_real_chain_data = False
@@ -457,10 +462,11 @@ class PredictionService:
                     missing_s1 += 1
                     continue
                 try:
-                    lg, pb = self._stage1_predict(
+                    raw_lg, cal_lg, pb = self._stage1_predict(
                         seq_t, chain_t if agent == "2D" else None, bundle
                     )
-                    stage1_logits[symbol][agent] = lg
+                    stage1_raw_logits[symbol][agent] = raw_lg
+                    stage1_logits[symbol][agent] = cal_lg
                     stage1_probs[symbol][agent]  = pb
                 except Exception as e:
                     logger.debug(f"Stage1 {symbol}/{agent} failed: {e}")
@@ -483,7 +489,7 @@ class PredictionService:
                 continue
             fusion, ckpt = self.stage2[agent]
             try:
-                X        = self._build_stage2_design_matrix(agent, ckpt, stage1_logits, stage1_probs)
+                X        = self._build_stage2_design_matrix(agent, ckpt, stage1_raw_logits, stage1_probs)
                 n_inputs = int(ckpt["n_inputs"])
                 if X.shape[1] != n_inputs:
                     logger.warning(
