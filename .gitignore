@@ -26,3 +26,7 @@ Final_production_model/daily_data/theta_snapshot_history.csv
 Final_production_model/daily_data/snapshots/
 Final_production_model/daily_data/theta_archive/
 Final_production_model/daily_data/.ipynb_checkpoints/
+
+# Local bulk data / samples (do not commit)
+historical_data/
+testdata/
