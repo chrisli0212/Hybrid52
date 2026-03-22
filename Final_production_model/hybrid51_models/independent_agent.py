@@ -43,6 +43,7 @@ class IndependentAgent(nn.Module):
         self,
         agent_type: str = 'A',
         feat_dim: int = 325,
+        seq_len: int = 20,
         temporal_dim: int = 128,
         dropout: float = 0.2,
         num_classes: int = 5,
@@ -58,6 +59,7 @@ class IndependentAgent(nn.Module):
 
         self.agent_type = agent_type.upper()
         self.full_feat_dim = feat_dim
+        self.seq_len = seq_len
         self.temporal_dim = temporal_dim
         self.num_classes = num_classes
         self.use_feature_subset = use_feature_subset
@@ -164,7 +166,7 @@ class IndependentAgent(nn.Module):
         elif self.agent_type == 'C':
             return agent_class(
                 input_dim=self.subset_feat_dim,
-                seq_len=20,
+                seq_len=self.seq_len,
                 embed_dim=96
             )
 
@@ -301,6 +303,7 @@ def create_independent_agent(config):
     model = IndependentAgent(
         agent_type=agent_type,
         feat_dim=getattr(config, 'feat_dim', config.get('feat_dim', 325)),
+        seq_len=getattr(config, 'seq_len', config.get('seq_len', 20)),
         temporal_dim=getattr(config, 'temporal_dim', config.get('temporal_dim', 128)),
         dropout=getattr(config, 'dropout', config.get('dropout', 0.2)),
         num_classes=getattr(config, 'num_classes', config.get('num_classes', 5)),

@@ -189,7 +189,13 @@ class PredictionService:
                     continue
                 try:
                     ckpt  = torch.load(path, map_location="cpu", weights_only=False)
-                    model = _build_model_from_ckpt(ckpt, agent_type=agent, device=self.device, symbol=symbol)
+                    model = _build_model_from_ckpt(
+                        ckpt,
+                        agent_type=agent,
+                        device=self.device,
+                        symbol=symbol,
+                        seq_len=SEQ_LEN,
+                    )
                     # Per-symbol Platt scaling — calibrates raw logits using
                     # coefficients fitted during training for each (symbol, agent).
                     platt_c = float(np.array(ckpt.get("platt_scaler_coef", [[1.0]])).flatten()[0])
@@ -314,6 +320,21 @@ class PredictionService:
         ))
         return calibrated_logit, float(1.0 / (1.0 + np.exp(-calibrated_logit)))
 
+    @staticmethod
+    def _chain_has_real_data(chain: Optional[np.ndarray]) -> bool:
+        """
+        Return True when the 2D chain tensor contains usable non-zero values.
+        """
+        if chain is None:
+            return False
+        arr = np.asarray(chain)
+        if arr.size == 0:
+            return False
+        finite = np.isfinite(arr)
+        if not finite.any():
+            return False
+        return bool(np.any(np.abs(arr[finite]) > 1e-8))
+
     # ------------------------------------------------------------------
     # Stage-2 design matrix
     # ------------------------------------------------------------------
@@ -419,12 +440,20 @@ class PredictionService:
         stage1_logits: Dict[str, Dict[str, float]] = {s: {} for s in ALL_SYMBOLS}
         stage1_probs:  Dict[str, Dict[str, float]] = {s: {} for s in ALL_SYMBOLS}
         missing_s1 = 0
+        has_real_chain_data = False
 
         for symbol in ALL_SYMBOLS:
             seq_t, chain_t = self.bridge.get_stage1_tensors(symbol)
+            symbol_chain_ready = self._chain_has_real_data(chain_t)
+            has_real_chain_data = has_real_chain_data or symbol_chain_ready
             for agent in ALL_AGENTS:
                 bundle = self.stage1.get(symbol, {}).get(agent)
                 if bundle is None:
+                    missing_s1 += 1
+                    continue
+                if agent == "2D" and not symbol_chain_ready:
+                    # During bridge warmup, chain tensors can be all-zeros; skip
+                    # Agent2D stage-1 inference to avoid synthetic-chain fallback.
                     missing_s1 += 1
                     continue
                 try:
@@ -442,6 +471,11 @@ class PredictionService:
         failed_s2:    List[str]        = []
 
         for agent in ALL_AGENTS:
+            if agent == "2D" and not has_real_chain_data:
+                logger.info("Stage2 agent2D skipped: no real chain_2d data yet (warmup/empty)")
+                stage2_probs[agent] = 0.5
+                failed_s2.append(agent)
+                continue
             if agent not in self.stage2:
                 logger.warning(f"Stage2 agent {agent} not loaded — using 0.5 fallback")
                 stage2_probs[agent] = 0.5

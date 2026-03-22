@@ -35,8 +35,8 @@ MAX_DTE = {
     "SPY": 5,
     "QQQ": 5,
     "IWM": 5,
-    "VIXW": 30,
     "TLT": 5,
+    "VIXW": 30,  # VIX weeklies expire weekly — need wider DTE window
 }
 TIMEOUT = 30
 MAX_RETRIES = 2
@@ -352,8 +352,10 @@ def enrich_for_ai(merged_df, batch_id, now_timestamp, atm_strikes):
     if oi_cache:
         def _oi_lookup(row):
             strike_val = pd.to_numeric(row.get("strike", np.nan), errors="coerce")
+            exp_parsed = parse_expiration(str(row.get("expiration", "")))
+            exp_key = exp_parsed.strftime("%Y-%m-%d") if exp_parsed else str(row.get("expiration", ""))
             key = (str(row.get("symbol", "")),
-                   str(row.get("expiration", "")),
+                   exp_key,
                    str(float(strike_val)) if pd.notna(strike_val) else "",
                    str(row.get("right", "")))
             return oi_cache.get(key, np.nan)
@@ -365,18 +367,25 @@ def enrich_for_ai(merged_df, batch_id, now_timestamp, atm_strikes):
     if "oi" in df.columns:
         oi_vals = pd.to_numeric(df["oi"], errors="coerce")
         cp_sign_vals = df["cp_sign"] if "cp_sign" in df.columns else 1
+        spot_vals = pd.to_numeric(df["spot"], errors="coerce") if "spot" in df.columns else 1
         for greek in ["gamma", "vega", "theta", "delta"]:
             gcol = next((c for c in df.columns if greek in c.lower()
                          and 'exp' not in c.lower()), None)
             if gcol:
                 greek_vals = pd.to_numeric(df[gcol], errors="coerce")
                 if greek == "delta":
-                    df[f"{greek}_exp"] = greek_vals * oi_vals
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * 100
                 elif greek == "theta":
                     # Negate: API theta is negative (buyer's cost); dealer perspective is positive (premium collected)
-                    df[f"{greek}_exp"] = -greek_vals * oi_vals
+                    df[f"{greek}_exp"] = -greek_vals * oi_vals * 100
+                elif greek == "gamma":
+                    # Dealer GEX: gamma × OI × spot × 100 × cp_sign
+                    # cp_sign (+1 call, -1 put) gives dealer perspective:
+                    #   Calls: +gamma×OI×spot×100 (dealers short calls → long gamma hedge)
+                    #   Puts:  -gamma×OI×spot×100 (dealers short puts → short gamma hedge)
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * spot_vals * 100 * cp_sign_vals
                 else:
-                    df[f"{greek}_exp"] = greek_vals * oi_vals * cp_sign_vals
+                    df[f"{greek}_exp"] = greek_vals * oi_vals * cp_sign_vals * 100
 
     iv_col = next((c for c in df.columns if 'implied_vol' in c.lower()), None)
     track_cols = []
@@ -577,7 +586,9 @@ def run_options_snapshot(client, batch_count):
                     oi_col_name = next((c for c in oi_df.columns if 'open_interest' in c.lower()), None)
                     if oi_col_name:
                         for _, row in oi_df.iterrows():
-                            key = (symbol, str(row.get("expiration", exp)),
+                            exp_normalized = parse_expiration(str(row.get("expiration", exp)))
+                            exp_key = exp_normalized.strftime("%Y-%m-%d") if exp_normalized else str(row.get("expiration", exp))
+                            key = (symbol, exp_key,
                                    str(float(row["strike"])) if pd.notna(row.get("strike")) else "",
                                    str(row.get("right", "")))
                             oi_cache[key] = row[oi_col_name]

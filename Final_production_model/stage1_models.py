@@ -32,11 +32,13 @@ class BinaryIndependentAgent(nn.Module):
         use_attention_backbone: bool = False,
         use_attention_pool: bool = False,
         cls_input_dim: Optional[int] = None,
+        seq_len: int = 20,
     ):
         super().__init__()
         self.base = IndependentAgent(
             agent_type=agent_type,
             feat_dim=feat_dim,
+            seq_len=seq_len,
             temporal_dim=temporal_dim,
             dropout=dropout,
             num_classes=5,
@@ -61,16 +63,18 @@ def _build_model_from_ckpt(
     agent_type: str,
     device: torch.device,
     symbol: str = "SPXW",
+    seq_len: int = 20,
 ) -> nn.Module:
     """Reconstruct a BinaryIndependentAgent that exactly matches a saved checkpoint."""
     state = ckpt["model_state_dict"]
 
+    # Hybrid52 production inference uses 325-dim features only (no legacy 650-dim path).
     if "feat_dim" in ckpt:
         feat_dim = int(ckpt["feat_dim"])
-    elif "base._feat_idx" in state and state["base._feat_idx"].numel() > 0:
-        feat_dim = 650 if int(state["base._feat_idx"].max().item()) >= 325 else 325
+        if feat_dim == 650:
+            feat_dim = 325
     else:
-        feat_dim = 325 if symbol == "SPXW" else 650
+        feat_dim = 325
 
     use_subset    = bool(ckpt.get("feature_subset", True))
     use_attn_bb   = bool(ckpt.get("use_attention_backbone", False))
@@ -81,6 +85,7 @@ def _build_model_from_ckpt(
     model = BinaryIndependentAgent(
         agent_type=agent_type,
         feat_dim=feat_dim,
+        seq_len=seq_len,
         use_feature_subset=use_subset,
         use_attention_backbone=use_attn_bb,
         use_attention_pool=use_attn_pool,
