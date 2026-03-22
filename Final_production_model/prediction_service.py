@@ -223,6 +223,28 @@ class PredictionService:
                 fusion.load_state_dict(ckpt[sd_key], strict=True)
                 fusion.eval()
                 self.stage2[agent] = (fusion, ckpt)
+                if (
+                    agent == "2D"
+                    and ckpt.get("target") == "SPXW"
+                    and "spxw_2d_state_dict" in ckpt
+                ):
+                    spxw_bundle = self.stage1.get("SPXW", {}).get("2D")
+                    if spxw_bundle is not None:
+                        try:
+                            spxw_bundle.model.load_state_dict(
+                                ckpt["spxw_2d_state_dict"],
+                                strict=True,
+                            )
+                            spxw_bundle.model.eval()
+                            logger.info(
+                                "  Stage2 agent2D: loaded fine-tuned SPXW 2D backbone "
+                                "from stage2 checkpoint"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                "  Stage2 agent2D: failed to load spxw_2d_state_dict "
+                                f"({e}) — using original Stage1 SPXW 2D weights"
+                            )
                 loaded_s2 += 1
             except Exception as e:
                 logger.warning(f"  Failed to load stage2 agent{agent}: {e}")
