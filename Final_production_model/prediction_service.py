@@ -500,11 +500,12 @@ class PredictionService:
         if self.stage3_vg is not None:
             try:
                 vg_agent_t = torch.from_numpy(agent_probs_ordered).unsqueeze(0).to(self.device)
-                vg_vix_t   = torch.from_numpy(
-                    self.bridge.build_vix_features(
-                        pd.DataFrame(), snap_df=None,
-                    ).astype(np.float32)
-                ).to(self.device)
+                # Reuse the already-computed vix_features (built at the top of
+                # _run_inference from real agg_df + snap_df).  Do NOT call
+                # build_vix_features() again — it appends to _vix_spot_history
+                # as a side-effect, which would corrupt the VIX history with a
+                # spurious 0.0 entry on every inference cycle.
+                vg_vix_t   = torch.from_numpy(vix_features.astype(np.float32)).to(self.device)
                 with torch.no_grad():
                     _, vg_gates, _ = self.stage3_vg(vg_agent_t, vg_vix_t)
                 gate_arr_vg = vg_gates.detach().cpu().numpy().flatten()
