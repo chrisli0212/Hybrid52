@@ -249,6 +249,11 @@ class PredictionService:
                 self.stage3_vg.load_state_dict(vg_ckpt["model_state_dict"], strict=True)
                 self.stage3_vg.eval()
                 self.stage3_vg_threshold = float(vg_ckpt.get("threshold", 0.47))
+                # Align gate order to the checkpoint's trained agent ordering.
+                # Avoids silent misalignment if checkpoint was trained with a
+                # different agent sequence than ALL_AGENTS.
+                if "agent_names" in vg_ckpt:
+                    self.stage3_agent_order = list(vg_ckpt["agent_names"])
                 logger.info("  Stage3-VG: loaded (VIX regime-gated fusion)")
             except Exception as e:
                 logger.warning(f"  Failed to load stage3 VIX-gated: {e}")
