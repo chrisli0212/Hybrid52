@@ -229,7 +229,12 @@ class FeatureBridge:
 
         df = df.copy()
         # Filter to calls only — consistent with training data convention for 2D chain input
-        snap_calls = df[df["cp_sign"] == 1].copy() if "cp_sign" in df.columns else df.copy()
+        if "cp_sign" in df.columns:
+            snap_calls = df[df["cp_sign"] == 1].copy()
+        elif "right" in df.columns:
+            snap_calls = df[df["right"] == "C"].copy()
+        else:
+            snap_calls = df.copy()
         if snap_calls.empty:
             snap_calls = df.copy()
         snap_calls["_dist"] = (snap_calls["strike"].astype(float) - atm).abs()
