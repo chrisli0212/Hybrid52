@@ -93,7 +93,6 @@ class IndependentAgent(nn.Module):
             )
 
         # Determine backbone input dim
-        backbone_feat_dim = self.subset_feat_dim if self.use_backbone else self.subset_feat_dim
 
         # Temporal backbone
         if self.use_backbone:
@@ -268,7 +267,7 @@ class IndependentAgent(nn.Module):
         # Build classifier input
         if temporal_embed is not None:
             features = torch.cat([score, confidence, temporal_embed], dim=1)
-        elif hasattr(self, 'static_proj'):
+        elif self.static_proj is not None:
             proj_static = torch.relu(self.static_proj(static))
             features = torch.cat([score, confidence, proj_static], dim=1)
         else:
