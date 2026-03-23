@@ -1,8 +1,100 @@
 {
-  "n_samples": 83,
-  "n_snapshots_attempted": 83,
-  "n_failed": 0,
-  "feat_dim": 325,
-  "n_zero_variance": 162,
-  "computation_date": "2026-03-13T15:22:03.626579"
+  "mode": "copy_from_canonical_tier3",
+  "requested_source_root": "/workspace/data/tier3_binary_2026_v1",
+  "selected_source_root": "/workspace/data/tier3_binary_2026_v1",
+  "search_root": "/workspace",
+  "discovery_candidates": [],
+  "output_root": "/workspace/data/tier3_binary_v5",
+  "horizon": "horizon_30min",
+  "symbols": [
+    "SPXW",
+    "SPY",
+    "QQQ",
+    "IWM",
+    "TLT"
+  ],
+  "copied_files": [
+    {
+      "symbol": "SPXW",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "cf21f82f518055f6"
+    },
+    {
+      "symbol": "SPXW",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "9d2c1775283394bb"
+    },
+    {
+      "symbol": "SPY",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "9c89b52a8d5bb4c5"
+    },
+    {
+      "symbol": "SPY",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "954d10f6f28b96d0"
+    },
+    {
+      "symbol": "QQQ",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "fd42fb4529c5a862"
+    },
+    {
+      "symbol": "QQQ",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "f48bcf1fa8a9b7de"
+    },
+    {
+      "symbol": "IWM",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "b4b42bbc291ceafd"
+    },
+    {
+      "symbol": "IWM",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "e63e238d0835f54b"
+    },
+    {
+      "symbol": "TLT",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "7b9d5e53be363275"
+    },
+    {
+      "symbol": "TLT",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "47f38a05a94ab285"
+    }
+  ],
+  "failed": [],
+  "timestamp": "2026-03-23T07:06:38.478896Z"
 }
