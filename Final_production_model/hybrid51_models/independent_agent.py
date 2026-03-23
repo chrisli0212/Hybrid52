@@ -93,6 +93,7 @@ class IndependentAgent(nn.Module):
             )
 
         # Determine backbone input dim
+        backbone_feat_dim = self.subset_feat_dim
 
         # Temporal backbone
         if self.use_backbone:
