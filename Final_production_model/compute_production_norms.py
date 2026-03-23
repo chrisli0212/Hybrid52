@@ -1,155 +1,217 @@
 #!/usr/bin/env python3
 """
-Compute Normalization Statistics from Production Snapshots
+Sync production normalization files from canonical per-symbol training stats.
 
-Generates norm_mean.npy and norm_std.npy for each symbol from recent snapshot data.
-This enables proper z-score normalization for Stage 1 models.
+This script intentionally avoids deriving norms from live snapshots, because
+Stage-1 models were trained with precomputed per-symbol tier3 train-split stats.
 
 Usage:
     python compute_production_norms.py
-    python compute_production_norms.py --snapshots 1000  # Use more snapshots
+    python compute_production_norms.py --source-root /workspace/data/tier3_binary_v4
 """
 
 import argparse
-import numpy as np
-import pandas as pd
-from pathlib import Path
-from glob import glob
-import sys
+import hashlib
+import json
 import logging
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+import numpy as np
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-# Add paths
-SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
-HYBRID51_DIR = SCRIPT_DIR.parent / "Hybrid51" / "6. Hybrid51_new stage"
-sys.path.insert(1, str(HYBRID51_DIR))
+DEFAULT_SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
+NORM_FILES = ("norm_mean.npy", "norm_std.npy")
 
-from prediction_service import FeatureBridge
 
-def main():
+def _sha16(arr: np.ndarray) -> str:
+    return hashlib.sha256(arr.tobytes()).hexdigest()[:16]
+
+
+def _root_has_complete_norms(root: Path, symbols: list[str], horizon_dir: str) -> tuple[bool, list[str]]:
+    missing: list[str] = []
+    for symbol in symbols:
+        for fname in NORM_FILES:
+            p = root / symbol / horizon_dir / fname
+            if not p.exists():
+                missing.append(str(p))
+    return len(missing) == 0, missing
+
+
+def _discover_source_roots(search_root: Path, symbols: list[str], horizon_dir: str) -> list[Path]:
+    """
+    Discover candidate roots under search_root matching:
+      <root>/SPXW/<horizon_dir>/norm_mean.npy
+    then validate full symbol coverage for both norm files.
+    """
+    if not search_root.exists():
+        return []
+
+    candidates: set[Path] = set()
+    for norm_mean in search_root.rglob("norm_mean.npy"):
+        # Expect: <root>/SPXW/horizon_XXmin/norm_mean.npy
+        if norm_mean.parent.name != horizon_dir:
+            continue
+        symbol_dir = norm_mean.parent.parent
+        if symbol_dir.name != "SPXW":
+            continue
+        root = symbol_dir.parent
+        ok, _ = _root_has_complete_norms(root, symbols, horizon_dir)
+        if ok:
+            candidates.add(root)
+
+    return sorted(candidates, key=lambda p: (len(p.parts), str(p)))
+
+
+def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--snapshots", type=int, default=500,
-                        help="Number of recent snapshots to use for statistics")
-    parser.add_argument("--output-dir", type=str, default="/workspace/data/tier3_binary_v5",
-                        help="Output directory for normalization stats")
+    parser.add_argument(
+        "--source-root",
+        "--src",
+        dest="source_root",
+        type=str,
+        default=None,
+        help="Canonical tier3 root containing per-symbol norm files (optional)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        "--dst",
+        dest="output_dir",
+        type=str,
+        default="/workspace/data/tier3_binary_v5",
+        help="Destination root used by production inference",
+    )
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=30,
+        help="Horizon in minutes (used in horizon_<N>min path)",
+    )
+    parser.add_argument(
+        "--symbols",
+        nargs="+",
+        default=DEFAULT_SYMBOLS,
+        help="Symbols to sync normalization files for",
+    )
+    parser.add_argument(
+        "--search-root",
+        type=str,
+        default="/workspace",
+        help="Root path to scan when --source-root is missing/invalid",
+    )
     args = parser.parse_args()
 
+    requested_source = Path(args.source_root).resolve() if args.source_root else None
+    output_root = Path(args.output_dir)
+    search_root = Path(args.search_root)
+    horizon_dir = f"horizon_{int(args.horizon)}min"
+    symbols = [s.upper() for s in args.symbols]
+
     logger.info("=" * 70)
-    logger.info("COMPUTING PRODUCTION NORMALIZATION STATISTICS")
+    logger.info("SYNCING PRODUCTION NORMALIZATION FILES")
     logger.info("=" * 70)
-    
-    # Find snapshot files
-    snapshot_dir = SCRIPT_DIR / "daily_data" / "snapshots"
-    if not snapshot_dir.exists():
-        logger.error(f"Snapshot directory not found: {snapshot_dir}")
+    logger.info(f"Requested source root: {requested_source}")
+    logger.info(f"Search root: {search_root}")
+    logger.info(f"Output root: {output_root}")
+    logger.info(f"Horizon: {horizon_dir}")
+    logger.info(f"Symbols: {symbols}")
+
+    selected_source: Path | None = None
+    discovery_candidates: list[Path] = []
+
+    # 1) Prefer explicit source when valid.
+    if requested_source is not None:
+        ok, missing = _root_has_complete_norms(requested_source, symbols, horizon_dir)
+        if ok:
+            selected_source = requested_source
+        else:
+            logger.warning(f"Requested source is missing required files: {requested_source}")
+            for m in missing[:5]:
+                logger.warning(f"  missing: {m}")
+            if len(missing) > 5:
+                logger.warning(f"  ... and {len(missing) - 5} more")
+
+    # 2) Fall back to auto-discovery under /workspace (or configured search root).
+    if selected_source is None:
+        discovery_candidates = _discover_source_roots(search_root, symbols, horizon_dir)
+        if discovery_candidates:
+            selected_source = discovery_candidates[0]
+            logger.info(f"Auto-discovered source root: {selected_source}")
+            if len(discovery_candidates) > 1:
+                logger.warning("Multiple valid source roots found; selected the first by stable ordering.")
+                for alt in discovery_candidates[1:]:
+                    logger.warning(f"  alternate: {alt}")
+
+    if selected_source is None:
+        logger.error("No valid canonical norm source root found.")
+        logger.error(
+            "Provide --source-root explicitly or place per-symbol norm files under "
+            "<root>/<SYMBOL>/" + horizon_dir + "/norm_{mean,std}.npy"
+        )
         return 1
-    
-    snapshot_files = sorted(glob(str(snapshot_dir / "snapshot_*.csv")))
-    if not snapshot_files:
-        logger.error("No snapshot files found")
-        return 1
-    
-    # Use most recent N snapshots
-    snapshot_files = snapshot_files[-args.snapshots:]
-    logger.info(f"Using {len(snapshot_files)} most recent snapshots")
-    logger.info(f"  First: {Path(snapshot_files[0]).name}")
-    logger.info(f"  Last: {Path(snapshot_files[-1]).name}")
-    
-    # Initialize feature bridge
-    logger.info("\nInitializing feature extractor...")
-    bridge = FeatureBridge()
-    
-    # Extract features from all snapshots
-    logger.info("\nExtracting features from snapshots...")
-    all_features = []
-    failed_count = 0
-    
-    for i, snap_file in enumerate(snapshot_files):
-        if (i + 1) % 100 == 0:
-            logger.info(f"  Processed {i+1}/{len(snapshot_files)} snapshots...")
-        
-        try:
-            df = pd.read_csv(snap_file)
-            vec, quality = bridge.extract_325_features(df)
-            all_features.append(vec)
-        except Exception as e:
-            logger.warning(f"  Failed to extract from {Path(snap_file).name}: {e}")
-            failed_count += 1
-    
-    if not all_features:
-        logger.error("No features extracted successfully")
-        return 1
-    
-    logger.info(f"Successfully extracted features from {len(all_features)} snapshots")
-    if failed_count > 0:
-        logger.warning(f"  {failed_count} snapshots failed")
-    
-    # Stack features into matrix
-    logger.info("\nComputing statistics...")
-    features_matrix = np.stack(all_features, axis=0)  # (N, 325)
-    logger.info(f"  Feature matrix shape: {features_matrix.shape}")
-    
-    # Compute mean and std
-    mean = features_matrix.mean(axis=0)
-    std = features_matrix.std(axis=0, ddof=1)  # Use sample std (ddof=1)
-    
-    # Identify zero-variance features
-    zero_var_mask = (std < 1e-6)
-    n_zero = zero_var_mask.sum()
-    
-    # Replace zero-std with 1.0 to avoid division by zero
-    std[zero_var_mask] = 1.0
-    
-    logger.info(f"  Mean range: [{mean.min():.4f}, {mean.max():.4f}]")
-    logger.info(f"  Std range: [{std.min():.4f}, {std.max():.4f}]")
-    logger.info(f"  Zero-variance features: {n_zero}/{len(mean)}")
-    logger.info(f"  Non-zero features: {np.count_nonzero(mean)}/{len(mean)}")
-    
-    # Save for each symbol (using same stats for all symbols)
-    # Note: In full training, each symbol would have separate stats
-    # For production with limited data, shared stats are acceptable
-    
-    logger.info("\nSaving normalization statistics...")
-    symbols = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
-    
+
+    copied = []
+    failed = []
+
     for symbol in symbols:
-        out_dir = Path(args.output_dir) / symbol / "horizon_30min"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        
-        np.save(out_dir / 'norm_mean.npy', mean.astype(np.float32))
-        np.save(out_dir / 'norm_std.npy', std.astype(np.float32))
-        np.save(out_dir / 'zero_variance_mask.npy', zero_var_mask)
-        
-        logger.info(f"  ✓ {symbol}: Saved to {out_dir}")
-    
-    # Save metadata
+        src_dir = selected_source / symbol / horizon_dir
+        dst_dir = output_root / symbol / horizon_dir
+        dst_dir.mkdir(parents=True, exist_ok=True)
+
+        for fname in NORM_FILES:
+            src = src_dir / fname
+            dst = dst_dir / fname
+            if not src.exists():
+                logger.error(f"Missing source file: {src}")
+                failed.append(str(src))
+                continue
+
+            try:
+                arr = np.load(src)
+                if arr.ndim != 1:
+                    raise ValueError(f"{fname} must be 1D, got shape {arr.shape}")
+                if arr.shape[0] != 325:
+                    raise ValueError(f"{fname} expected length 325, got {arr.shape[0]}")
+
+                shutil.copy2(src, dst)
+                copied.append({
+                    "symbol": symbol,
+                    "file": fname,
+                    "shape": list(arr.shape),
+                    "sha16": _sha16(arr),
+                })
+                logger.info(f"  Copied {symbol}/{fname}  shape={arr.shape} sha16={_sha16(arr)}")
+            except Exception as e:
+                logger.error(f"Failed to process {src}: {e}")
+                failed.append(f"{src}: {e}")
+
     metadata = {
-        'n_samples': len(all_features),
-        'n_snapshots_attempted': len(snapshot_files),
-        'n_failed': failed_count,
-        'feat_dim': 325,
-        'n_zero_variance': int(n_zero),
-        'computation_date': pd.Timestamp.now().isoformat(),
+        "mode": "copy_from_canonical_tier3",
+        "requested_source_root": str(requested_source) if requested_source is not None else None,
+        "selected_source_root": str(selected_source),
+        "search_root": str(search_root),
+        "discovery_candidates": [str(p) for p in discovery_candidates],
+        "output_root": str(output_root),
+        "horizon": horizon_dir,
+        "symbols": symbols,
+        "copied_files": copied,
+        "failed": failed,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }
-    
-    metadata_path = Path(args.output_dir) / "normalization_metadata.json"
-    import json
-    with open(metadata_path, 'w') as f:
+    meta_path = output_root / "normalization_metadata.json"
+    with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
-    logger.info(f"\n✓ Metadata saved to {metadata_path}")
-    
-    logger.info("\n" + "=" * 70)
-    logger.info("✅ NORMALIZATION STATISTICS COMPUTED AND SAVED")
-    logger.info("=" * 70)
-    logger.info("\nNext steps:")
-    logger.info("  1. Restart prediction service")
-    logger.info("  2. Verify 'Normalization loaded' appears in logs")
-    logger.info("  3. Check agent probabilities vary more (std >0.05)")
-    logger.info("  4. Monitor predictions for 1 hour")
-    
+    logger.info(f"Wrote metadata: {meta_path}")
+
+    if failed:
+        logger.error("Completed with errors. Some norm files were not synced.")
+        return 1
+
+    logger.info("All normalization files synced successfully.")
     return 0
 
 
