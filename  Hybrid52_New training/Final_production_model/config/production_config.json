@@ -1,0 +1,57 @@
+{
+  "model_info": {
+    "name": "Hybrid51 h30 VIX-Gated Production Model",
+    "version": "1.0",
+    "date": "2026-03-09",
+    "horizon_minutes": 30,
+    "target_symbol": "SPXW",
+    "test_auc": 0.7221,
+    "test_f1": 0.7162,
+    "test_accuracy": 0.6100
+  },
+  "architecture": {
+    "stage1": {
+      "wrapper_class": "BinaryIndependentAgent",
+      "note": "State dict keys prefixed with 'base.' — requires BinaryIndependentAgent wrapper",
+      "symbols": ["SPXW", "SPY", "QQQ", "IWM", "TLT"],
+      "agents": ["A", "B", "C", "K", "T", "Q", "2D"],
+      "total_models": 35,
+      "feat_dim": "auto-detected from checkpoint (325 for SPXW, inferred from _feat_idx for others)",
+      "use_feature_subset": true,
+      "temporal_dim": 128,
+      "classifier": "3-layer (cls_input_dim → 128 → 64 → 1) with GELU",
+      "normalization": "norm_mean.npy / norm_std.npy (precomputed, not on-the-fly)"
+    },
+    "stage2": {
+      "fusion_type": "CrossSymbolAgentFusion",
+      "agents": 7,
+      "standard_agents_n_inputs": 13,
+      "standard_agents_symbols": ["SPXW", "SPY", "QQQ", "IWM"],
+      "standard_agents_sd_key": "model_state_dict",
+      "agent_2d_n_inputs": 14,
+      "agent_2d_peers": ["SPY", "QQQ", "IWM", "TLT"],
+      "agent_2d_sd_key": "fusion_state_dict",
+      "uses_chain_context": true,
+      "chain_context_keys": "{split}_logits and {split}_probs (not 'chain_context')",
+      "hidden_dim": 32,
+      "dropout": 0.2
+    },
+    "stage3": {
+      "method": "vix_gated",
+      "model_type": "RegimeGatedProbFusion",
+      "vix_feat_dim": 10,
+      "regime_emb_dim": 32,
+      "fusion_hidden_dim": 64,
+      "dropout": 0.2,
+      "threshold": 0.47
+    }
+  },
+  "data_paths": {
+    "tier3_binary_root": "/workspace/data/tier3_binary_v5",
+    "vix_features_root": "/workspace/data/tier3_vix_v4/VIXW"
+  },
+  "inference": {
+    "batch_size": 1024,
+    "device": "cuda"
+  }
+}

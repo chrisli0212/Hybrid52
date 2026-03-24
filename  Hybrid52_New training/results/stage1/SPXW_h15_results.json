@@ -1,0 +1,251 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.6272,
+    "f1": 0.6974,
+    "auc": 0.6874,
+    "ic": 0.3098,
+    "brier": 0.229556,
+    "threshold": 0.34,
+    "quintile_mean_returns_bp": {
+      "q1": -9.027,
+      "q2": -5.1276,
+      "q3": 0.4508,
+      "q4": 6.7808,
+      "q5": 8.6964
+    },
+    "quintile_spread_bp": 17.7233,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6272,
+        "f1": 0.6974,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6488,
+        "f1": 0.6579,
+        "coverage": 0.6344,
+        "n": 43229
+      },
+      "conf>=0.4": {
+        "accuracy": 0.786,
+        "f1": 0.6642,
+        "coverage": 0.1314,
+        "n": 8953
+      }
+    },
+    "n_params": 519032
+  },
+  "agent_B_classifier": {
+    "accuracy": 0.6199,
+    "f1": 0.6939,
+    "auc": 0.6846,
+    "ic": 0.31,
+    "brier": 0.226277,
+    "threshold": 0.38,
+    "quintile_mean_returns_bp": {
+      "q1": -8.9811,
+      "q2": -4.0367,
+      "q3": -1.0894,
+      "q4": 5.5832,
+      "q5": 10.2975
+    },
+    "quintile_spread_bp": 19.2786,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6199,
+        "f1": 0.6939,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6748,
+        "f1": 0.681,
+        "coverage": 0.5769,
+        "n": 39310
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7673,
+        "f1": 0.749,
+        "coverage": 0.1783,
+        "n": 12151
+      },
+      "conf>=0.6": {
+        "accuracy": 0.7807,
+        "f1": 0.838,
+        "coverage": 0.0272,
+        "n": 1851
+      }
+    },
+    "n_params": 435523
+  },
+  "agent_K_classifier": {
+    "accuracy": 0.6229,
+    "f1": 0.6979,
+    "auc": 0.6841,
+    "ic": 0.3159,
+    "brier": 0.22743,
+    "threshold": 0.37,
+    "quintile_mean_returns_bp": {
+      "q1": -8.8058,
+      "q2": -5.5235,
+      "q3": 0.2973,
+      "q4": 6.5322,
+      "q5": 9.2732
+    },
+    "quintile_spread_bp": 18.079,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6229,
+        "f1": 0.6979,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6606,
+        "f1": 0.6714,
+        "coverage": 0.5964,
+        "n": 40640
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7452,
+        "f1": 0.7508,
+        "coverage": 0.1815,
+        "n": 12364
+      },
+      "conf>=0.6": {
+        "accuracy": 0.7725,
+        "f1": 0.8421,
+        "coverage": 0.0277,
+        "n": 1890
+      }
+    },
+    "n_params": 231076
+  },
+  "agent_C_classifier": {
+    "accuracy": 0.6014,
+    "f1": 0.6835,
+    "auc": 0.6607,
+    "ic": 0.2725,
+    "brier": 0.23176,
+    "threshold": 0.4,
+    "quintile_mean_returns_bp": {
+      "q1": -8.1748,
+      "q2": -3.6905,
+      "q3": -0.5224,
+      "q4": 4.9721,
+      "q5": 9.1891
+    },
+    "quintile_spread_bp": 17.3639,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6014,
+        "f1": 0.6835,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6808,
+        "f1": 0.6645,
+        "coverage": 0.4691,
+        "n": 31966
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7416,
+        "f1": 0.7848,
+        "coverage": 0.0574,
+        "n": 3912
+      }
+    },
+    "n_params": 545328
+  },
+  "agent_T_classifier": {
+    "accuracy": 0.6141,
+    "f1": 0.6767,
+    "auc": 0.6536,
+    "ic": 0.2721,
+    "brier": 0.239668,
+    "threshold": 0.36,
+    "quintile_mean_returns_bp": {
+      "q1": -9.3181,
+      "q2": -3.2769,
+      "q3": 1.6126,
+      "q4": 4.8043,
+      "q5": 7.9514
+    },
+    "quintile_spread_bp": 17.2695,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6141,
+        "f1": 0.6767,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6311,
+        "f1": 0.5464,
+        "coverage": 0.5141,
+        "n": 35032
+      },
+      "conf>=0.4": {
+        "accuracy": 0.691,
+        "f1": 0.1727,
+        "coverage": 0.2039,
+        "n": 13892
+      },
+      "conf>=0.6": {
+        "accuracy": 0.7988,
+        "f1": 0.016,
+        "coverage": 0.0269,
+        "n": 1834
+      }
+    },
+    "n_params": 161500
+  },
+  "agent_Q_classifier": {
+    "accuracy": 0.6259,
+    "f1": 0.6819,
+    "auc": 0.6762,
+    "ic": 0.2938,
+    "brier": 0.230435,
+    "threshold": 0.38,
+    "quintile_mean_returns_bp": {
+      "q1": -7.7627,
+      "q2": -5.2311,
+      "q3": -0.2011,
+      "q4": 6.0925,
+      "q5": 8.8758
+    },
+    "quintile_spread_bp": 16.6386,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6259,
+        "f1": 0.6819,
+        "coverage": 1.0,
+        "n": 68139
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6621,
+        "f1": 0.6453,
+        "coverage": 0.6341,
+        "n": 43204
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7192,
+        "f1": 0.6366,
+        "coverage": 0.2214,
+        "n": 15089
+      },
+      "conf>=0.6": {
+        "accuracy": 0.7572,
+        "f1": 0.4312,
+        "coverage": 0.0322,
+        "n": 2195
+      }
+    },
+    "n_params": 183692
+  },
+  "agent_2D_classifier": {
+    "error": "missing chain_2d files"
+  }
+}
