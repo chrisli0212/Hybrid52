@@ -1,7 +1,13 @@
 """
 Agent T: Trade Flow Agent
 Analyzes order flow, trade aggression, and market impact from trade/quote data.
-~250k parameters
+
+Changes vs v1:
+  - temporal_dim default 0 → 128 (was causing fusion shape crash when temporal passed)
+  - fusion_dim computed correctly at init using actual temporal_dim
+  - fusion upgraded from single Linear → MLP (Linear+GELU+Dropout+Linear)
+  - no-temporal path uses zero-tensor of correct temporal_dim size
+~260k parameters
 """
 
 import torch
@@ -12,19 +18,19 @@ from typing import Tuple, Optional
 
 class AgentT(nn.Module):
     def __init__(
-        self, 
+        self,
         trade_feat_dim: int = 25,
-        temporal_dim: int = 0,
-        hidden_dim: int = 256
+        temporal_dim: int = 128,   # fixed: was 0, caused fusion shape crash
+        hidden_dim: int = 256,
     ):
         super().__init__()
-        
         self.trade_feat_dim = trade_feat_dim
-        
-        # Input normalization for trade features
+        self._temporal_dim  = temporal_dim
+
+        # ── Input norm ───────────────────────────────────────────────────
         self.input_norm = nn.LayerNorm(trade_feat_dim)
-        
-        # Trade flow encoder
+
+        # ── Trade flow encoder ──────────────────────────────────────────
         self.flow_encoder = nn.Sequential(
             nn.Linear(trade_feat_dim, hidden_dim),
             nn.GELU(),
@@ -32,118 +38,93 @@ class AgentT(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(hidden_dim, 128),
             nn.GELU(),
-            nn.Dropout(0.15)
+            nn.Dropout(0.15),
         )
-        
-        # Temporal flow patterns (1D CNN on trade sequence)
-        # Conv layers kept; pool replaced with recency-weighted avg in forward()
+
+        # ── 1D CNN on trade sequence with recency-weighted pool ──────────────
         self.flow_cnn = nn.Sequential(
             nn.Conv1d(trade_feat_dim, 64, kernel_size=5, padding=2),
             nn.GELU(),
             nn.GroupNorm(8, 64),
             nn.Conv1d(64, 32, kernel_size=3, padding=1),
-            nn.GELU()
+            nn.GELU(),
         )
-        # Recency weights computed dynamically in forward() for any sequence length
-        
-        # Impact detector (detects large market impact events)
+
+        # ── Impact detector ────────────────────────────────────────────
         self.impact_net = nn.Sequential(
             nn.Linear(trade_feat_dim, 64),
             nn.ReLU(),
             nn.Dropout(0.15),
             nn.Linear(64, 32),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
-        
-        # Fusion with backbone temporal features
-        fusion_dim = 128 + temporal_dim + 32 + 32
-        self.fusion = nn.Linear(fusion_dim, 64)
+
+        # ── Fusion MLP: correct dim uses actual temporal_dim ────────────────
+        fusion_in = 128 + temporal_dim + 32 + 32   # 320 when temporal_dim=128
+        self.fusion = nn.Sequential(
+            nn.Linear(fusion_in, 128),
+            nn.GELU(),
+            nn.Dropout(0.15),
+            nn.Linear(128, 64),
+        )
         self.fusion_norm = nn.LayerNorm(64)
-        
-        # Output heads
-        self.score_head = nn.Linear(64, 1)
+
+        # ── Output heads ────────────────────────────────────────────────
+        self.score_head      = nn.Linear(64, 1)
         self.confidence_head = nn.Linear(64, 1)
-        self.flow_signal_head = nn.Linear(64, 3)  # Buy/Neutral/Sell signal
-    
+        self.flow_signal_head = nn.Linear(64, 3)   # Buy/Neutral/Sell logits
+
+    def _fix_feat_dim(self, x: torch.Tensor) -> torch.Tensor:
+        d = self.trade_feat_dim
+        if x.size(-1) > d:
+            return x[..., :d]
+        if x.size(-1) < d:
+            pad_shape = list(x.shape)
+            pad_shape[-1] = d - x.size(-1)
+            return torch.cat([x, torch.zeros(*pad_shape, device=x.device)], dim=-1)
+        return x
+
     def forward(
-        self, 
-        static: torch.Tensor, 
-        temporal: Optional[torch.Tensor], 
-        seq: torch.Tensor
+        self,
+        static: torch.Tensor,            # (B, trade_feat_dim)
+        temporal: Optional[torch.Tensor], # (B, temporal_dim) or None
+        seq: torch.Tensor,               # (B, T, trade_feat_dim)
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-        """
-        Args:
-            static: (B, trade_feat_dim) - Last trade flow features
-            temporal: (B, temporal_dim) - Backbone temporal embedding
-            seq: (B, seq_len, trade_feat_dim) - Trade flow sequence
-            
-        Returns:
-            score: (B, 1) - Direction score
-            confidence: (B, 1) - Confidence score
-            flow_signal: (B, 3) - Buy/Neutral/Sell logits
-        """
-        batch_size = static.size(0)
-        
-        # Handle case where static has more features than expected
-        if static.size(1) > self.trade_feat_dim:
-            static = static[:, :self.trade_feat_dim]
-        elif static.size(1) < self.trade_feat_dim:
-            # Pad if needed
-            padding = torch.zeros(
-                batch_size, 
-                self.trade_feat_dim - static.size(1),
-                device=static.device
-            )
-            static = torch.cat([static, padding], dim=1)
-        
-        # Apply input normalization
+
+        B = static.size(0)
+
+        static = self._fix_feat_dim(static)
         static = self.input_norm(static)
-        
-        # Encode static trade flow features
-        flow_encoded = self.flow_encoder(static)
-        
-        # Process sequence with CNN
+
+        flow_encoded = self.flow_encoder(static)          # (B, 128)
+
         if seq.dim() == 2:
             seq = seq.unsqueeze(1)
-        
-        # Ensure seq has correct feature dimension
-        if seq.size(2) > self.trade_feat_dim:
-            seq = seq[:, :, :self.trade_feat_dim]
-        elif seq.size(2) < self.trade_feat_dim:
-            padding = torch.zeros(
-                seq.size(0), seq.size(1), 
-                self.trade_feat_dim - seq.size(2),
-                device=seq.device
-            )
-            seq = torch.cat([seq, padding], dim=2)
-        
-        # Apply input normalization to sequence
+        seq = self._fix_feat_dim(seq)
         seq = self.input_norm(seq)
-        
-        cnn_out = self.flow_cnn(seq.transpose(1, 2))   # (B, 32, T)
+
+        cnn_out = self.flow_cnn(seq.transpose(1, 2))      # (B, 32, T)
         T = cnn_out.size(2)
-        # Build recency weights for any T: interpolate linspace(0.5, 1.5) to length T
         w = torch.linspace(0.5, 1.5, T, device=cnn_out.device).view(1, 1, T)
-        w = w / w.sum()                                 # normalize to sum=1
-        flow_temporal = (cnn_out * w).sum(dim=2)        # (B, 32) weighted avg
-        
-        # Detect market impact
-        impact_score = self.impact_net(static)
-        
-        # Fuse all components
+        w = w / w.sum()
+        flow_temporal = (cnn_out * w).sum(dim=2)           # (B, 32)
+
+        impact_score = self.impact_net(static)             # (B, 32)
+
+        # Always produce temporal_dim-sized tensor
         if temporal is not None:
-            fused = torch.cat([flow_encoded, temporal, flow_temporal, impact_score], dim=-1)
+            t = temporal
         else:
-            fused = torch.cat([flow_encoded, flow_temporal, impact_score], dim=-1)
-            
-        fused = self.fusion_norm(F.gelu(self.fusion(fused)))
-        
-        # Generate outputs
-        score = torch.sigmoid(self.score_head(fused))
-        confidence = torch.sigmoid(self.confidence_head(fused))
-        flow_signal = self.flow_signal_head(fused)
-        
+            t = torch.zeros(B, self._temporal_dim, device=static.device)
+
+        fused_in = torch.cat([flow_encoded, t, flow_temporal, impact_score], dim=-1)
+        fused    = self.fusion_norm(F.gelu(self.fusion(fused_in)))  # (B, 64)
+
+        score       = torch.sigmoid(self.score_head(fused))
+        confidence  = torch.sigmoid(self.confidence_head(fused))
+        flow_signal = self.flow_signal_head(fused)         # (B, 3) raw logits
+
         return score, confidence, flow_signal
-    
+
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters())
