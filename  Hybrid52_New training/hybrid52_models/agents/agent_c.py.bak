@@ -22,9 +22,7 @@ class AgentC(nn.Module):
         
         self.temporal_weights = nn.Parameter(torch.linspace(0.4, 1.6, seq_len))
         
-        self.embedding = nn.Linear(input_dim, embed_dim)
-        # Backbone cross-gate: suppress attention output when backbone already captured it
-        self.backbone_gate = nn.Sequential(nn.Linear(embed_dim, 1), nn.Sigmoid())
+        self.embedding = nn.Linear(min(input_dim, 32), embed_dim)
         
         self.cnn_local = nn.Conv1d(embed_dim, 24, kernel_size=3, padding=1)
         self.cnn_medium = nn.Conv1d(embed_dim, 24, kernel_size=5, padding=2)
@@ -43,7 +41,6 @@ class AgentC(nn.Module):
         )
         
         self.residual_proj = nn.Linear(72, 192)
-        self.embed_dim = embed_dim
         
         self.dense_head = nn.Sequential(
             nn.Linear(192, 128),
@@ -69,7 +66,7 @@ class AgentC(nn.Module):
         weights = self.temporal_weights[:seq_len].view(1, seq_len, 1)
         seq_weighted = seq * weights
         
-        x_embed = self.embedding(seq_weighted)   # full input_dim, not truncated
+        x_embed = self.embedding(seq_weighted[:, :, :32])
         
         x_conv = x_embed.transpose(1, 2)
         local = self.cnn_local(x_conv)
@@ -92,10 +89,6 @@ class AgentC(nn.Module):
         attn_weights = torch.softmax(attn_weights, dim=1)
         pooled = (lstm_out * attn_weights).sum(dim=1)
         
-        # If backbone temporal is provided, gate pooled to avoid double-extraction
-        if temporal is not None and temporal.dim() == 2 and temporal.size(1) > 0:
-            gate = self.backbone_gate(pooled[:, :self.embed_dim] if pooled.size(1) >= self.embed_dim else pooled[:, :pooled.size(1)])
-            pooled = gate * pooled   # suppress pooled when backbone already has the signal
         out = self.dense_head(pooled)
         
         score = torch.sigmoid(out[:, 0:1])

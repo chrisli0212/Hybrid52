@@ -36,18 +36,13 @@ class AgentT(nn.Module):
         )
         
         # Temporal flow patterns (1D CNN on trade sequence)
-        # Conv layers kept; pool replaced with recency-weighted avg in forward()
         self.flow_cnn = nn.Sequential(
             nn.Conv1d(trade_feat_dim, 64, kernel_size=5, padding=2),
             nn.GELU(),
-            nn.GroupNorm(8, 64),
+            nn.GroupNorm(8, 64),  # GroupNorm instead of BatchNorm for stability
             nn.Conv1d(64, 32, kernel_size=3, padding=1),
-            nn.GELU()
-        )
-        # Recency weights: recent bars weighted higher than old bars
-        self.register_buffer(
-            "recency_weights",
-            torch.linspace(0.5, 1.5, 20).unsqueeze(0).unsqueeze(0)  # (1, 1, 20)
+            nn.GELU(),
+            nn.AdaptiveMaxPool1d(1)
         )
         
         # Impact detector (detects large market impact events)
@@ -124,11 +119,7 @@ class AgentT(nn.Module):
         # Apply input normalization to sequence
         seq = self.input_norm(seq)
         
-        cnn_out = self.flow_cnn(seq.transpose(1, 2))   # (B, 32, T)
-        T = cnn_out.size(2)
-        w = self.recency_weights[:, :, -T:] if T <= 20 else self.recency_weights.expand(-1, -1, T) / (T / 20)
-        w = w / w.sum(dim=2, keepdim=True)              # normalize weights
-        flow_temporal = (cnn_out * w).sum(dim=2)        # (B, 32) weighted avg
+        flow_temporal = self.flow_cnn(seq.transpose(1, 2)).squeeze(-1)
         
         # Detect market impact
         impact_score = self.impact_net(static)

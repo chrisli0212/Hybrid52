@@ -33,18 +33,14 @@ class AgentQ(nn.Module):
             nn.GELU(),
             nn.Dropout(0.1)
         )
-        # Direct residual: gives classifier unfiltered current-bar signal
-        self.quote_residual = nn.Linear(quote_feat_dim, 96)
-        # Learned gate: decides how much to trust encoder vs raw residual
-        self.encoder_gate = nn.Sequential(nn.Linear(96, 1), nn.Sigmoid())
         
         # Spread dynamics (BiLSTM for temporal patterns)
         self.spread_lstm = nn.LSTM(
             quote_feat_dim, 
             64, 
             batch_first=True, 
-            bidirectional=True
-            # dropout removed: only applies when num_layers > 1
+            bidirectional=True,
+            dropout=0.1
         )
         self.lstm_norm = nn.LayerNorm(128)
         
@@ -100,11 +96,8 @@ class AgentQ(nn.Module):
         # Apply input normalization
         static = self.input_norm(static)
         
-        # Encode static quote features with gated residual
-        enc = self.quote_encoder(static)
-        res = self.quote_residual(static)
-        gate = self.encoder_gate(enc)
-        quote_encoded = gate * enc + (1 - gate) * res   # (B, 96)
+        # Encode static quote features
+        quote_encoded = self.quote_encoder(static)
         
         # Process sequence with BiLSTM
         if seq.dim() == 2:

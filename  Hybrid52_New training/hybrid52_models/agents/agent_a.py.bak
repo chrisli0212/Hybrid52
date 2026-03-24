@@ -36,15 +36,13 @@ class AgentA(nn.Module):
         # Residual projection for skip connection
         self.residual_proj = nn.Linear(input_dim, 96)
         
-        # causal CNN: keep conv+gelu, pool handled manually in forward
-        self.causal_conv = nn.Sequential(
+        self.causal_head = nn.Sequential(
             nn.Conv1d(input_dim, 48, kernel_size=4, padding=3, groups=1),
-            nn.GELU()
+            nn.GELU(),
+            nn.AdaptiveMaxPool1d(1)
         )
-        # cnn_out will be 96-dim (max_pool 48 + avg_pool 48)
-        self.gate = nn.Sequential(nn.Linear(96, 1), nn.Sigmoid())
         
-        fusion_dim = 96 + temporal_dim + 96  # static(96) + temporal + gated_cnn(96)
+        fusion_dim = 96 + temporal_dim + 48
         self.fusion = nn.Linear(fusion_dim, 64)
         self.fusion_norm = nn.LayerNorm(64)
         
@@ -63,14 +61,9 @@ class AgentA(nn.Module):
         
         if seq.dim() == 2:
             seq = seq.unsqueeze(1)
-        x = self.causal_conv(seq.transpose(1, 2))   # (B, 48, T)
-        cnn_max = F.adaptive_max_pool1d(x, 1).squeeze(-1)   # (B, 48)
-        cnn_avg = F.adaptive_avg_pool1d(x, 1).squeeze(-1)   # (B, 48)
-        cnn_out = torch.cat([cnn_max, cnn_avg], dim=-1)     # (B, 96)
-        gate_val = self.gate(cnn_out)                        # (B, 1)
-        gated_cnn = gate_val * cnn_out                       # (B, 96)
-
-        fused = torch.cat([static_out, temporal, gated_cnn], dim=-1)
+        t = self.causal_head(seq.transpose(1, 2)).squeeze(-1)
+        
+        fused = torch.cat([static_out, temporal, t], dim=-1)
         fused = self.fusion_norm(F.gelu(self.fusion(fused)))
         
         score = torch.sigmoid(self.score_head(fused))
