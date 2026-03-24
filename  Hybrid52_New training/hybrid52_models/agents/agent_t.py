@@ -44,11 +44,7 @@ class AgentT(nn.Module):
             nn.Conv1d(64, 32, kernel_size=3, padding=1),
             nn.GELU()
         )
-        # Recency weights: recent bars weighted higher than old bars
-        self.register_buffer(
-            "recency_weights",
-            torch.linspace(0.5, 1.5, 20).unsqueeze(0).unsqueeze(0)  # (1, 1, 20)
-        )
+        # Recency weights computed dynamically in forward() for any sequence length
         
         # Impact detector (detects large market impact events)
         self.impact_net = nn.Sequential(
@@ -126,8 +122,9 @@ class AgentT(nn.Module):
         
         cnn_out = self.flow_cnn(seq.transpose(1, 2))   # (B, 32, T)
         T = cnn_out.size(2)
-        w = self.recency_weights[:, :, -T:] if T <= 20 else self.recency_weights.expand(-1, -1, T) / (T / 20)
-        w = w / w.sum(dim=2, keepdim=True)              # normalize weights
+        # Build recency weights for any T: interpolate linspace(0.5, 1.5) to length T
+        w = torch.linspace(0.5, 1.5, T, device=cnn_out.device).view(1, 1, T)
+        w = w / w.sum()                                 # normalize to sum=1
         flow_temporal = (cnn_out * w).sum(dim=2)        # (B, 32) weighted avg
         
         # Detect market impact

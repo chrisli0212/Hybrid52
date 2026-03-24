@@ -24,7 +24,7 @@ class AgentC(nn.Module):
         
         self.embedding = nn.Linear(input_dim, embed_dim)
         # Backbone cross-gate: suppress attention output when backbone already captured it
-        self.backbone_gate = nn.Sequential(nn.Linear(embed_dim, 1), nn.Sigmoid())
+        self.backbone_gate = nn.Sequential(nn.Linear(192, 1), nn.Sigmoid())  # 192 = BiLSTM hidden*2
         
         self.cnn_local = nn.Conv1d(embed_dim, 24, kernel_size=3, padding=1)
         self.cnn_medium = nn.Conv1d(embed_dim, 24, kernel_size=5, padding=2)
@@ -94,8 +94,8 @@ class AgentC(nn.Module):
         
         # If backbone temporal is provided, gate pooled to avoid double-extraction
         if temporal is not None and temporal.dim() == 2 and temporal.size(1) > 0:
-            gate = self.backbone_gate(pooled[:, :self.embed_dim] if pooled.size(1) >= self.embed_dim else pooled[:, :pooled.size(1)])
-            pooled = gate * pooled   # suppress pooled when backbone already has the signal
+            gate = self.backbone_gate(pooled)   # full 192-dim pooled → scalar gate
+            pooled = gate * pooled              # suppress when backbone already has signal
         out = self.dense_head(pooled)
         
         score = torch.sigmoid(out[:, 0:1])
