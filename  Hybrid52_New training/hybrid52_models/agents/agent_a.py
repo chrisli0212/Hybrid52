@@ -1,6 +1,7 @@
 """
 Agent A: Neural Baseline Agent
 Primary temporal agent with static MLP + causal CNN + backbone fusion.
+input_dim=53  (grounded in actual Theta Data columns — zero/constant cols removed)
 ~195k parameters
 """
 
@@ -12,13 +13,13 @@ from typing import Tuple, Optional
 
 class AgentA(nn.Module):
     def __init__(
-        self, 
-        input_dim: int = 158, 
+        self,
+        input_dim: int = 53,      # 53 real Theta Data features (was 158 which included ~40 zero cols)
         temporal_dim: int = 128,
         hidden_dim: int = 256
     ):
         super().__init__()
-        
+
         # Static feature path
         self.static_path = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -32,52 +33,61 @@ class AgentA(nn.Module):
             nn.GELU(),
             nn.Linear(128, 96)
         )
-        
-        # Residual projection for skip connection
+
+        # Residual projection
         self.residual_proj = nn.Linear(input_dim, 96)
-        
-        # causal CNN: keep conv+gelu, pool handled manually in forward
+
+        # Causal CNN on temporal sequence of 53-d vectors
         self.causal_conv = nn.Sequential(
             nn.Conv1d(input_dim, 48, kernel_size=4, padding=3, groups=1),
             nn.GELU()
         )
-        # cnn_out will be 96-dim (max_pool 48 + avg_pool 48)
         self.gate = nn.Sequential(nn.Linear(96, 1), nn.Sigmoid())
-        
-        fusion_dim = 96 + temporal_dim + 96  # static(96) + temporal + gated_cnn(96)
+
+        fusion_dim = 96 + temporal_dim + 96   # static(96) + temporal + gated_cnn(96)
         self.fusion = nn.Linear(fusion_dim, 64)
         self.fusion_norm = nn.LayerNorm(64)
-        
+
         self.score_head = nn.Linear(64, 1)
         self.confidence_head = nn.Linear(64, 1)
         self.signal_head = nn.Linear(64, 5)
-    
+
     def forward(
-        self, 
-        static: torch.Tensor, 
-        temporal: torch.Tensor, 
+        self,
+        static: torch.Tensor,
+        temporal: torch.Tensor,
         seq: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-        # Process static features with residual connection
         static_out = self.static_path(static) + self.residual_proj(static)
-        
+
         if seq.dim() == 2:
             seq = seq.unsqueeze(1)
-        x = self.causal_conv(seq.transpose(1, 2))   # (B, 48, T)
-        cnn_max = F.adaptive_max_pool1d(x, 1).squeeze(-1)   # (B, 48)
-        cnn_avg = F.adaptive_avg_pool1d(x, 1).squeeze(-1)   # (B, 48)
-        cnn_out = torch.cat([cnn_max, cnn_avg], dim=-1)     # (B, 96)
-        gate_val = self.gate(cnn_out)                        # (B, 1)
-        gated_cnn = gate_val * cnn_out                       # (B, 96)
+        x = self.causal_conv(seq.transpose(1, 2))       # (B, 48, T)
+        cnn_max = F.adaptive_max_pool1d(x, 1).squeeze(-1)
+        cnn_avg = F.adaptive_avg_pool1d(x, 1).squeeze(-1)
+        cnn_out = torch.cat([cnn_max, cnn_avg], dim=-1)  # (B, 96)
+        gate_val = self.gate(cnn_out)
+        gated_cnn = gate_val * cnn_out
 
-        fused = torch.cat([static_out, temporal, gated_cnn], dim=-1)
+        if temporal is not None:
+            fused = torch.cat([static_out, temporal, gated_cnn], dim=-1)
+        else:
+            # Handle missing temporal (e.g. standalone inference)
+            fused = torch.cat([
+                static_out,
+                torch.zeros(static_out.size(0), self._temporal_dim(), device=static_out.device),
+                gated_cnn
+            ], dim=-1)
         fused = self.fusion_norm(F.gelu(self.fusion(fused)))
-        
+
         score = torch.sigmoid(self.score_head(fused))
         confidence = torch.sigmoid(self.confidence_head(fused))
         signal = self.signal_head(fused)
-        
+
         return score, confidence, signal
-    
+
+    def _temporal_dim(self) -> int:
+        return self.fusion.in_features - 96 - 96
+
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters())
