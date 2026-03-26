@@ -21,6 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
+# FIX: point to the DIRECTORY, not the file — the file is resolved per-symbol inside build_vix_tier3()
 TIER2_ROOT = Path("/workspace/data/tier2_minutes_v4")
 OUTPUT_ROOT = Path("/workspace/data/tier3_vix_expanded")
 VIX_SYMBOL = "VIXW"
