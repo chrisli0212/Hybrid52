@@ -74,7 +74,7 @@ def process_one_date(args):
 
     try:
         # ── Load Greek ────────────────────────────────────────────────────────────────
-con = duckdb.connect()
+        con = duckdb.connect()
         greek_df = con.execute(
             f"SELECT * FROM read_parquet('{str(greek_path).replace(chr(39), chr(39)*2)}')"
         ).fetchdf()
@@ -107,7 +107,7 @@ con = duckdb.connect()
             greek_df['_minute'] = greek_df[ts_col].dt.floor('min')
 
         # ── Load TQ (pre-grouped by minute) ───────────────────────────────────────────────
-con = duckdb.connect()
+        con = duckdb.connect()
         tq_by_minute = {}
         if tq_path.exists():
             try:
@@ -133,7 +133,7 @@ con = duckdb.connect()
                 logger.warning(f"{symbol}/{greek_path.name}: TQ load failed ({tq_err}) — continuing without TQ data")
 
         # ── Extract features per minute ─────────────────────────────────────────────────
-minutes = []
+        minutes = []
         n_extracted_ok = 0
         n_extracted_zero = 0
 
@@ -211,7 +211,7 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
     output_root.mkdir(parents=True, exist_ok=True)
 
     # ── Resume support ────────────────────────────────────────────────────────────────
-progress_file = output_root / f"{symbol}_progress.json"
+    progress_file = output_root / f"{symbol}_progress.json"
     completed_dates = set()
     cached_minutes = []
     if progress_file.exists():
@@ -232,7 +232,7 @@ progress_file = output_root / f"{symbol}_progress.json"
                 completed_dates = set()
 
     # ── Discover tradedate files ────────────────────────────────────────────────────────
-greek_files = sorted(sym_dir.glob("*_greek.parquet"))
+    greek_files = sorted(sym_dir.glob("*_greek.parquet"))
     all_dates = [f.name.replace("_greek.parquet", "") for f in greek_files]
 
     work_items = []
@@ -295,7 +295,7 @@ greek_files = sorted(sym_dir.glob("*_greek.parquet"))
         return None
 
     # ── Write final output ────────────────────────────────────────────────────────────────
-logger.info(f"{symbol}: Writing {len(all_minutes)} minute bars...")
+    logger.info(f"{symbol}: Writing {len(all_minutes)} minute bars...")
     minutes_df = pd.DataFrame(all_minutes).sort_values('timestamp')
     con = duckdb.connect()
     con.register('minutes_df', minutes_df)
