@@ -15,11 +15,12 @@ import datetime as _dt
 
 import duckdb
 
-# Default (legacy) paths
+# Legacy consolidated DBs — used only when --db-path is not supplied.
+# For Hybrid52, always pass --db-path (per-symbol DB from data_in_2026/).
 DB_PART1 = '/workspace/data/data_in_2026/consolidated_options.duckdb'
 DB_PART2 = '/workspace/data/data_in_2026/consolidated_options_part2.duckdb'
 
-TIER1_ROOT = Path('/workspace/data/tier1_v2')
+TIER1_ROOT = Path('/workspace/data/tier1_hybrid52')
 
 # Active contract filters
 DELTA_MIN = 0.2
@@ -119,7 +120,9 @@ def extract_symbol_by_trade_date(con: duckdb.DuckDBPyConnection, symbol: str):
                     bid, ask, delta, theta, vega, rho, epsilon, "lambda", gamma,
                     vanna, charm, vomma, veta, vera, speed, zomma, color, ultima,
                     d1, d2, dual_delta, dual_gamma, implied_vol, iv_error,
-                    underlying_timestamp, underlying_price, trade_date,
+                    underlying_timestamp, underlying_price, open_interest,
+                    moneyness, dist_atm_pct, mid, spread, spread_pct, lambda_ratio,
+                    dte_int, cp_sign, trade_date,
                     '{key}' AS week_key
                 FROM options_greek
                 WHERE symbol = '{symbol_sql}'
@@ -155,6 +158,11 @@ def extract_symbol_by_trade_date(con: duckdb.DuckDBPyConnection, symbol: str):
             ) TO '{tq_sql}' (FORMAT PARQUET, OVERWRITE_OR_IGNORE true)
             """
         )
+        # NOTE — TQ data from historical Theta Data EOD chain CSVs:
+        # options_trade_quote.size (volume) is ~0 for >95% of contracts in EOD snapshots.
+        # The filter (price>0 AND size>0) will result in near-empty TQ tier1 files.
+        # This is expected. Phase1 TQ features (dims 270-324) will be near-zero in tier2.
+        # Agent T and Q use the microstructure remap (dims 180-199) instead — see feature_subsets.py.
 
         if (i + 1) % 50 == 0:
             elapsed = time.time() - t0
@@ -202,7 +210,9 @@ def extract_greek_for_symbol(con: duckdb.DuckDBPyConnection, symbol: str):
                     bid, ask, delta, theta, vega, rho, epsilon, "lambda", gamma,
                     vanna, charm, vomma, veta, vera, speed, zomma, color, ultima,
                     d1, d2, dual_delta, dual_gamma, implied_vol, iv_error,
-                    underlying_timestamp, underlying_price, trade_date, week_key
+                    underlying_timestamp, underlying_price, open_interest,
+                    moneyness, dist_atm_pct, mid, spread, spread_pct, lambda_ratio,
+                    dte_int, cp_sign, trade_date, week_key
                 FROM options_greek
                 WHERE symbol = '{symbol_sql}'
                     AND week_key = '{wk_sql}'

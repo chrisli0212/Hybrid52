@@ -6,7 +6,14 @@ Extracts 20 features for walls and dealer positioning.
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
-from .feature_config import FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import FeatureGroup, FEATURE_GROUPS
+
+
+def _resolve_oi_col(df: pd.DataFrame) -> Optional[str]:
+    for col in ("oi", "open_interest", "size"):
+        if col in df.columns:
+            return col
+    return None
 
 
 def calculate_max_gamma_strikes(df: pd.DataFrame) -> Dict[str, float]:
@@ -46,7 +53,7 @@ def calculate_max_oi_strikes(df: pd.DataFrame) -> Dict[str, float]:
         "put_oi_at_max": 0.0,
     }
     
-    oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     if oi_col is None or 'strike' not in df.columns:
         return features
     
@@ -91,7 +98,7 @@ def calculate_wall_distances(df: pd.DataFrame) -> Dict[str, float]:
     else:
         return features
     
-    oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     if oi_col is None or 'strike' not in df.columns:
         return features
     
@@ -149,7 +156,7 @@ def calculate_dealer_positioning(df: pd.DataFrame) -> Dict[str, float]:
     if 'delta' not in df.columns:
         return features
     
-    oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     
     if oi_col is not None:
         features["dealer_net_delta"] = -(df['delta'] * df[oi_col]).sum()

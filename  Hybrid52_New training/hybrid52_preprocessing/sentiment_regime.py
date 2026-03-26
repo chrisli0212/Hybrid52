@@ -6,7 +6,7 @@ Extracts 20 market sentiment and regime indicator features.
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
-from .feature_config import FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import FeatureGroup, FEATURE_GROUPS
 
 
 def calculate_sentiment_scores(df: pd.DataFrame) -> Dict[str, float]:

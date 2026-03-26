@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
-from .feature_config import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names
+from .feature_config_v2 import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names
 from .data_validation import get_excluded_columns, get_usable_greek_columns
 from .greek_features import GreekFeatureExtractor
 from .gamma_exposure import GammaExposureExtractor

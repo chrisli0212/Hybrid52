@@ -40,7 +40,7 @@ class ValidationReport:
     usable_names: List[str] = field(default_factory=list)
 
 
-KNOWN_ZERO_COLUMNS = {'speed', 'vera'}
+KNOWN_ZERO_COLUMNS = {'speed', 'vera', 'dual_delta', 'dual_gamma', 'd1', 'd2', 'iv_error', 'ultima'}
 
 METADATA_COLUMNS = {
     'symbol', 'expiration', 'strike', 'right', 

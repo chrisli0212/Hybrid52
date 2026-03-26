@@ -3,8 +3,8 @@ Agent C: Multi-Scale Attention Agent
 CNN + Multi-head Attention + BiLSTM with attention pooling.
 
 Architecture:
-  seq  input_dim = 34   (19 raw per-contract + 15 cross-strike snapshot aggregations)
-  static_dim    = 53    (Agent-A static snapshot)
+  seq  input_dim = 37   (34 original + 3 CSV-derived spread_pct dims)
+  static_dim    = 56    (Agent-A static snapshot + 3 CSV-derived lambda dims)
   temporal_dim  = 128   (backbone embedding)
 
 Changes vs v1:
@@ -27,8 +27,8 @@ from typing import Tuple, Optional
 class AgentC(nn.Module):
     def __init__(
         self,
-        input_dim: int = 34,       # seq feature dim: 19 raw + 15 cross-strike aggs
-        static_dim: int = 53,      # static snapshot dim (Agent A feature set)
+        input_dim: int = 39,       # seq feature dim: prior 37 + 2 aux (iv_error/ultima)
+        static_dim: int = 64,      # static snapshot dim (Agent A feature set)
         seq_len: int = 20,
         embed_dim: int = 96,
         n_heads: int = 4,

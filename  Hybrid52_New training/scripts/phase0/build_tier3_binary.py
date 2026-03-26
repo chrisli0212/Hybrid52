@@ -36,11 +36,11 @@ from numpy.lib.format import open_memmap
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-TIER2_ROOT = Path("/workspace/data/tier2_minutes_v4")
-OUTPUT_ROOT = Path("/workspace/data/tier3_binary_v4")
+TIER2_ROOT = Path("/workspace/data/tier2_minutes_hybrid52")
+OUTPUT_ROOT = Path("/workspace/data/tier3_binary_hybrid52")
 
 ALL_SYMBOLS = ['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT']
-FEAT_DIM = 325
+FEAT_DIM = 286
 SEQ_LEN = 20
 HORIZONS = [5, 15, 30]  # minutes
 RETURN_THRESHOLD = 0.0003  # |return| < 0.03% → flat sample, filtered out by default
@@ -48,8 +48,8 @@ BATCH_SIZE = 4096
 CHAIN_INPUT_STRIKES = 30
 CHAIN_OUTPUT_STRIKES = 20
 CHAIN_STRIKE_START = max(0, (CHAIN_INPUT_STRIKES - CHAIN_OUTPUT_STRIKES) // 2)
-TQ_FEAT_START = 270
-TQ_FEAT_END = 325
+TQ_FEAT_START = 0  # disabled — historical mode
+TQ_FEAT_END = 0    # disabled
 
 
 def add_delta_features(sequences: np.ndarray) -> np.ndarray:
@@ -99,18 +99,17 @@ def compute_normalization_stats(train_features: np.ndarray) -> dict:
     if len(mean) == FEAT_DIM:
         # Log which feature groups have zero variance (only valid for the base 325-dim layout)
         group_ranges = {
-            'Core Greeks (0-49)': (0, 50),
-            'IV Surface (50-99)': (50, 100),
-            'Term Structure (100-127)': (100, 128),
-            'Flow & Volume (128-149)': (128, 150),
-            'Microstructure (150-179)': (150, 180),
-            'Sentiment/Regime (180-209)': (180, 210),
-            'Cross-Strike-Time (210-239)': (210, 240),
-            'Gamma Exposure (240-269)': (240, 270),
-            'Smart Money (270-284)': (270, 285),
-            'Volume Anomaly (285-296)': (285, 297),
-            'Trade Conditions (297-306)': (297, 307),
-            'Quote Pressure (307-324)': (307, 325),
+            'GREEK_BY_STRIKE (0-74)':      (0,   75),
+            'GAMMA_EXPOSURE (75-104)':     (75,  105),
+            'VANNA_CHARM (105-124)':       (105, 125),
+            'IV_SURFACE (125-149)':        (125, 150),
+            'FLOW_VOLUME (150-179)':       (150, 180),
+            'MICROSTRUCTURE (180-199)':    (180, 200),
+            'WALLS_POSITIONING (200-219)': (200, 220),
+            'CROSS_STRIKE (220-234)':      (220, 235),
+            'TIME_DECAY (235-249)':        (235, 250),
+            'SENTIMENT_REGIME (250-269)':  (250, 270),
+            'CSV_DERIVED (270-285)':      (270, 286),
         }
 
         for name, (start, end) in group_ranges.items():
@@ -285,6 +284,8 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
     tq_active_mask = np.any(np.abs(all_features[:, TQ_FEAT_START:TQ_FEAT_END]) > 1e-8, axis=1)
     tq_feature_coverage = float(tq_active_mask.mean()) if len(tq_active_mask) > 0 else 0.0
     logger.info(f"{symbol}: TQ feature coverage={tq_feature_coverage * 100:.1f}% of minutes")
+    # Expected: tq_feature_coverage will be near 0% for historical Theta Data EOD snapshots.
+    # Phase1 TQ dims (270-324) are empty — Agent T/Q use microstructure remap per feature_subsets.py.
 
     max_horizon = max(horizons)
     n_samples = len(all_features) - seq_len - max_horizon

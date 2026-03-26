@@ -50,10 +50,10 @@ def _tier3_done(tier3_root: Path, symbol: str, horizons: list[int]) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--symbols', nargs='+', default=['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT', 'VIXW'])
-    parser.add_argument('--tier1-root', type=str, default='/workspace/data/tier1_2026_v1')
-    parser.add_argument('--tier2-root', type=str, default='/workspace/data/tier2_minutes_2026_v1')
-    parser.add_argument('--tier3-root', type=str, default='/workspace/data/tier3_binary_2026_v1')
+    parser.add_argument('--symbols', nargs='+', default=['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT'])
+    parser.add_argument('--tier1-root', type=str, default='/workspace/data/tier1_hybrid52')
+    parser.add_argument('--tier2-root', type=str, default='/workspace/data/tier2_minutes_hybrid52')
+    parser.add_argument('--tier3-root', type=str, default='/workspace/data/tier3_binary_hybrid52')
     parser.add_argument('--workers', type=int, default=4)
     # Tier3 can build multiple horizons; production training uses 30 min (`horizon_30min/`).
     parser.add_argument('--horizons', type=int, nargs='+', default=[5, 15, 30])
@@ -67,7 +67,7 @@ def main() -> int:
     tier3_root = Path(args.tier3_root)
 
     extract_tier1_py = PHASE0_DIR / 'extract_tier1.py'
-    build_tier2_py = PHASE0_DIR / 'build_tier2.py'
+    build_tier2_py = PHASE0_DIR / 'build_tier2_fast.py'  # direct MasterFeatureExtractor, no tier2_reprocess chain
     build_tier3_py = PHASE0_DIR / 'build_tier3_binary.py'
 
     symbols = [s.upper() for s in args.symbols]

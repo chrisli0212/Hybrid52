@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
 from .data_validation import get_excluded_columns
-from .feature_config import DELTA_BUCKETS, FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import DELTA_BUCKETS, FeatureGroup, FEATURE_GROUPS
 
 
 def calculate_gamma_by_strike(

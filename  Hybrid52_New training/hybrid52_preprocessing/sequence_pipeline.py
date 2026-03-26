@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Iterator
 from dataclasses import dataclass
 
-from .feature_config import TOTAL_FEATURES, CHAIN_2D_CONFIG
+from .feature_config_v2 import TOTAL_FEATURES, CHAIN_2D_CONFIG
 from .master_extractor import MasterFeatureExtractor
 
 

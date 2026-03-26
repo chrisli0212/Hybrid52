@@ -6,7 +6,7 @@ Extracts 25 implied volatility surface features.
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
-from .feature_config import MONEYNESS_LEVELS, DTE_BUCKETS, FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import MONEYNESS_LEVELS, DTE_BUCKETS, FeatureGroup, FEATURE_GROUPS
 
 
 def calculate_moneyness(df: pd.DataFrame) -> pd.Series:

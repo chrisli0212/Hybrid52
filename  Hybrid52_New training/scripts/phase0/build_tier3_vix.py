@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 TIER2_ROOT = Path("/workspace/data/tier2_minutes_v4")
-OUTPUT_ROOT = Path("/workspace/data/tier3_vix_v4")
+OUTPUT_ROOT = Path("/workspace/data/tier3_vix_expanded")
 VIX_SYMBOL = "VIXW"
 VIX_FEAT_DIM = 10
 RESAMPLE_FREQ = "5min"

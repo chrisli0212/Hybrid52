@@ -14,7 +14,7 @@ from typing import Tuple, Optional
 class AgentA(nn.Module):
     def __init__(
         self,
-        input_dim: int = 53,      # 53 real Theta Data features (was 158 which included ~40 zero cols)
+        input_dim: int = 64,      # 64 dims: compact core + expanded CSV-derived aux features
         temporal_dim: int = 128,
         hidden_dim: int = 256
     ):

@@ -25,7 +25,7 @@ from typing import Tuple, Optional
 class AgentK(nn.Module):
     def __init__(
         self,
-        input_dim: int = 53,       # real static feature dim
+        input_dim: int = 64,       # compact static feature dim + expanded CSV-derived aux features
         hidden_dim: int = 512,
         temporal_dim: int = 128,
     ):

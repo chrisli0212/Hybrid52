@@ -107,7 +107,15 @@ def _create_base_tables(con: duckdb.DuckDBPyConnection) -> None:
             underlying_price DOUBLE,
             open_interest DOUBLE,
             trade_date DATE,
-            week_key VARCHAR
+            week_key VARCHAR,
+            moneyness DOUBLE,
+            dist_atm_pct DOUBLE,
+            mid DOUBLE,
+            spread DOUBLE,
+            spread_pct DOUBLE,
+            lambda_ratio DOUBLE,
+            dte_int INTEGER,
+            cp_sign INTEGER,
         )
         """
     )
@@ -174,7 +182,9 @@ def _build_oi_temp(con: duckdb.DuckDBPyConnection, oi_globs: list[str]) -> bool:
             for g in oi_globs
         ]
     )
+    con.execute("DROP TABLE IF EXISTS oi_raw")
     con.execute(f"CREATE TEMP TABLE oi_raw AS {union_sql}")
+    con.execute("DROP TABLE IF EXISTS oi_dedup")
     con.execute(
         """
         CREATE TEMP TABLE oi_dedup AS
@@ -283,7 +293,22 @@ def _insert_symbol(
                 {underlying_price_expr} AS underlying_price,
                 {oi_col} AS open_interest,
                 {trade_date_expr} AS trade_date,
-                regexp_extract(raw.filename, '(\\d{{4}}-W\\d{{2}}_part\\d{{3}})', 1) AS week_key
+                regexp_extract(raw.filename, '(\\d{{4}}-W\\d{{2}}_part\\d{{3}})', 1) AS week_key,
+                {_raw_col(["moneyness"],    "DOUBLE")} AS moneyness,
+                {_raw_col(["dist_atm_pct"], "DOUBLE")} AS dist_atm_pct,
+                COALESCE({_raw_col(["mid"], "DOUBLE")}, ({bid_expr} + {ask_expr}) / 2.0) AS mid,
+                COALESCE({_raw_col(["spread"], "DOUBLE")}, {ask_expr} - {bid_expr}) AS spread,
+                COALESCE({_raw_col(["spread_pct"], "DOUBLE")},
+                    CASE WHEN ({bid_expr} + {ask_expr}) > 0
+                         THEN ({ask_expr} - {bid_expr}) / (({bid_expr} + {ask_expr}) / 2.0)
+                         ELSE NULL END) AS spread_pct,
+                {_raw_col(["lambda"], "DOUBLE")} AS lambda_ratio,
+                COALESCE(TRY_CAST({_raw_col(["dte"], "INTEGER")} AS INTEGER),
+                    CAST(CAST(TRY_CAST(raw."expiration" AS DATE) AS DATE) - {trade_date_expr} AS INTEGER)) AS dte_int,
+                COALESCE(TRY_CAST({_raw_col(["cp_sign"], "INTEGER")} AS INTEGER),
+                    CASE WHEN {right_expr} = 'CALL' THEN 1
+                         WHEN {right_expr} = 'PUT'  THEN -1
+                         ELSE 0 END) AS cp_sign
             FROM read_csv_auto(
                 '{_glob_to_sql(str(hist_file))}',
                 all_varchar=true,
@@ -318,16 +343,16 @@ def _insert_symbol(
                 COALESCE({_raw_col(["volume"], "DOUBLE")}, {_raw_col(["count"], "DOUBLE")}, 0.0) AS size,
                 NULL::VARCHAR AS exchange,
                 COALESCE({_raw_col(["vwap"], "DOUBLE")}, {_raw_col(["close"], "DOUBLE")}, {_raw_col(["mid"], "DOUBLE")}) AS price,
-                NULL::DOUBLE AS bid_size,
-                NULL::VARCHAR AS bid_exchange,
+                COALESCE({_raw_col(["bid_size"], "DOUBLE")}, 0.0) AS bid_size,
+                COALESCE({_raw_col(["bid_exchange"], "VARCHAR")}, NULL::VARCHAR) AS bid_exchange,
                 {bid_expr} AS bid,
                 NULL::VARCHAR AS bid_condition,
-                NULL::DOUBLE AS ask_size,
-                NULL::VARCHAR AS ask_exchange,
+                COALESCE({_raw_col(["ask_size"], "DOUBLE")}, 0.0) AS ask_size,
+                COALESCE({_raw_col(["ask_exchange"], "VARCHAR")}, NULL::VARCHAR) AS ask_exchange,
                 {ask_expr} AS ask,
                 NULL::VARCHAR AS ask_condition,
                 {trade_date_expr} AS trade_date,
-                regexp_extract(raw.filename, '(\\d{{4}}-W\\d{{2}}_part\\d{{3}})', 1) AS week_key
+                regexp_extract(raw.filename, '(\\d{{4}}-W\\d{{2}}_part\\d{{3}})', 1) AS week_key,
             FROM read_csv_auto(
                 '{_glob_to_sql(str(hist_file))}',
                 all_varchar=true,

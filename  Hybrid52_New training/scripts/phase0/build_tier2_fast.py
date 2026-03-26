@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build tier2 minute-bar features (325-dim) from PRE-JOINED tier1_v4 data.
+Build tier2 minute-bar features (286-dim historical mode) from PRE-JOINED tier1_v4 data.
 
 Reads per-tradedate Greek + TQ parquets that already have '_minute' column,
 eliminating the week_key matching and ±1min tolerance lookup.
@@ -28,35 +28,30 @@ import pandas as pd
 import duckdb
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent  # → /workspace/ Hybrid52_New training
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "hybrid51_preprocessing"))
 
-STAGE3_ROOT = Path("/workspace/Hybrid51/5. hybrid51_stage3")
-sys.path.insert(0, str(STAGE3_ROOT))
-sys.path.insert(0, str(STAGE3_ROOT / "hybrid51_preprocessing"))
-
-from hybrid51_preprocessing.chain_2d import Chain2DProcessor
-from hybrid51_preprocessing.feature_config_v2 import TOTAL_FEATURES
+from hybrid52_preprocessing.chain_2d import Chain2DProcessor
+from hybrid52_preprocessing.feature_config_v2 import TOTAL_FEATURES
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-TIER1_ROOT = Path("/workspace/data/tier1_v4")
-OUTPUT_ROOT = Path("/workspace/data/tier2_minutes_v4")
-FEAT_DIM = TOTAL_FEATURES  # 325
+TIER1_ROOT = Path("/workspace/data/tier1_hybrid52")
+OUTPUT_ROOT = Path("/workspace/data/tier2_minutes_hybrid52")
+FEAT_DIM = TOTAL_FEATURES  # 286 (historical mode with expanded CSV-derived aux)
 ALL_SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
 
 
 def create_feature_extractor():
-    from hybrid51_preprocessing.master_extractor_v2 import MasterFeatureExtractor
+    from hybrid52_preprocessing.master_extractor_v2 import MasterFeatureExtractor
     return MasterFeatureExtractor(
-        include_chain_2d=False, include_phase1=True, normalize=False
+        include_chain_2d=False, include_phase1=False, normalize=False
     )
 
 
 def process_one_date(args):
-    """Process one tradedate: load pre-joined Greek+TQ, extract 325-dim per minute."""
+    """Process one tradedate: load pre-joined Greek+TQ, extract per-minute feature vectors."""
     greek_path, tq_path, symbol, chain_only = args
     greek_path, tq_path = Path(greek_path), Path(tq_path)
 

@@ -3,8 +3,8 @@ Agent B: Bidirectional LSTM Sequence Agent
 Stacked BiLSTM + parallel TCN with attention pooling + static context gating.
 
 Architecture:
-  seq  input_dim = 34   (19 raw per-contract + 15 cross-strike snapshot aggregations)
-  static_dim    = 53    (Agent-A static snapshot, same Theta Data features)
+  seq  input_dim = 36   (34 original + 2 CSV-derived dist_atm dims)
+  static_dim    = 56    (Agent-A static snapshot + 3 CSV-derived lambda dims)
   temporal_dim  = 128   (backbone embedding from shared encoder)
 
 New features vs v1:
@@ -26,8 +26,8 @@ from typing import Tuple, Optional
 class AgentB(nn.Module):
     def __init__(
         self,
-        input_dim: int = 34,       # seq feature dim: 19 raw + 15 cross-strike aggs
-        static_dim: int = 53,      # static snapshot dim (Agent A feature set)
+        input_dim: int = 40,       # seq feature dim: prior 36 + 4 aux (dual_delta/dual_gamma/d1/d2)
+        static_dim: int = 64,      # static snapshot dim (Agent A feature set)
         hidden_dim: int = 128,
         num_layers: int = 2,
         temporal_dim: int = 128,

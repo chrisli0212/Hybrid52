@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Iterator
 import json
 
-from .feature_config import TOTAL_FEATURES, CHAIN_2D_CONFIG
+from .feature_config_v2 import TOTAL_FEATURES, CHAIN_2D_CONFIG
 from .sequence_pipeline import SequenceConfig, SequenceCreator
 from .master_extractor import MasterFeatureExtractor
 from .quality_checks import validate_preprocessed_data

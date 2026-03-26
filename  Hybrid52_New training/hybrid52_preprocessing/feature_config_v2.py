@@ -1,12 +1,9 @@
 """
-Hybrid51 Feature Configuration - UPDATED WITH PHASE 1 FEATURES
-Defines all 327 features (270 original + 57 Phase 1) with groups, indices, descriptions.
+Hybrid52 historical feature configuration.
 
-Phase 1 Additions:
-- Smart Money Detection (15 features)
-- Volume Anomaly Detection (12 features)
-- Trade Condition Analysis (10 features)
-- Quote Pressure & Exchange Routing (20 features)
+Defines 286 flat features:
+- 270 base chain-derived features
+- 16 CSV-derived enrichments (lambda/dist_atm/spread_pct + dual/d1d2/iv_error/ultima + OI)
 """
 
 from dataclasses import dataclass, field
@@ -25,10 +22,7 @@ class FeatureGroup(IntEnum):
     CROSS_STRIKE = 7
     TIME_DECAY = 8
     SENTIMENT_REGIME = 9
-    SMART_MONEY = 10
-    VOLUME_ANOMALY = 11
-    TRADE_CONDITIONS = 12
-    QUOTE_PRESSURE = 13
+    CSV_DERIVED = 10
 
 
 @dataclass
@@ -177,57 +171,24 @@ FEATURE_GROUPS = {
         }
     ),
     
-    # NEW PHASE 1 FEATURES
-    FeatureGroup.SMART_MONEY: FeatureGroupConfig(
-        name="smart_money",
+    FeatureGroup.CSV_DERIVED: FeatureGroupConfig(
+        name="csv_derived",
         start_idx=270,
-        num_features=15,
-        description="Institutional/informed trading detection",
+        num_features=16,
+        description="CSV-native enrichments and first-wave derived features",
         subgroups={
-            "sweep_detection": (270, 274),
-            "block_detection": (274, 278),
-            "aggression_class": (278, 282),
-            "size_anomaly": (282, 285),
-        }
-    ),
-    FeatureGroup.VOLUME_ANOMALY: FeatureGroupConfig(
-        name="volume_anomaly",
-        start_idx=285,
-        num_features=12,
-        description="Statistical volume anomaly detection",
-        subgroups={
-            "zscore_metrics": (285, 289),
-            "oi_relative": (289, 293),
-            "time_based": (293, 297),
-        }
-    ),
-    FeatureGroup.TRADE_CONDITIONS: FeatureGroupConfig(
-        name="trade_conditions",
-        start_idx=297,
-        num_features=10,
-        description="OPRA trade condition code analysis",
-        subgroups={
-            "condition_flags": (297, 303),
-            "condition_stats": (303, 307),
-        }
-    ),
-    FeatureGroup.QUOTE_PRESSURE: FeatureGroupConfig(
-        name="quote_pressure",
-        start_idx=307,
-        num_features=18,
-        description="Quote pressure, tape reading, exchange routing",
-        subgroups={
-            "cvd_metrics": (307, 310),
-            "quote_dynamics": (310, 313),
-            "tape_reading": (313, 317),
-            "order_book": (317, 319),
-            "exchange_routing": (319, 325),
+            "lambda_features": (270, 273),
+            "dist_atm_features": (273, 275),
+            "spread_pct_features": (275, 278),
+            "greek_aux_features": (278, 284),
+            "oi_features": (284, 286),
         }
     ),
 }
 
 
-TOTAL_FEATURES = 325
+TOTAL_FEATURES = 286
+HISTORICAL_MODE = True
 
 DELTA_BUCKETS = [
     ("deep_otm", 0.0, 0.2),
@@ -264,7 +225,7 @@ CHAIN_2D_CONFIG = {
 
 
 def get_feature_names() -> List[str]:
-    """Get all 327 feature names."""
+    """Get all 286 historical-mode feature names."""
     names = []
     
     # Original 270 features (unchanged)
@@ -355,35 +316,15 @@ def get_feature_names() -> List[str]:
     names.extend(["spx_corr", "vix_corr", "sector_corr", "beta_to_spx"])
     names.extend(["iv_vix_ratio", "relative_iv", "vix_term_impact"])
     
-    # NEW PHASE 1 FEATURES (57 total)
-    # Smart Money (15)
+    # CSV-derived features (dims 270-285) — 16 features
     names.extend([
-        'is_sweep', 'sweep_score', 'sweep_premium_pct', 'multi_exchange_count',
-        'is_block', 'block_premium', 'block_to_avg_ratio', 'block_count',
-        'near_ask_pct', 'near_bid_pct', 'mid_execution_pct', 'price_improvement_pct',
-        'size_zscore', 'size_percentile', 'large_trade_cluster',
-    ])
-    
-    # Volume Anomaly (12)
-    names.extend([
-        'volume_zscore', 'volume_percentile_20d', 'volume_percentile_60d', 'volume_spike_intensity',
-        'volume_to_oi_ratio', 'oi_turnover_rate', 'volume_acceleration', 'unusual_activity_flag',
-        'volume_vs_hour_avg', 'volume_vs_dow_avg', 'pre_market_volume_pct', 'post_market_volume_pct',
-    ])
-    
-    # Trade Conditions (10)
-    names.extend([
-        'is_iso', 'is_complex', 'is_opening', 'is_closing', 'is_auction', 'is_contingent',
-        'iso_volume_pct', 'complex_order_pct', 'auction_participation_pct', 'condition_diversity',
-    ])
-    
-    # Quote Pressure (20)
-    names.extend([
-        'cvd_total', 'cvd_momentum', 'cvd_divergence',
-        'bid_pressure', 'quote_update_frequency', 'quote_improvement_rate',
-        'print_clustering_score', 'trade_sequence_momentum', 'absorption_quality', 'tape_reading_signal',
-        'depth_ratio', 'liquidity_imbalance_score',
-        'cboe_pct', 'phlx_pct', 'ise_pct', 'exchange_diversity', 'multi_exchange_trades', 'exchange_concentration',
+        'lambda_mean', 'lambda_atm', 'lambda_skew',
+        'dist_atm_mean', 'dist_atm_weighted',
+        'spread_pct_mean', 'spread_pct_atm', 'spread_pct_skew',
+        'dual_delta_mean', 'dual_gamma_mean',
+        'd1_atm', 'd2_atm',
+        'iv_error_mean', 'ultima_mean',
+        'oi_mean', 'oi_put_call_ratio',
     ])
     
     assert len(names) == TOTAL_FEATURES, f"Expected {TOTAL_FEATURES}, got {len(names)}"

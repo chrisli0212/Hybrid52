@@ -6,7 +6,7 @@ Extracts 20 market microstructure features.
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
-from .feature_config import FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import FeatureGroup, FEATURE_GROUPS
 
 
 def calculate_bid_ask_spread(df: pd.DataFrame) -> Dict[str, float]:

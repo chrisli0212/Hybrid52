@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from .feature_config import CHAIN_2D_CONFIG
+from .feature_config_v2 import CHAIN_2D_CONFIG
 
 
 class Chain2DProcessor:

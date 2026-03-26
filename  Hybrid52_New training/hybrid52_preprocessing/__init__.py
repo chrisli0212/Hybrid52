@@ -3,7 +3,7 @@ Hybrid51 Preprocessing Package
 Feature engineering pipeline for options data with 270 features.
 """
 
-from .feature_config import (
+from .feature_config_v2 import (
     TOTAL_FEATURES,
     FEATURE_GROUPS,
     FeatureGroup,

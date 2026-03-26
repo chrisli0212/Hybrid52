@@ -1,12 +1,9 @@
 """
-Hybrid51 Master Feature Extractor - UPDATED WITH PHASE 1
-Orchestrates all feature extraction modules to produce 325 features (270 + 55 Phase 1).
+Hybrid52 Master Feature Extractor (historical mode).
 
-Phase 1 additions:
-- Smart Money Detection (15 features)
-- Volume Anomaly Detection (12 features)
-- Trade Condition Analysis (10 features)
-- Quote Pressure & Exchange Routing (18 features)
+Produces 286 flat features:
+- 270 base extractors
+- 16 CSV-derived enrichments
 """
 
 import numpy as np
@@ -14,9 +11,10 @@ import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
-from .feature_config_v2 import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names
+from .feature_config_v2 import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names, HISTORICAL_MODE
 from .data_validation import get_excluded_columns, get_trade_quote_excluded_columns
 from .greek_features import GreekFeatureExtractor
+from .csv_derived import CsvDerivedExtractor
 from .gamma_exposure import GammaExposureExtractor
 from .iv_surface import IVSurfaceExtractor
 from .flow_volume import FlowVolumeExtractor
@@ -56,11 +54,12 @@ class MasterFeatureExtractor:
         
         Args:
             include_chain_2d: Include 2D chain tensor for Agent-2D CNN
-            include_phase1: Include Phase 1 advanced trade/quote features (55 features)
+            include_phase1: Include Phase 1 advanced trade/quote features (disabled in historical mode)
             normalize: Apply normalization to features
         """
         self.include_chain_2d = include_chain_2d
-        self.include_phase1 = include_phase1
+        self.include_phase1 = include_phase1 and not HISTORICAL_MODE
+        self.csv_derived = CsvDerivedExtractor()
         self.normalize = normalize
         
         # Original extractors (270 features)
@@ -75,7 +74,7 @@ class MasterFeatureExtractor:
         self.sentiment_extractor = SentimentRegimeExtractor()
         
         # Phase 1 extractors (55 features)
-        if include_phase1:
+        if self.include_phase1:
             self.smart_money_detector = SmartMoneyDetector()
             self.volume_anomaly_detector = VolumeAnomalyDetector()
             self.trade_condition_analyzer = TradeConditionAnalyzer()
@@ -116,9 +115,9 @@ class MasterFeatureExtractor:
             open_interest: Current open interest (for volume anomaly detection)
         
         Returns:
-            Feature array of shape (325,) if Phase 1 enabled, else (270,)
+            Feature array of shape (270 + optional phase1 features,)
         """
-        n_features = TOTAL_FEATURES if self.include_phase1 else 270
+        n_features = 325 if self.include_phase1 else 270
         features = np.zeros(n_features, dtype=np.float32)
         
         greek_df = self.preprocess_greek_df(greek_df)
@@ -226,7 +225,9 @@ class MasterFeatureExtractor:
         quality_score = 1.0 - (nan_count / n_features)
         
         flat_features = np.nan_to_num(flat_features, nan=0.0, posinf=0.0, neginf=0.0)
-        
+        csv_feats = self.csv_derived.extract(greek_df)
+        flat_features = np.concatenate([flat_features, csv_feats])
+
         return ExtractionResult(
             features=flat_features,
             chain_2d=chain_2d,
@@ -254,9 +255,7 @@ class MasterFeatureExtractor:
             (features_array, chain_2d_array, quality_scores)
         """
         n_samples = len(greek_dfs)
-        n_features = TOTAL_FEATURES if self.include_phase1 else 270
-        
-        flat_features = np.zeros((n_samples, n_features), dtype=np.float32)
+        feature_rows: List[np.ndarray] = []
         quality_scores = []
         
         for i, greek_df in enumerate(greek_dfs):
@@ -265,8 +264,10 @@ class MasterFeatureExtractor:
             oi = open_interests[i] if open_interests else None
             
             result = self.extract(greek_df, trade_df, hist, oi)
-            flat_features[i] = result.features
+            feature_rows.append(result.features.astype(np.float32, copy=False))
             quality_scores.append(result.quality_score)
+
+        flat_features = np.vstack(feature_rows) if feature_rows else np.zeros((n_samples, TOTAL_FEATURES), dtype=np.float32)
         
         chain_2d_batch = None
         if self.include_chain_2d and self.chain_processor is not None:
@@ -326,7 +327,7 @@ class MasterFeatureExtractor:
     @property
     def n_flat_features(self) -> int:
         """Total number of flat features."""
-        return TOTAL_FEATURES if self.include_phase1 else 270
+        return TOTAL_FEATURES
     
     @property
     def chain_2d_shape(self) -> Optional[Tuple[int, int, int]]:

@@ -18,7 +18,7 @@ import torch.nn as nn
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-from hybrid51_models.independent_agent import IndependentAgent
+from hybrid52_models.independent_agent import IndependentAgent
 
 
 def main():

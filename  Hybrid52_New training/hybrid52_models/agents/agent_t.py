@@ -19,7 +19,7 @@ from typing import Tuple, Optional
 class AgentT(nn.Module):
     def __init__(
         self,
-        trade_feat_dim: int = 25,
+        trade_feat_dim: int = 27,
         temporal_dim: int = 128,   # fixed: was 0, caused fusion shape crash
         hidden_dim: int = 256,
     ):

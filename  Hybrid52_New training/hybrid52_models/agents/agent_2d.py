@@ -77,12 +77,7 @@ class Agent2D(nn.Module):
         device = static.device
         
         if chain_2d is None:
-            import warnings
-            warnings.warn(
-                "Agent2D received chain_2d=None — no real chain data. Build chain_2d.npy first.",
-                RuntimeWarning, stacklevel=2
-            )
-            chain_2d = self._create_synthetic_chain(batch_size, device)
+            raise ValueError("Agent2D requires real chain_2d input; received None.")
         
         x = F.relu(self.gn1(self.conv1(chain_2d)))
         x = F.max_pool2d(x, 2) if x.size(2) > 4 and x.size(3) > 4 else x
@@ -113,30 +108,6 @@ class Agent2D(nn.Module):
         
         return score, confidence, None
     
-    def _create_synthetic_chain(
-        self, 
-        batch_size: int, 
-        device: torch.device
-    ) -> torch.Tensor:
-        chain = torch.randn(
-            batch_size, 
-            self.n_greeks, 
-            self.n_strikes, 
-            self.n_timesteps,
-            device=device
-        ) * 0.1
-        
-        delta_range = torch.linspace(-0.9, 0.9, self.n_strikes, device=device)
-        chain[:, 0, :, :] = delta_range.view(1, -1, 1).expand(batch_size, -1, self.n_timesteps)
-        
-        gamma_profile = torch.exp(-2 * delta_range ** 2)
-        chain[:, 1, :, :] = gamma_profile.view(1, -1, 1).expand(batch_size, -1, self.n_timesteps) * 0.05
-        
-        smile = 0.25 * (1 + 0.1 * delta_range ** 2)
-        chain[:, 4, :, :] = smile.view(1, -1, 1).expand(batch_size, -1, self.n_timesteps)
-        
-        return chain
-    
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
@@ -164,12 +135,7 @@ class Agent2DWithResidual(Agent2D):
         device = static.device
         
         if chain_2d is None:
-            import warnings
-            warnings.warn(
-                "Agent2D received chain_2d=None — no real chain data. Build chain_2d.npy first.",
-                RuntimeWarning, stacklevel=2
-            )
-            chain_2d = self._create_synthetic_chain(batch_size, device)
+            raise ValueError("Agent2D requires real chain_2d input; received None.")
         
         residual = self.res_conv1(chain_2d)
         

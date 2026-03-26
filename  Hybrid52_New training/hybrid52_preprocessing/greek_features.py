@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from .data_validation import get_usable_greek_columns, get_excluded_columns, METADATA_COLUMNS
-from .feature_config import (
+from .feature_config_v2 import (
     DELTA_BUCKETS, GREEKS_FOR_BUCKETING, ATM_GREEKS,
     FeatureGroup, FEATURE_GROUPS
 )

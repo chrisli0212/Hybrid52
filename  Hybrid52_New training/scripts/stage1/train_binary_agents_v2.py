@@ -44,9 +44,9 @@ from scipy.stats import spearmanr
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-from hybrid51_models.independent_agent import IndependentAgent
+from hybrid52_models.independent_agent import IndependentAgent
 from config.feature_subsets import AGENT_FEATURE_SUBSETS
-from hybrid51_utils.artifacts import DEFAULT_TRAINING_HORIZON_MINUTES
+from hybrid52_utils.artifacts import DEFAULT_TRAINING_HORIZON_MINUTES
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)

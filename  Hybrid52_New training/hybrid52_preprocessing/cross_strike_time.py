@@ -6,7 +6,14 @@ Extracts 30 features: Cross-Strike (15) + Time Decay (15)
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
-from .feature_config import DTE_BUCKETS, FeatureGroup, FEATURE_GROUPS
+from .feature_config_v2 import DTE_BUCKETS, FeatureGroup, FEATURE_GROUPS
+
+
+def _resolve_oi_col(df: pd.DataFrame) -> Optional[str]:
+    for col in ("oi", "open_interest", "size"):
+        if col in df.columns:
+            return col
+    return None
 
 
 def calculate_oi_volume_distribution(df: pd.DataFrame) -> Dict[str, float]:
@@ -19,7 +26,7 @@ def calculate_oi_volume_distribution(df: pd.DataFrame) -> Dict[str, float]:
         "oi_vol_divergence": 0.0,
     }
     
-    oi_col = 'oi' if 'oi' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     vol_col = 'size' if 'size' in df.columns else None
     
     if 'strike' not in df.columns:
@@ -227,7 +234,7 @@ def calculate_dte_bucket_oi(df: pd.DataFrame) -> Dict[str, float]:
     df = df.copy()
     df['dte'] = calculate_dte(df)
     
-    oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     if oi_col is None:
         return features
     
@@ -264,7 +271,7 @@ def calculate_decay_accelerations(df: pd.DataFrame) -> Dict[str, float]:
         
         features["theta_accel"] = near_theta / mid_theta if abs(mid_theta) > 1e-10 else 0
         
-        oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+        oi_col = _resolve_oi_col(df)
         if oi_col:
             total_oi = df[oi_col].sum()
             if total_oi > 0:
@@ -288,7 +295,7 @@ def calculate_decay_accelerations(df: pd.DataFrame) -> Dict[str, float]:
         
         features["charm_accel"] = near_charm / mid_charm if abs(mid_charm) > 1e-10 else 0
         
-        oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+        oi_col = _resolve_oi_col(df)
         if oi_col:
             total_oi = df[oi_col].sum()
             if total_oi > 0:
@@ -313,7 +320,7 @@ def calculate_time_concentrations(df: pd.DataFrame) -> Dict[str, float]:
     
     near_term = df[df['dte'] <= 7]
     
-    oi_col = 'oi' if 'oi' in df.columns else 'size' if 'size' in df.columns else None
+    oi_col = _resolve_oi_col(df)
     
     if oi_col:
         total_oi = df[oi_col].sum()

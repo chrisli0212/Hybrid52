@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import json
 
-from .feature_config import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names
+from .feature_config_v2 import TOTAL_FEATURES, FEATURE_GROUPS, FeatureGroup, get_feature_names
 
 
 @dataclass
