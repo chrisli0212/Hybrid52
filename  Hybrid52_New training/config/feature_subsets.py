@@ -80,10 +80,11 @@ AGENT_FEATURE_SUBSETS = {
             (115, 125),  # vanna_charm net_exposures (6) + cross_greek_ratios (4) = 10
             (125, 132),  # iv_by_moneyness = 7
             (132, 137),  # iv_term_structure = 5
-            (137, 140),  # vol_skew_metrics first 3 = 3
-            (202, 210),  # max_oi_strikes (4) + wall_distances first 4 = 8
-            (270, 273),  # CSV-derived: lambda_mean, lambda_atm, lambda_skew = 3
-            (278, 286),  # CSV-derived aux: dual/d1d2/iv_error/ultima + OI enrichments = 8
+            (137, 143),  # vol_skew_metrics full 6 = 6
+            (202, 210),  # max_oi_strikes + wall_distances = 8
+            (270, 273),  # CSV-derived: lambda_mean/atm/skew = 3
+            (284, 286),  # CSV-derived: oi_mean + oi_put_call_ratio = 2
+            (143, 146),  # iv_percentiles first 3 = 3
         ],
         'feat_dim': 64,
         'use_backbone': True,
@@ -203,7 +204,7 @@ AGENT_FEATURE_SUBSETS = {
             (180, 189),  # bid_ask_spread + order_book_imbalance = 9
             (105, 107),  # vanna/charm net exposures = 2
             (189, 192),  # quote_intensity = 3
-            (282, 284),  # CSV-derived aux: iv_error_mean + ultima_mean = 2
+            (264, 266),  # correlation_metrics first 2 = 2
         ],
         'feat_dim': 22,
         'use_backbone': False,
