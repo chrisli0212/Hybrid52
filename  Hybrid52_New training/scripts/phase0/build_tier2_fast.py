@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 import duckdb
 
-# ── Path setup ────────────────────────────────────────────────────────────────
+# ── Path setup ────────────────────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent.parent  # → /workspace/ Hybrid52_New training
 sys.path.insert(0, str(ROOT))
 
@@ -42,11 +42,22 @@ OUTPUT_ROOT = Path("/workspace/data/tier2_minutes_hybrid52")
 FEAT_DIM = TOTAL_FEATURES  # 286 (historical mode with expanded CSV-derived aux)
 ALL_SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
 
+# Global counter for extraction errors (multiprocessing-safe via return value inspection)
+_EXTRACTION_ERROR_SAMPLE_LIMIT = 5  # log first N unique error messages per worker
+
 
 def create_feature_extractor():
     from hybrid52_preprocessing.master_extractor_v2 import MasterFeatureExtractor
     return MasterFeatureExtractor(
         include_chain_2d=False, include_phase1=False, normalize=False
+    )
+
+
+def _audit_greek_schema(greek_df: pd.DataFrame, greek_path: Path) -> None:
+    """Log column names of the first date's Greek parquet to aid schema debugging."""
+    logger.info(
+        f"[SCHEMA AUDIT] {greek_path.name}: {len(greek_df.columns)} cols: "
+        f"{list(greek_df.columns)[:30]}{'...' if len(greek_df.columns) > 30 else ''}"
     )
 
 
@@ -58,9 +69,12 @@ def process_one_date(args):
     extractor = None if chain_only else create_feature_extractor()
     chain_processor = Chain2DProcessor(n_greeks=5, n_strikes=30, n_timesteps=1)
 
+    # Per-worker extraction error tracker (reset each date)
+    extraction_errors_seen = set()
+
     try:
-        # ── Load Greek ────────────────────────────────────────────────────
-        con = duckdb.connect()
+        # ── Load Greek ────────────────────────────────────────────────────────────────
+con = duckdb.connect()
         greek_df = con.execute(
             f"SELECT * FROM read_parquet('{str(greek_path).replace(chr(39), chr(39)*2)}')"
         ).fetchdf()
@@ -69,6 +83,11 @@ def process_one_date(args):
         if greek_df.empty:
             return []
 
+        # One-time schema audit: only fires for the very first date processed by this worker
+        if not hasattr(process_one_date, '_schema_audited'):
+            _audit_greek_schema(greek_df, greek_path)
+            process_one_date._schema_audited = True
+
         # Parse timestamps
         ts_col = None
         for col in ['timestamp', 'underlying_timestamp', 'trade_date']:
@@ -76,6 +95,7 @@ def process_one_date(args):
                 ts_col = col
                 break
         if ts_col is None:
+            logger.warning(f"{symbol}/{greek_path.name}: no timestamp column found (cols={list(greek_df.columns)[:10]})")
             return []
 
         greek_df[ts_col] = pd.to_datetime(greek_df[ts_col])
@@ -86,7 +106,8 @@ def process_one_date(args):
         else:
             greek_df['_minute'] = greek_df[ts_col].dt.floor('min')
 
-        # ── Load TQ (pre-grouped by minute) ───────────────────────────────
+        # ── Load TQ (pre-grouped by minute) ───────────────────────────────────────────────
+con = duckdb.connect()
         tq_by_minute = {}
         if tq_path.exists():
             try:
@@ -108,11 +129,14 @@ def process_one_date(args):
                         tq_df['_minute'] = tq_df[tc].dt.floor('min')
 
                     tq_by_minute = {m: g for m, g in tq_df.groupby('_minute')}
-            except Exception:
-                pass
+            except Exception as tq_err:
+                logger.warning(f"{symbol}/{greek_path.name}: TQ load failed ({tq_err}) — continuing without TQ data")
 
-        # ── Extract features per minute ───────────────────────────────────
-        minutes = []
+        # ── Extract features per minute ─────────────────────────────────────────────────
+minutes = []
+        n_extracted_ok = 0
+        n_extracted_zero = 0
+
         for minute_ts, greek_group in greek_df.groupby('_minute'):
             if len(greek_group) < 3:
                 continue
@@ -122,12 +146,24 @@ def process_one_date(args):
 
             if extractor is None:
                 features = np.zeros(FEAT_DIM, dtype=np.float32)
+                n_extracted_zero += 1
             else:
                 try:
                     result = extractor.extract(greek_df=greek_group, trade_df=tq_group)
                     features = result.features
-                except Exception:
+                    n_extracted_ok += 1
+                except Exception as ex:
+                    err_key = type(ex).__name__ + str(ex)[:80]
+                    if err_key not in extraction_errors_seen:
+                        extraction_errors_seen.add(err_key)
+                        if len(extraction_errors_seen) <= _EXTRACTION_ERROR_SAMPLE_LIMIT:
+                            logger.warning(
+                                f"{symbol}/{greek_path.name} @ {minute_ts}: "
+                                f"MasterFeatureExtractor failed — {type(ex).__name__}: {ex}. "
+                                f"Falling back to zero vector. Check column compatibility."
+                            )
                     features = np.zeros(FEAT_DIM, dtype=np.float32)
+                    n_extracted_zero += 1
 
             try:
                 chain_slice = chain_processor.snapshot_to_slice(greek_group)
@@ -149,6 +185,14 @@ def process_one_date(args):
                 'trade_count': int(len(tq_group)) if tq_group is not None else 0,
             })
 
+        if n_extracted_zero > 0 and not chain_only:
+            zero_pct = 100.0 * n_extracted_zero / max(n_extracted_ok + n_extracted_zero, 1)
+            if zero_pct > 10.0:  # only warn if >10% are zeros
+                logger.warning(
+                    f"{symbol}/{greek_path.name}: {n_extracted_zero}/{n_extracted_ok + n_extracted_zero} "
+                    f"({zero_pct:.1f}%) minutes fell back to zero-vector features"
+                )
+
         return minutes
 
     except Exception as e:
@@ -166,8 +210,8 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
     output_file = output_root / f"{symbol}_minutes.parquet"
     output_root.mkdir(parents=True, exist_ok=True)
 
-    # ── Resume support ────────────────────────────────────────────────────
-    progress_file = output_root / f"{symbol}_progress.json"
+    # ── Resume support ────────────────────────────────────────────────────────────────
+progress_file = output_root / f"{symbol}_progress.json"
     completed_dates = set()
     cached_minutes = []
     if progress_file.exists():
@@ -187,8 +231,8 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
                 cached_minutes = []
                 completed_dates = set()
 
-    # ── Discover tradedate files ──────────────────────────────────────────
-    greek_files = sorted(sym_dir.glob("*_greek.parquet"))
+    # ── Discover tradedate files ────────────────────────────────────────────────────────
+greek_files = sorted(sym_dir.glob("*_greek.parquet"))
     all_dates = [f.name.replace("_greek.parquet", "") for f in greek_files]
 
     work_items = []
@@ -250,8 +294,8 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
         logger.warning(f"{symbol}: No minute bars")
         return None
 
-    # ── Write final output ────────────────────────────────────────────────
-    logger.info(f"{symbol}: Writing {len(all_minutes)} minute bars...")
+    # ── Write final output ────────────────────────────────────────────────────────────────
+logger.info(f"{symbol}: Writing {len(all_minutes)} minute bars...")
     minutes_df = pd.DataFrame(all_minutes).sort_values('timestamp')
     con = duckdb.connect()
     con.register('minutes_df', minutes_df)
@@ -272,6 +316,18 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
     sample = np.array([np.array(f) for f in minutes_df['features'].iloc[:1000]])
     useful = int((np.std(sample, axis=0) >= 1e-8).sum())
     has_tq = (minutes_df['trade_count'] > 0).sum()
+
+    if useful == 0:
+        logger.error(
+            f"{symbol}: ALL {FEAT_DIM} features are zero-variance! "
+            f"MasterFeatureExtractor is almost certainly incompatible with the tier1_hybrid52 schema. "
+            f"Re-run with --workers 1 and check WARNING lines above for the exact error."
+        )
+    elif useful < FEAT_DIM // 2:
+        logger.warning(
+            f"{symbol}: Only {useful}/{FEAT_DIM} features have variance — "
+            f"feature extraction is partially failing. Check schema compatibility."
+        )
 
     result = {
         'symbol': symbol, 'total_minutes': len(minutes_df),
