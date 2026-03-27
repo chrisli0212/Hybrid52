@@ -409,6 +409,7 @@ def optimize_threshold(model, val_seq, val_labels, device, mode='classifier',
         raw_output = torch.cat(outputs).cpu().numpy()
 
     platt_scaler = None
+    invert_signal = False  # FIX: always initialise before conditional
     if mode == 'classifier':
         platt_scaler = LogisticRegression()
         platt_scaler.fit(raw_output.reshape(-1, 1), val_labels)
@@ -419,12 +420,15 @@ def optimize_threshold(model, val_seq, val_labels, device, mode='classifier',
         except:
             val_auc = 0.5
 
-        # Auto-flip if classifier is directionally inverted on val
-        if val_auc < 0.5:
+        # Auto-flip ONLY when clearly inverted (< 0.48), not just < 0.5
+        # Avoids flipping agents that are merely weak but correct
+        if val_auc < 0.48:
             invert_signal = True
             probs = 1.0 - probs
             raw_output = -raw_output
-            logger.warning(f"  Auto-flip enabled (val_auc={val_auc:.4f} < 0.5)")
+            logger.warning(f"  Auto-flip enabled (val_auc={val_auc:.4f} < 0.48)")
+        elif val_auc < 0.5:
+            logger.warning(f"  Weak agent (val_auc={val_auc:.4f}) — NOT flipping, monitor closely")
     else:
         probs = raw_output
 
@@ -473,6 +477,8 @@ def evaluate_model(model, test_seq, test_labels, test_returns, device,
             probs = platt_scaler.predict_proba(raw_output.reshape(-1, 1))[:, 1]
         else:
             probs = 1 / (1 + np.exp(-raw_output))
+        if invert_signal:  # FIX: actually apply the flip decided in optimize_threshold
+            probs = 1.0 - probs
         preds = (probs > threshold).astype(int)
         confidence = np.abs(probs - 0.5) * 2
         brier = brier_score_loss(test_labels, probs)

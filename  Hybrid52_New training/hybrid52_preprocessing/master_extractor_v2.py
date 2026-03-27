@@ -141,11 +141,11 @@ class MasterFeatureExtractor:
         features[idx:idx + 25] = iv_features
         idx += 25
         
-        flow_features = self.flow_extractor.extract(greek_df)
+        flow_features = self.flow_extractor.extract(trade_df if trade_df is not None else greek_df)
         features[idx:idx + 30] = flow_features
         idx += 30
         
-        micro_features = self.micro_extractor.extract(greek_df)
+        micro_features = self.micro_extractor.extract(trade_df if trade_df is not None else greek_df)
         features[idx:idx + 20] = micro_features
         idx += 20
         
