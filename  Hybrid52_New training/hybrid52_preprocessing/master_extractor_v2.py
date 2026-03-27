@@ -129,9 +129,13 @@ class MasterFeatureExtractor:
         features[idx:idx + 75] = greek_features
         idx += 75
         
-        gamma_features = self.gamma_extractor.extract(greek_df)
-        features[idx:idx + 50] = gamma_features
-        idx += 50
+        gamma_vanna = self.gamma_extractor.extract(greek_df)
+        n_gamma = FEATURE_GROUPS[FeatureGroup.GAMMA_EXPOSURE].num_features
+        n_vanna = FEATURE_GROUPS[FeatureGroup.VANNA_CHARM].num_features
+        features[idx:idx + n_gamma] = gamma_vanna[:n_gamma]
+        idx += n_gamma
+        features[idx:idx + n_vanna] = gamma_vanna[n_gamma:n_gamma + n_vanna]
+        idx += n_vanna
         
         iv_features = self.iv_extractor.extract(greek_df)
         features[idx:idx + 25] = iv_features

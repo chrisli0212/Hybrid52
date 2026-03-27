@@ -37,7 +37,7 @@ from hybrid52_preprocessing.feature_config_v2 import TOTAL_FEATURES
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-TIER1_ROOT = Path("/workspace/data/tier1_hybrid52")
+TIER1_ROOT = Path("/workspace/data/tier1_v4")
 OUTPUT_ROOT = Path("/workspace/data/tier2_minutes_hybrid52")
 FEAT_DIM = TOTAL_FEATURES  # 286 (historical mode with expanded CSV-derived aux)
 ALL_SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
@@ -54,11 +54,20 @@ def create_feature_extractor():
 
 
 def _audit_greek_schema(greek_df: pd.DataFrame, greek_path: Path) -> None:
-    """Log column names of the first date's Greek parquet to aid schema debugging."""
+    """Log column names and null percentages of the first date's Greek parquet."""
     logger.info(
         f"[SCHEMA AUDIT] {greek_path.name}: {len(greek_df.columns)} cols: "
         f"{list(greek_df.columns)[:30]}{'...' if len(greek_df.columns) > 30 else ''}"
     )
+    null_pct = greek_df.isnull().mean()
+    dead_cols = null_pct[null_pct > 0.5]
+    if len(dead_cols) > 0:
+        logger.warning(
+            f"[SCHEMA AUDIT] Columns >50% null: "
+            f"{dict(dead_cols.round(3))}"
+        )
+    live_cols = null_pct[null_pct < 0.05]
+    logger.info(f"[SCHEMA AUDIT] {len(live_cols)} live cols (<5% null): {list(live_cols.index)}")
 
 
 def process_one_date(args):
@@ -185,11 +194,18 @@ def process_one_date(args):
                 'trade_count': int(len(tq_group)) if tq_group is not None else 0,
             })
 
-        if n_extracted_zero > 0 and not chain_only:
-            zero_pct = 100.0 * n_extracted_zero / max(n_extracted_ok + n_extracted_zero, 1)
-            if zero_pct > 10.0:  # only warn if >10% are zeros
+        total_minutes = n_extracted_ok + n_extracted_zero
+        if not chain_only and total_minutes > 0:
+            zero_pct = 100.0 * n_extracted_zero / total_minutes
+            if zero_pct > 20.0:
+                logger.error(
+                    f"{symbol}/{greek_path.name}: HIGH FAILURE RATE — "
+                    f"{n_extracted_zero}/{total_minutes} ({zero_pct:.1f}%) "
+                    f"minutes fell back to zero-vector features"
+                )
+            elif zero_pct > 5.0:
                 logger.warning(
-                    f"{symbol}/{greek_path.name}: {n_extracted_zero}/{n_extracted_ok + n_extracted_zero} "
+                    f"{symbol}/{greek_path.name}: {n_extracted_zero}/{total_minutes} "
                     f"({zero_pct:.1f}%) minutes fell back to zero-vector features"
                 )
 

@@ -44,7 +44,7 @@ class TemporalBackbone(nn.Module):
         embed_dim: int = 128,
         kernel_sizes: tuple = (3, 5, 7),
         dropout: float = 0.1,
-        use_attention_pool: bool = False,
+        use_attention_pool: bool = True,
     ):
         super().__init__()
 

@@ -48,8 +48,8 @@ BATCH_SIZE = 4096
 CHAIN_INPUT_STRIKES = 30
 CHAIN_OUTPUT_STRIKES = 20
 CHAIN_STRIKE_START = max(0, (CHAIN_INPUT_STRIKES - CHAIN_OUTPUT_STRIKES) // 2)
-TQ_FEAT_START = 0  # disabled — historical mode
-TQ_FEAT_END = 0    # disabled
+TQ_FEAT_START = 270  # real TQ range
+TQ_FEAT_END = 286    # matches FEAT_DIM
 
 
 def add_delta_features(sequences: np.ndarray) -> np.ndarray:
@@ -283,9 +283,13 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
 
     tq_active_mask = np.any(np.abs(all_features[:, TQ_FEAT_START:TQ_FEAT_END]) > 1e-8, axis=1)
     tq_feature_coverage = float(tq_active_mask.mean()) if len(tq_active_mask) > 0 else 0.0
-    logger.info(f"{symbol}: TQ feature coverage={tq_feature_coverage * 100:.1f}% of minutes")
-    # Expected: tq_feature_coverage will be near 0% for historical Theta Data EOD snapshots.
-    # Phase1 TQ dims (270-324) are empty — Agent T/Q use microstructure remap per feature_subsets.py.
+    logger.info(f"{symbol}: CSV-derived feature coverage (dims {TQ_FEAT_START}-{TQ_FEAT_END-1})={tq_feature_coverage * 100:.1f}% of minutes")
+    if tq_feature_coverage < 0.05:
+        logger.warning(f"{symbol}: CSV-derived dims 270-285 are near-zero! "
+                       f"Check that tier2 parquet includes lambda/dist_atm/spread_pct columns. "
+                       f"Agents A, B, K will be significantly degraded.")
+    else:
+        logger.info(f"{symbol}: CSV-derived dims 270-285 are live ({tq_feature_coverage*100:.1f}% coverage)")
 
     max_horizon = max(horizons)
     n_samples = len(all_features) - seq_len - max_horizon
@@ -455,7 +459,10 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
             'chain_input_strikes': CHAIN_INPUT_STRIKES if all_chain is not None else 0,
             'chain_output_strikes': CHAIN_OUTPUT_STRIKES if all_chain is not None else 0,
             'chain_strike_start': CHAIN_STRIKE_START if all_chain is not None else None,
-            'tq_feature_coverage': round(tq_feature_coverage, 4),
+            'csv_derived_feature_coverage': round(tq_feature_coverage, 4),
+            'csv_derived_feat_start': TQ_FEAT_START,
+            'csv_derived_feat_end': TQ_FEAT_END,
+            'csv_derived_n_dims': TQ_FEAT_END - TQ_FEAT_START,
         }
         with open(out_dir / 'metadata.json', 'w') as f:
             json.dump(metadata, f, indent=2)

@@ -147,16 +147,16 @@ class PredictionService:
         horizon = int(self.config.get("model_info", {}).get("horizon_minutes", 30))
         sub     = Path(symbol) / f"horizon_{horizon}min"
 
-        # Build a list of candidate directories to search:
-        #  1. Config-specified tier3_binary_root (absolute path)
-        #  2. Repo-relative: <repo_root>/data/tier3_binary_v5/
-        #  3. Sibling of SCRIPT_DIR: ../data/tier3_binary_v5/
+        # Build search candidates from explicit roots only (env override + config).
+        # Avoid silent fallback to stale hardcoded datasets.
         candidates: list[Path] = []
-        cfg_root = self.config.get("data_paths", {}).get("tier3_binary_root", "")
-        if cfg_root:
-            candidates.append(Path(cfg_root) / sub)
-        candidates.append(SCRIPT_DIR.parent / "data" / "tier3_binary_v5" / sub)
-        candidates.append(SCRIPT_DIR / "data" / "tier3_binary_v5" / sub)
+        env_root = os.getenv("HYBRID51_DATA_ROOT", "").strip()
+        cfg_root = str(self.config.get("data_paths", {}).get("tier3_binary_root", "")).strip()
+        for root in [env_root, cfg_root]:
+            if root:
+                p = Path(root) / sub
+                if p not in candidates:
+                    candidates.append(p)
 
         for d in candidates:
             nm_path, ns_path = d / "norm_mean.npy", d / "norm_std.npy"

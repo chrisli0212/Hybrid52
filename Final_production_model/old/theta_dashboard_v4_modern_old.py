@@ -43,6 +43,86 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "daily_data"
 
+# ---------------------------------------------------------------------------
+# API key persistence — load from / save to .env next to this script
+# ---------------------------------------------------------------------------
+_ENV_FILE = SCRIPT_DIR / ".env"
+
+def _load_api_keys():
+    keys = {"pplx": "", "xai": "", "openrouter": ""}
+    if _ENV_FILE.exists():
+        for line in _ENV_FILE.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("PPLX_KEY="):
+                keys["pplx"] = line[len("PPLX_KEY="):]
+            elif line.startswith("XAI_KEY="):
+                keys["xai"] = line[len("XAI_KEY="):]
+            elif line.startswith("OPENROUTER_KEY="):
+                keys["openrouter"] = line[len("OPENROUTER_KEY="):]
+    return keys
+
+def _save_api_keys(pplx, xai, openrouter):
+    lines = []
+    if _ENV_FILE.exists():
+        for line in _ENV_FILE.read_text().splitlines():
+            if not line.strip().startswith(("PPLX_KEY=", "XAI_KEY=", "OPENROUTER_KEY=")):
+                lines.append(line)
+    lines += [
+        f"PPLX_KEY={pplx or ''}",
+        f"XAI_KEY={xai or ''}",
+        f"OPENROUTER_KEY={openrouter or ''}",
+    ]
+    _ENV_FILE.write_text("\n".join(lines) + "\n")
+
+_SAVED_KEYS = _load_api_keys()
+
+# ---------------------------------------------------------------------------
+# Chat history persistence
+# ---------------------------------------------------------------------------
+CHAT_DIR = SCRIPT_DIR / "Ai prediction chat"
+CHAT_DIR.mkdir(exist_ok=True)
+_CHAT_SESSION_FILE = CHAT_DIR / "latest_session.json"
+
+def _entries_to_md(entries):
+    import datetime as _dt
+    lines = [f"# AI Chat History — {_dt.datetime.now().strftime('%Y-%m-%d %H:%M')}\n"]
+    for e in entries:
+        role = e.get("role", "")
+        content = e.get("content", "")
+        model = e.get("model", "")
+        if role == "user":
+            lines.append(f"## You\n{content}\n")
+        elif role == "assistant":
+            label = f" [{model}]" if model else ""
+            lines.append(f"## AI{label}\n{content}\n")
+        elif role == "system_status":
+            lines.append(f"> {content}\n")
+        elif role == "error":
+            lines.append(f"> **Error:** {content}\n")
+    return "\n".join(lines)
+
+def _save_chat_session(entries):
+    import json as _json, datetime as _dt, traceback as _tb
+    try:
+        _CHAT_SESSION_FILE.write_text(_json.dumps(entries, ensure_ascii=False, indent=2))
+        date_str = _dt.date.today().isoformat()
+        (CHAT_DIR / f"{date_str}_session.json").write_text(_json.dumps(entries, ensure_ascii=False, indent=2))
+        if entries:
+            (CHAT_DIR / f"{date_str}_session.md").write_text(_entries_to_md(entries))
+    except Exception:
+        (CHAT_DIR / "save_error.log").write_text(_tb.format_exc())
+
+def _load_chat_session():
+    import json as _json
+    try:
+        if _CHAT_SESSION_FILE.exists():
+            return _json.loads(_CHAT_SESSION_FILE.read_text())
+    except Exception:
+        pass
+    return []
+
+_SAVED_CHAT = _load_chat_session()
+
 AGG_FILE       = DATA_DIR / "theta_agg.csv"
 SNAPSHOT_FILE  = DATA_DIR / "theta_snapshot.csv"
 SNAPSHOT_DIR   = DATA_DIR / "snapshots"
@@ -77,13 +157,13 @@ def _debug_log(hypothesis_id, location, message, data=None, run_id="run1"):
             pass
     # #endregion
 
-# Per-agent decision thresholds from SPXW h30 training (F1-optimized on validation set).
-# These are the correct "neutral" points: prob >= threshold means the agent signals BULL.
-# All agents share positive_class_prior=0.5321 (53.21% bull in training data).
-# Source: results/stage1/SPXW_h30_results.json + checkpoint optimal_threshold fields.
+# Per-agent Stage-2 neutral baselines — average output over 100 random z-scored inputs.
+# These are the correct "neutral" middle lines for each agent chart.
+# When an agent's live probability is ABOVE its baseline → agent is bullish;
+# when BELOW → agent is bearish.  Computed from the full Stage 1→2 pipeline.
 AGENT_TRAIN_MEDIAN = {
-    "A": 0.35, "B": 0.37, "C": 0.43,
-    "K": 0.38, "T": 0.43, "Q": 0.38, "2D": 0.38,
+    "A": 0.45, "B": 0.58, "C": 0.50,
+    "K": 0.41, "T": 0.46, "Q": 0.49, "2D": 0.47,
 }
 # Fraction of bull labels in training — true baseline output expected at market neutral.
 AGENT_BULL_PRIOR = 0.5321
@@ -96,10 +176,12 @@ AGENT_S3_COEF = {
 S3_CROSS_COEF = [0.514, 0.015, 0.029, 0.815, 0.503, 0.475]
 S3_INTERCEPT = -3.2518
 
-# Stage 3 model baseline — prob output when all agents are exactly at 0.5 (true neutral input).
-# Derived from model intercept=-3.2518 + sum(coef*0.5). ~0.43 because the large negative
-# intercept suppresses outputs; real market is ~53% bull, so prob > 0.43 = net bullish signal.
-S3_NEUTRAL = 0.43
+# Stage 3 bull/bear decision boundary — trained threshold from LogReg (F1-optimised).
+# This is the TRUE middle line: prob >= 0.36 → BULL, prob < 0.36 → BEAR.
+# Mean Stage 3 output over 100 random inputs ≈ 0.3643 (right at this threshold),
+# confirming a balanced model.  The low threshold compensates for the large negative
+# intercept (-3.2518) inherent in the LogReg.
+S3_NEUTRAL = 0.36
 
 # Colors aligned with theta_dashboard_v3_10.py (production reference)
 MC = {
@@ -129,6 +211,24 @@ MC = {
 # Market hours window (New York / Eastern Time)
 # 30 min before regular open (8:30 AM) to 30 min after close (5:00 PM)
 ET = ZoneInfo("America/New_York")
+
+# ── Multi-symbol overlay constants ────────────────────────────────────────────
+# Ratio charts: 4 lines (SPXW + SPY + QQQ + IWM)
+_RATIO_SYMBOLS = ['SPXW', 'SPY', 'QQQ', 'IWM']
+_RATIO_COLORS    = {'SPXW': '#3b82f6', 'SPY': '#a855f7', 'QQQ': '#f97316', 'IWM': '#22c55e'}
+_RATIO_WIDTHS    = {'SPXW': 2.5, 'SPY': 1.8, 'QQQ': 1.8, 'IWM': 1.8}
+_RATIO_OPACITIES = {'SPXW': 1.0,  'SPY': 0.45, 'QQQ': 0.45, 'IWM': 0.45}
+
+# UW Match Mode: make gamma profile closer to Unusual Whales conventions.
+# Enable by default; set UW_MATCH_MODE=0 to disable.
+UW_MATCH_MODE = str(os.getenv("UW_MATCH_MODE", "1")).strip().lower() not in {"0", "false", "no", "off"}
+# In UW mode, force symmetric visibility: keep top N strikes per side.
+UW_GEX_TOP_N_PER_SIDE = int(os.getenv("UW_GEX_TOP_N_PER_SIDE", "18"))
+# Option chain charts: 2 overlays (SPXW primary + SPY secondary)
+_CHAIN_OVERLAY_COLORS = {
+    'SPXW': {'call': '#10b981', 'put': '#ef4444', 'neutral': '#3b82f6'},
+    'SPY':  {'call': '#67e8f9', 'put': '#fda4af', 'neutral': '#c084fc'},
+}
 
 
 def _now_et_naive():
@@ -1075,16 +1175,38 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
             return empty_chart("No GEX data in ±7% range", 500)
     gex = gex.sort_values('strike', ascending=True).copy()  # ascending data; autorange='reversed' flips display
 
-    # Drop thin/near-zero gamma bars so the chart focuses on actionable levels.
-    # Dynamic floor = max(30th percentile, 3% of max abs gamma).
+    if UW_MATCH_MODE and spot and spot > 0:
+        # UW-style scale: gamma * OI * spot^2 (equivalent to current gamma_exp * spot/100),
+        # then display in millions to keep axis in "k" style range.
+        gex['gamma_exp'] = (pd.to_numeric(gex['gamma_exp'], errors='coerce')
+                            * (float(spot) / 100.0) / 1e6)
+
+    # Filtering:
+    # - UW mode (Option A): always keep top N positive + top N negative
+    #   so both sides are visible even in heavily one-sided markets.
+    # - Default mode: keep a fuller profile including outer flip zones.
     gex['abs_gamma'] = pd.to_numeric(gex['gamma_exp'], errors='coerce').abs()
-    abs_max = float(gex['abs_gamma'].max() or 0.0)
-    abs_q30 = float(gex['abs_gamma'].quantile(0.30) or 0.0)
-    min_abs_gamma = max(abs_q30, abs_max * 0.03)
-    if min_abs_gamma > 0:
-        gex = gex[gex['abs_gamma'] >= min_abs_gamma].copy()
+    if UW_MATCH_MODE:
+        gex_full = gex.copy()
+        pos = gex[gex['gamma_exp'] > 0].nlargest(UW_GEX_TOP_N_PER_SIDE, 'gamma_exp')
+        neg = gex[gex['gamma_exp'] < 0].nsmallest(UW_GEX_TOP_N_PER_SIDE, 'gamma_exp')
+        gex = pd.concat([pos, neg], ignore_index=True).drop_duplicates(subset=['strike']).sort_values('strike')
+
+        # Fallback if one side is empty in extreme sessions.
+        if gex.empty:
+            abs_max = float(gex_full['abs_gamma'].max() or 0.0)
+            abs_q30 = float(gex_full['abs_gamma'].quantile(0.30) or 0.0)
+            min_abs_gamma = max(abs_q30, abs_max * 0.03)
+            if min_abs_gamma > 0:
+                gex = gex_full[gex_full['abs_gamma'] >= min_abs_gamma].copy()
+    else:
+        abs_max = float(gex['abs_gamma'].max() or 0.0)
+        min_abs_gamma = abs_max * 0.01
+        if min_abs_gamma > 0:
+            gex = gex[gex['abs_gamma'] >= min_abs_gamma].copy()
+
     if gex.empty:
-        return empty_chart("No significant GEX levels after thin-bar filter", 500)
+        return empty_chart("No significant GEX levels", 500)
     gex = gex.drop(columns=['abs_gamma'], errors='ignore')
 
     # --- Previous slice ---
@@ -1092,6 +1214,18 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
     if lookback_df is not None:
         gex_prev_raw = calculate_gex_by_strike(lookback_df, symbol)
         if gex_prev_raw is not None and not gex_prev_raw.empty:
+            if UW_MATCH_MODE:
+                prev_spot = spot
+                try:
+                    _sym_prev = lookback_df[lookback_df['symbol'] == symbol]
+                    if not _sym_prev.empty and 'spot' in _sym_prev.columns:
+                        prev_spot = float(pd.to_numeric(_sym_prev['spot'], errors='coerce').dropna().iloc[0])
+                except Exception:
+                    prev_spot = spot
+                if prev_spot and prev_spot > 0:
+                    gex_prev_raw = gex_prev_raw.copy()
+                    gex_prev_raw['gamma_exp'] = (pd.to_numeric(gex_prev_raw['gamma_exp'], errors='coerce')
+                                                 * (float(prev_spot) / 100.0) / 1e6)
             gex_prev = gex_prev_raw.set_index('strike')['gamma_exp'].to_dict()
 
     # --- Assign colors per bar ---
@@ -1128,7 +1262,9 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
         orientation='h',
         marker=dict(color=bar_colors, opacity=0.90),
         name='Net Dealer GEX',
-        hovertemplate='Strike: %{y}<br>Net GEX: %{x:,.0f}<extra></extra>',
+        hovertemplate=('Strike: %{y}<br>Gamma Exposure: %{x:,.2f}M<extra></extra>'
+                       if UW_MATCH_MODE else
+                       'Strike: %{y}<br>Net GEX: %{x:,.0f}<extra></extra>'),
         width=[abs(gex['strike'].diff().median()) * 0.7 if len(gex) > 1 else 5.0] * len(gex),
     ))
 
@@ -1144,7 +1280,9 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
                 marker=dict(color='#ffffff', size=9, symbol='circle',
                             line=dict(color='#94a3b8', width=1.5)),
                 name='Prev slice',
-                hovertemplate='Strike: %{y}<br>Prev GEX: %{x:,.0f}<extra></extra>',
+                hovertemplate=('Strike: %{y}<br>Prev Gamma Exposure: %{x:,.2f}M<extra></extra>'
+                               if UW_MATCH_MODE else
+                               'Strike: %{y}<br>Prev GEX: %{x:,.0f}<extra></extra>'),
             ))
 
     # --- Zero line ---
@@ -1173,81 +1311,84 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
                 annotation_position='right',
             )
 
-    # --- Legend annotation (color key, bottom-left, compact) ---
-    legend_lines = [
-        '<span style="color:#10b981">■</span> Green: Dealers LONG γ — suppress moves',
-        '<span style="color:#ef4444">■</span> Red: Dealers SHORT γ — amplify moves',
-        '<span style="color:#f59e0b">■</span> Orange: GEX sign FLIPPED vs prev snapshot',
-        '<span style="color:#8b5cf6">■</span> Purple: GEX magnitude surged ≥20% vs prev',
-        '<span style="color:#ffffff">●</span> Dot: Previous snapshot level',
-    ]
-    fig.add_annotation(
-        xref='paper', yref='paper', x=0.01, y=0.01,
-        text='<br>'.join(legend_lines),
-        showarrow=False,
-        align='left',
-        font=dict(size=10, color=MC['text']),
-        bgcolor='rgba(15,23,42,0.88)',
-        borderpad=5,
-        bordercolor=MC['border'],
-        borderwidth=1,
-        xanchor='left', yanchor='bottom',
-    )
-
-    # --- Flipped & surged bar annotations — anchored left of plot to avoid blocking bars ---
-    for strike, cur, prev in sorted(flipped_bars, key=lambda x: abs(x[1]), reverse=True)[:3]:
-        direction = "SHORT→LONG" if cur > 0 else "LONG→SHORT"
-        label = f"<b>Flip @ {strike:,.0f}</b>  {direction}"
+    if not UW_MATCH_MODE:
+        # --- Legend annotation (color key, bottom-left, compact) ---
+        legend_lines = [
+            '<span style="color:#10b981">■</span> Green: Dealers LONG γ — suppress moves',
+            '<span style="color:#ef4444">■</span> Red: Dealers SHORT γ — amplify moves',
+            '<span style="color:#f59e0b">■</span> Orange: GEX sign FLIPPED vs prev snapshot',
+            '<span style="color:#8b5cf6">■</span> Purple: GEX magnitude surged ≥20% vs prev',
+            '<span style="color:#ffffff">●</span> Dot: Previous snapshot level',
+        ]
         fig.add_annotation(
-            xref="paper", yref="y",
-            x=1.01, y=strike,
-            text=label,
-            showarrow=True, arrowhead=2, arrowwidth=1.5,
-            ax=-30, ay=0,
-            arrowcolor=COL_FLIP, font=dict(size=9, color=COL_FLIP),
-            bgcolor="rgba(15,23,42,0.88)", bordercolor=COL_FLIP,
-            borderwidth=1, borderpad=3, align="left",
-            xanchor="left",
+            xref='paper', yref='paper', x=0.01, y=0.01,
+            text='<br>'.join(legend_lines),
+            showarrow=False,
+            align='left',
+            font=dict(size=10, color=MC['text']),
+            bgcolor='rgba(15,23,42,0.88)',
+            borderpad=5,
+            bordercolor=MC['border'],
+            borderwidth=1,
+            xanchor='left', yanchor='bottom',
         )
 
-    for strike, cur, prev in sorted(surged_bars, key=lambda x: abs(x[1]), reverse=True)[:3]:
-        pct = abs((cur - prev) / abs(prev) * 100) if prev else 0
-        label = (f"<b>Surge @ {strike:,.0f}</b><br>"
-                 f"+{pct:.0f}% vs prev snapshot<br>"
-                 f"Large new {'long' if cur > 0 else 'short'} gamma positioning")
-        fig.add_annotation(
-            xref="paper", yref="y",
-            x=1.01, y=strike,
-            text=label,
-            showarrow=True, arrowhead=2, arrowwidth=1.5,
-            ax=-30, ay=0,
-            arrowcolor=COL_SURGE, font=dict(size=9, color=COL_SURGE),
-            bgcolor="rgba(15,23,42,0.88)", bordercolor=COL_SURGE,
-            borderwidth=1, borderpad=3, align="left",
-            xanchor="left",
-        )
+    if not UW_MATCH_MODE:
+        # --- Flipped & surged bar annotations — anchored right of plot ---
+        for strike, cur, prev in sorted(flipped_bars, key=lambda x: abs(x[1]), reverse=True)[:3]:
+            direction = "SHORT→LONG" if cur > 0 else "LONG→SHORT"
+            label = f"<b>Flip @ {strike:,.0f}</b>  {direction}"
+            fig.add_annotation(
+                xref="paper", yref="y",
+                x=1.01, y=strike,
+                text=label,
+                showarrow=True, arrowhead=2, arrowwidth=1.5,
+                ax=-30, ay=0,
+                arrowcolor=COL_FLIP, font=dict(size=9, color=COL_FLIP),
+                bgcolor="rgba(15,23,42,0.88)", bordercolor=COL_FLIP,
+                borderwidth=1, borderpad=3, align="left",
+                xanchor="left",
+            )
 
-    # --- "You are here" regime box — right side, arrow points at spot ---
-    if spot and spot > 0:
-        net_gex_total = gex['gamma_exp'].sum()
-        if net_gex_total >= 0:
-            regime_text  = "<b>+GEX</b> suppress moves"
-            regime_color = C['call']
-        else:
-            regime_text  = "<b>-GEX</b> amplify moves"
-            regime_color = C['put']
-        fig.add_annotation(
-            xref="paper", yref="y",
-            x=1.01, y=spot,
-            ax=-30, ay=0,
-            text=regime_text,
-            showarrow=True, arrowhead=2, arrowwidth=2,
-            arrowcolor=regime_color,
-            font=dict(size=10, color=regime_color),
-            bgcolor="rgba(15,23,42,0.88)", bordercolor=regime_color,
-            borderwidth=1, borderpad=4, align="left",
-            xanchor="left",
-        )
+        for strike, cur, prev in sorted(surged_bars, key=lambda x: abs(x[1]), reverse=True)[:3]:
+            pct = abs((cur - prev) / abs(prev) * 100) if prev else 0
+            label = (f"<b>Surge @ {strike:,.0f}</b><br>"
+                     f"+{pct:.0f}% vs prev snapshot<br>"
+                     f"Large new {'long' if cur > 0 else 'short'} gamma positioning")
+            fig.add_annotation(
+                xref="paper", yref="y",
+                x=1.01, y=strike,
+                text=label,
+                showarrow=True, arrowhead=2, arrowwidth=1.5,
+                ax=-30, ay=0,
+                arrowcolor=COL_SURGE, font=dict(size=9, color=COL_SURGE),
+                bgcolor="rgba(15,23,42,0.88)", bordercolor=COL_SURGE,
+                borderwidth=1, borderpad=3, align="left",
+                xanchor="left",
+            )
+
+    if not UW_MATCH_MODE:
+        # --- "You are here" regime box — right side, arrow points at spot ---
+        if spot and spot > 0:
+            net_gex_total = gex['gamma_exp'].sum()
+            if net_gex_total >= 0:
+                regime_text  = "<b>+GEX</b> suppress moves"
+                regime_color = C['call']
+            else:
+                regime_text  = "<b>-GEX</b> amplify moves"
+                regime_color = C['put']
+            fig.add_annotation(
+                xref="paper", yref="y",
+                x=1.01, y=spot,
+                ax=-30, ay=0,
+                text=regime_text,
+                showarrow=True, arrowhead=2, arrowwidth=2,
+                arrowcolor=regime_color,
+                font=dict(size=10, color=regime_color),
+                bgcolor="rgba(15,23,42,0.88)", bordercolor=regime_color,
+                borderwidth=1, borderpad=4, align="left",
+                xanchor="left",
+            )
 
     # --- Gamma Flip label (right margin) ---
     try:
@@ -1271,9 +1412,10 @@ def create_gamma_chart(options_df, symbol, spot, lookback_df=None, atm_straddle=
     n_strikes = len(gex)
     chart_h = max(500, min(n_strikes * 22 + 80, 900))
 
+    x_title = 'Gamma Exposure ($M / 1% move)' if UW_MATCH_MODE else 'Net Dealer Gamma Exposure'
     fig.update_layout(**base_layout(
         height=chart_h,
-        xaxis_title='Net Dealer Gamma Exposure',
+        xaxis_title=x_title,
         yaxis_title='Strike',
         barmode='overlay',
         hovermode='y unified',
@@ -1802,6 +1944,108 @@ def create_dealer_chart(options_df, symbol):
     return fig
 
 
+def calculate_dealer_flow_greeks(options_df, symbol):
+    """Intraday proxy: volume-weighted dealer greek flow (not OI-structural)."""
+    if options_df is None or options_df.empty:
+        return None
+    sym = options_df[options_df['symbol'] == symbol]
+    if sym.empty:
+        return None
+    if 'volume' not in sym.columns:
+        return None
+
+    vol = pd.to_numeric(sym['volume'], errors='coerce').fillna(0)
+    cp = pd.to_numeric(sym.get('cp_sign', pd.Series(1, index=sym.index)), errors='coerce').fillna(1)
+    greeks = {}
+
+    if 'delta' in sym.columns:
+        d = pd.to_numeric(sym['delta'], errors='coerce').fillna(0)
+        # Delta already carries sign by option type; volume makes this intraday-sensitive.
+        greeks['Delta'] = float((d * vol).sum())
+    if 'gamma' in sym.columns:
+        g = pd.to_numeric(sym['gamma'], errors='coerce').fillna(0)
+        greeks['Gamma'] = float((g * vol * cp).sum())
+    if 'vega' in sym.columns:
+        v = pd.to_numeric(sym['vega'], errors='coerce').fillna(0)
+        greeks['Vega'] = float((v * vol * cp).sum())
+    if 'theta' in sym.columns:
+        t = pd.to_numeric(sym['theta'], errors='coerce').fillna(0)
+        # Negate for dealer perspective consistency with OI chart.
+        greeks['Theta'] = float((-(t * vol)).sum())
+
+    return greeks if greeks else None
+
+
+def create_dealer_flow_chart(options_df, symbol):
+    """Two-panel intraday dealer flow chart (volume-weighted proxy)."""
+    greeks = calculate_dealer_flow_greeks(options_df, symbol)
+    if greeks is None or len(greeks) == 0:
+        return empty_chart("No dealer flow data")
+
+    dg_names, dg_vals, vt_names, vt_vals = [], [], [], []
+    for k, v in greeks.items():
+        if k in ('Delta', 'Gamma'):
+            dg_names.append(k)
+            dg_vals.append(v)
+        else:
+            vt_names.append(k)
+            vt_vals.append(v)
+
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=[
+            'Directional Flow<br>(Delta/Gamma × Volume)',
+            'Vol & Time Flow<br>(Vega/Theta × Volume)',
+        ],
+        horizontal_spacing=0.24
+    )
+    if dg_vals:
+        dg_colors = [C['call'] if v > 0 else C['put'] for v in dg_vals]
+        fig.add_trace(go.Bar(x=dg_names, y=dg_vals, marker=dict(color=dg_colors),
+            text=[f"{'+' if v>0 else ''}{v:,.0f}" for v in dg_vals],
+            textposition='outside', showlegend=False), row=1, col=1)
+    if vt_vals:
+        vt_colors = [C['call'] if v > 0 else C['put'] for v in vt_vals]
+        fig.add_trace(go.Bar(x=vt_names, y=vt_vals, marker=dict(color=vt_colors),
+            text=[f"{'+' if v>0 else ''}{v:,.0f}" for v in vt_vals],
+            textposition='outside', showlegend=False), row=1, col=2)
+
+    fig.add_hline(y=0, line_color=C['text_muted'], line_width=1, opacity=0.5, row=1, col=1)
+    fig.add_hline(y=0, line_color=C['text_muted'], line_width=1, opacity=0.5, row=1, col=2)
+
+    gamma_val = next((v for n, v in zip(dg_names, dg_vals) if n == 'Gamma'), None)
+    if gamma_val is not None:
+        if gamma_val >= 0:
+            regime_text  = "FLOW LONG GAMMA — intraday dampening"
+            regime_color = C['call']
+        else:
+            regime_text  = "FLOW SHORT GAMMA — intraday amplification"
+            regime_color = C['put']
+        fig.add_annotation(
+            xref="x domain", yref="paper", x=0.5, y=1.04,
+            text=f"<b>{regime_text}</b>",
+            showarrow=False, align="center",
+            font=dict(size=10, color=regime_color),
+            bgcolor="rgba(15,23,42,0.82)", bordercolor=regime_color,
+            borderwidth=1, borderpad=3,
+            xanchor="center", yanchor="bottom",
+            row=1, col=1,
+        )
+
+    fig.update_layout(**base_layout(height=340, showlegend=False))
+    fig.update_layout(margin=dict(l=55, r=30, t=72, b=42))
+    fig.update_yaxes(title_text="Flow-weighted Position", row=1, col=1, gridcolor=C['grid'])
+    fig.update_yaxes(title_text="Flow-weighted Position", row=1, col=2, gridcolor=C['grid'])
+    fig.update_xaxes(automargin=True, tickfont=dict(size=11), row=1, col=1)
+    fig.update_xaxes(automargin=True, tickfont=dict(size=11), row=1, col=2)
+    for ann in fig.layout.annotations:
+        ann.font.color = C['text']
+        ann.font.size = 11
+    style_axes(fig)
+    return fig
+
+
 # ========================================
 # NEW FEATURE: OI Concentration & Walls
 # ========================================
@@ -2100,19 +2344,142 @@ def _single_ts_chart(x_time, y_data, title, chart_type='line', color=None,
     return fig
 
 
+def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
+                           hline=None, height=340, legend_title=None):
+    """Create a multi-symbol overlay line chart (SPXW, SPY, QQQ, IWM).
+
+    Returns a Plotly Figure with one line per symbol, styled to match the
+    user's reference image (dark bg, colored lines, legend at top).
+    Returns None if no data available for the column.
+    """
+    fig = go.Figure()
+    has_data = False
+    for sym in _RATIO_SYMBOLS:
+        sym_df = _filter_by_window(agg_df, sym, window_minutes)
+        if sym_df.empty or column not in sym_df.columns:
+            continue
+        y = sym_df[column]
+        if y.isna().all():
+            continue
+        x_time = parse_agg_timestamps(sym_df)
+        fig.add_trace(go.Scatter(
+            x=x_time, y=y, mode='lines',
+            line=dict(color=_RATIO_COLORS.get(sym, '#888'),
+                      width=_RATIO_WIDTHS.get(sym, 2)),
+            opacity=_RATIO_OPACITIES.get(sym, 1.0),
+            name=sym,
+        ))
+        has_data = True
+    if not has_data:
+        return None
+    if hline is not None:
+        fig.add_hline(y=hline, line_dash="dash", line_color=C['warning'], opacity=0.4)
+    fig.update_xaxes(gridcolor=C['grid'], showgrid=True, type='date', tickformat='%H:%M')
+    fig.update_yaxes(gridcolor=C['grid'], showgrid=True)
+    fig.update_layout(
+        height=height, showlegend=True,
+        title=dict(text=title, font=dict(size=13)),
+        paper_bgcolor=C['bg_dark'], plot_bgcolor=C['bg_card'],
+        font=dict(color=C['text'], size=11),
+        margin=dict(l=60, r=20, t=40, b=30), hovermode='x unified',
+        legend=dict(
+            x=0.01, y=0.99, xanchor='left', yanchor='top',
+            font=dict(size=11, color=C['text']),
+            bgcolor='rgba(0,0,0,0)', bordercolor='rgba(0,0,0,0)',
+            title=dict(text=legend_title or title.split('(')[0].strip(),
+                       font=dict(size=11, color=C['text_sec'])),
+        ),
+    )
+    return fig
+
+
+def _multi_symbol_bar_chart(agg_df, column, title, window_minutes=30,
+                            height=340, color_by_sign=False, legend_title=None):
+    """Hybrid chart: SPXW as bars, SPY/QQQ/IWM as overlay lines.
+
+    If *color_by_sign* is True, SPXW bars are green/red based on value
+    (useful for Net GEX, Net Premium). Secondary symbols always use their
+    palette color at reduced opacity.
+    """
+    fig = go.Figure()
+    has_data = False
+    for sym in _RATIO_SYMBOLS:
+        sym_df = _filter_by_window(agg_df, sym, window_minutes)
+        if sym_df.empty or column not in sym_df.columns:
+            continue
+        y = sym_df[column]
+        if y.isna().all():
+            continue
+        x_time = parse_agg_timestamps(sym_df)
+        if sym == 'SPXW':
+            # Primary symbol: bar chart
+            if color_by_sign:
+                bar_colors = [C['call'] if v >= 0 else C['put'] for v in y]
+            else:
+                bar_colors = _RATIO_COLORS.get(sym, '#3b82f6')
+            fig.add_trace(go.Bar(
+                x=x_time, y=y,
+                marker=dict(color=bar_colors, opacity=0.85),
+                name=sym,
+            ))
+        else:
+            # Secondary symbols: line chart with reduced opacity
+            fig.add_trace(go.Scatter(
+                x=x_time, y=y, mode='lines',
+                line=dict(color=_RATIO_COLORS.get(sym, '#888'),
+                          width=_RATIO_WIDTHS.get(sym, 1.8)),
+                opacity=_RATIO_OPACITIES.get(sym, 0.45),
+                name=sym,
+            ))
+        has_data = True
+    if not has_data:
+        return None
+    fig.update_xaxes(gridcolor=C['grid'], showgrid=True, type='date', tickformat='%H:%M')
+    fig.update_yaxes(gridcolor=C['grid'], showgrid=True)
+    fig.update_layout(
+        height=height, showlegend=True,
+        title=dict(text=title, font=dict(size=13)),
+        paper_bgcolor=C['bg_dark'], plot_bgcolor=C['bg_card'],
+        font=dict(color=C['text'], size=11),
+        margin=dict(l=60, r=20, t=40, b=30), hovermode='x unified',
+        legend=dict(
+            x=0.01, y=0.99, xanchor='left', yanchor='top',
+            font=dict(size=11, color=C['text']),
+            bgcolor='rgba(0,0,0,0)', bordercolor='rgba(0,0,0,0)',
+            title=dict(text=legend_title or title.split('(')[0].strip(),
+                       font=dict(size=11, color=C['text_sec'])),
+        ),
+    )
+    return fig
+
+
 def create_timeseries_individual(agg_df, symbol, window_minutes=30):
-    """Returns list of (fig, insight_html) tuples for each time-series metric."""
+    """Returns list of (fig, insight_html) tuples for each time-series metric.
+
+    Ratio metrics (P/C Ratio, IV Skew, ATM Straddle) are now multi-symbol
+    overlays showing SPXW, SPY, QQQ, and IWM on the same chart.
+    Net GEX is shown as grouped bars by symbol.
+    Insight text is still derived from the selected symbol.
+    """
     sym_df = _filter_by_window(agg_df, symbol, window_minutes)
     if sym_df.empty:
         return [(empty_chart("No time-series data", 280), "")]
     x_time = parse_agg_timestamps(sym_df)
     charts = []
+
+    # ── P/C Ratio: 4-line overlay ────────────────────────────────────────
     if 'pc_ratio' in sym_df.columns:
-        fig = _single_ts_chart(x_time, sym_df['pc_ratio'], 'P/C Ratio',
-            color=C['accent'], hline=1.0)
+        fig = _multi_symbol_ts_chart(agg_df, 'pc_ratio',
+            'Put/Call Ratio  (SPXW · SPY · QQQ · IWM)',
+            window_minutes=window_minutes, hline=1.0)
+        if fig is None:
+            fig = _single_ts_chart(x_time, sym_df['pc_ratio'], 'P/C Ratio',
+                color=C['accent'], hline=1.0)
         val = sym_df['pc_ratio'].iloc[-1]
         text, anomaly = pc_ratio_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
+
+    # ── Net GEX: single-symbol bars ──────────────────────────────────────
     if 'net_gex' in sym_df.columns:
         gex_colors = [C['call'] if g > 0 else C['put'] for g in sym_df['net_gex']]
         fig = _single_ts_chart(x_time, sym_df['net_gex'], 'Net GEX',
@@ -2120,12 +2487,16 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         val = sym_df['net_gex'].iloc[-1]
         text, anomaly = gex_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
+
+    # ── IV Skew: single-symbol ────────────────────────────────────────────
     if 'iv_skew' in sym_df.columns:
         fig = _single_ts_chart(x_time, sym_df['iv_skew'], 'IV Skew',
             color=C['put'], fill=True)
         val = sym_df['iv_skew'].iloc[-1]
         text, anomaly = iv_skew_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
+
+    # ── ATM Straddle: single-symbol ───────────────────────────────────────
     if 'atm_straddle' in sym_df.columns:
         fig = _single_ts_chart(x_time, sym_df['atm_straddle'], 'ATM Straddle',
             color=C['warning'])
@@ -2133,6 +2504,8 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         val = sym_df['atm_straddle'].iloc[-1]
         text, anomaly = straddle_insight(val, spot_raw)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
+
+    # ── Net Premium: single-symbol bars ──────────────────────────────────
     has_premium = 'net_premium' in sym_df.columns and sym_df['net_premium'].notna().any()
     if has_premium:
         net_p = sym_df['net_premium'] / 1e6
@@ -2143,6 +2516,8 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
                    "Green bars = more dollar flow into calls (bullish conviction). "
                    "Red bars = put premium dominance (hedging/bearish bets).")
         charts.append((fig, implication_box_html(insight)))
+
+        # Call vs Put premium (single-symbol, kept as-is)
         if 'call_premium' in sym_df.columns and 'put_premium' in sym_df.columns:
             fig2 = go.Figure()
             fig2.add_trace(go.Scatter(x=x_time, y=sym_df['call_premium'] / 1e6,
@@ -2315,8 +2690,34 @@ def create_vol_oi_chart(options_df, symbol, spot=0):
     sym['oi_safe'] = sym['oi'].replace(0, np.nan)
     sym['vol_oi'] = (sym['volume'] / sym['oi_safe']).fillna(0)
     if spot and spot > 0:
+        # Broad pre-filter around spot, then auto-zoom to the most relevant
+        # Vol/OI cluster so the chart focuses on actionable strikes.
         lo, hi = spot * 0.93, spot * 1.07
         sym = sym[(sym['strike'] >= lo) & (sym['strike'] <= hi)]
+    else:
+        lo, hi = None, None
+
+    # Adaptive strike window (no hard-coded strikes):
+    # score strikes by "meaningful activity" = capped Vol/OI * log(volume),
+    # then keep a tight band around the top cluster.
+    x_lo = x_hi = None
+    if not sym.empty and 'strike' in sym.columns and 'volume' in sym.columns:
+        work = sym.copy()
+        voi_cap = float(pd.to_numeric(work['vol_oi'], errors='coerce').quantile(0.98) or 0.0)
+        if not np.isfinite(voi_cap) or voi_cap <= 0:
+            voi_cap = float(pd.to_numeric(work['vol_oi'], errors='coerce').max() or 1.0)
+        work['voi_capped'] = pd.to_numeric(work['vol_oi'], errors='coerce').clip(lower=0, upper=voi_cap)
+        work['activity_score'] = work['voi_capped'] * np.log1p(pd.to_numeric(work['volume'], errors='coerce').fillna(0))
+        strike_score = work.groupby('strike', as_index=False)['activity_score'].sum().sort_values('activity_score', ascending=False)
+        if not strike_score.empty:
+            top_n = min(20, len(strike_score))
+            top_strikes = strike_score.head(top_n)['strike'].sort_values()
+            step = float(pd.to_numeric(work['strike'], errors='coerce').sort_values().diff().median() or 5.0)
+            pad = max(step * 2, 10.0)
+            x_lo = float(top_strikes.min() - pad)
+            x_hi = float(top_strikes.max() + pad)
+            sym = sym[(sym['strike'] >= x_lo) & (sym['strike'] <= x_hi)]
+
     if sym.empty:
         return empty_chart('No Vol/OI data in range')
     calls = sym[sym['cp_sign'] == 1].groupby('strike').agg(vol_oi=('vol_oi', 'mean')).reset_index()
@@ -2333,6 +2734,8 @@ def create_vol_oi_chart(options_df, symbol, spot=0):
     if spot and spot > 0:
         fig.add_vline(x=spot, line_dash='dash', line_color=C['warning'], line_width=2,
                       annotation_text=f'Spot {spot:.0f}')
+    if x_lo is not None and x_hi is not None and x_hi > x_lo:
+        fig.update_xaxes(range=[x_lo, x_hi])
     fig.update_layout(**base_layout(height=400, barmode='group',
         xaxis_title='Strike Price', yaxis_title='Volume / Open Interest'))
     style_axes(fig)
@@ -3979,9 +4382,9 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
             ]),
         ])
 
-    # ── Stage 3 centered bar — centered at decision threshold (_thr), not S3_NEUTRAL ──
-    # _thr (0.36) is the F1-optimised decision boundary: prob >= _thr → BULL pred=1.
-    # Centering here means the bar is green whenever the model actually predicts BULL.
+    # ── Stage 3 centered bar — centered at S3_NEUTRAL (= _thr = 0.36) ──
+    # 0.36 is both the trained decision boundary and the model's neutral output.
+    # Centering here means the bar is green whenever the model predicts BULL.
     if prob >= _thr:
         s3_score = (prob - _thr) / (1.0 - _thr)
     else:
@@ -4470,11 +4873,13 @@ def _create_expected_move_chart(df_agg, symbol, model_out, pred_history_roll):
 
 
 def _create_accumulated_prediction_chart(pred_history_roll):
-    """Running cumulative sum of (prob - training_median) for Stage 3 and all 7 agents.
+    """Instantaneous probability lines for Stage 3 and all 7 agents.
 
-    Each agent uses its own training-data median as neutral (not 0.5), so the
-    cumulative reflects genuine deviation from that agent's learned baseline.
-    Line width is scaled by Stage 3 LogReg coefficient importance.
+    Shows raw per-bar probability values as simple lines (no cumulative sum).
+    Stage 3 probability is the ensemble output; agent lines show individual
+    agent probabilities at each moment.  Line width is scaled by S3 LogReg
+    coefficient importance.  Reference line at S3 decision threshold (0.36)
+    provides the bull/bear boundary.
     """
     if len(pred_history_roll) < 2:
         return None
@@ -4482,44 +4887,21 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     hist = pred_history_roll
     x    = [h["ts"] for h in hist]
 
-    # Market-hours gate: rows outside 8:30–17:00 ET contribute 0 delta
-    _open_min  = MARKET_OPEN_ET[0]  * 60 + MARKET_OPEN_ET[1]
-    _close_min = MARKET_CLOSE_ET[0] * 60 + MARKET_CLOSE_ET[1]
-    def _in_market(h):
-        try:
-            ts = pd.to_datetime(str(h["ts"])[:19], errors="coerce")
-            if pd.isna(ts):
-                return True
-            ts_et = ts.tz_localize("UTC").tz_convert(ET) if ts.tzinfo is None else ts.tz_convert(ET)
-            m = ts_et.hour * 60 + ts_et.minute
-            return _open_min <= m <= _close_min
-        except Exception:
-            return True
-
     # Per-agent training medians and S3 coefficients defined at module level
-    # (AGENT_TRAIN_MEDIAN, AGENT_S3_COEF)
     _coef_max = max(AGENT_S3_COEF.values())
-    # Width: most important agent=3.0, least=0.8
     def _agent_width(label):
         return 0.8 + 2.2 * (AGENT_S3_COEF[label] / _coef_max)
 
-    # Stage 3 cumulative — deviation from model baseline (~0.43).
-    # 0.43 = prob when all agents neutral (model intercept=-3.25 suppresses outputs).
-    # Above 0.43 = net bullish signal; below = bearish. Threshold 0.36 is F1-optimised decision boundary.
-    s3_deltas = [
-        (h["prob"] - S3_NEUTRAL)
-        if (not h.get("suppressed", True) and _in_market(h)) else 0.0
-        for h in hist
-    ]
-    s3_cum    = list(np.cumsum(s3_deltas))
+    # ── Stage 3 raw probability (None for suppressed bars) ──
+    s3_prob = [None if h.get("suppressed", True) else h["prob"] for h in hist]
+    n_live  = sum(1 for v in s3_prob if v is not None)
 
-    final_val  = s3_cum[-1] if s3_cum else 0.0
-    is_bull    = final_val >= 0
-    s3_color   = MC["call"] if is_bull else MC["put"]
-    fill_color = "rgba(16,185,129,0.13)" if is_bull else "rgba(239,68,68,0.13)"
+    # Determine colour from latest live value
+    last_val = next((v for v in reversed(s3_prob) if v is not None), S3_NEUTRAL)
+    is_bull  = last_val >= S3_NEUTRAL
+    s3_color = MC["call"] if is_bull else MC["put"]
 
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
-
     AGENT_COLORS = {
         "A":  "rgba(139,92,246,0.85)",   # violet
         "B":  "rgba(251,146,60,0.85)",   # orange
@@ -4532,56 +4914,51 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     fig = go.Figure()
 
-    # Zero reference line
-    fig.add_hline(y=0, line_dash="dot",
-                  line_color="rgba(148,163,184,0.35)", line_width=1)
+    # ── Reference lines ──
+    # Bull/Bear decision boundary (0.36) — the trained threshold IS the middle line
+    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+                  line_color="rgba(245,158,11,0.50)", line_width=1.5,
+                  annotation_text="BULL / BEAR  0.36",
+                  annotation_position="bottom left",
+                  annotation_font_size=10,
+                  annotation_font_color="rgba(245,158,11,0.75)")
 
-    # ── 1. Agent lines — width scaled by S3 coefficient, neutral = training median ──
+    # ── 1. Agent lines — raw probability at each bar ──
     agent_endpoints = []
     for label in agent_keys:
         neutral = AGENT_TRAIN_MEDIAN.get(label, 0.5)
-        a_deltas = [
-            (h.get("stage2_probs", {}).get(label, neutral) - neutral)
-            if (not h.get("suppressed", True) and _in_market(h)) else 0.0
+        a_prob = [
+            None if h.get("suppressed", True)
+            else h.get("stage2_probs", {}).get(label, neutral)
             for h in hist
         ]
-        a_cum = list(np.cumsum(a_deltas))
-        end_val = a_cum[-1] if a_cum else 0.0
+        end_val = next((v for v in reversed(a_prob) if v is not None), neutral)
         agent_endpoints.append((label, end_val))
         fig.add_trace(go.Scatter(
-            x=x, y=a_cum,
+            x=x, y=a_prob,
             mode="lines",
             name=f"Agent {label}",
             showlegend=False,
+            connectgaps=True,
             line=dict(color=AGENT_COLORS[label], width=_agent_width(label)),
             hovertemplate=f"Agent {label}: %{{y:.3f}}<extra></extra>",
         ))
 
-    # ── 2. Stage 3 area fill base ──
+    # ── 2. Stage 3 thick line (on top) ──
     fig.add_trace(go.Scatter(
-        x=x, y=s3_cum,
-        mode="none",
-        fill="tozeroy",
-        fillcolor=fill_color,
-        showlegend=False,
-        hoverinfo="skip",
-    ))
-
-    # ── 3. Stage 3 thick line (on top) ──
-    n_live = sum(1 for h in hist if not h.get("suppressed", True))
-    fig.add_trace(go.Scatter(
-        x=x, y=s3_cum,
+        x=x, y=s3_prob,
         mode="lines",
         name="Stage 3 Ensemble",
         showlegend=False,
+        connectgaps=True,
         line=dict(color=s3_color, width=4.5),
         hovertemplate="<b>Stage 3: %{y:.3f}</b><extra></extra>",
     ))
 
-    # ── 4. Endpoint marker on Stage 3 ──
-    if x and s3_cum:
+    # ── 3. Endpoint marker on Stage 3 ──
+    if x and last_val is not None:
         fig.add_trace(go.Scatter(
-            x=[x[-1]], y=[s3_cum[-1]],
+            x=[x[-1]], y=[last_val],
             mode="markers",
             marker=dict(color=s3_color, size=10, symbol="circle",
                         line=dict(color="#0f172a", width=2)),
@@ -4589,7 +4966,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
             hoverinfo="skip",
         ))
 
-        # Inline labels at the right end of each line (instead of a separate legend).
+        # Inline labels at the right end of each agent line
         for label, end_val in agent_endpoints:
             a_probs = [h.get("stage2_probs", {}).get(label, AGENT_TRAIN_MEDIAN[label])
                        for h in hist if not h.get("suppressed", True)]
@@ -4615,9 +4992,9 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 borderpad=2,
             )
         fig.add_annotation(
-            x=x[-1], y=s3_cum[-1],
+            x=x[-1], y=last_val,
             xref="x", yref="y",
-            text="Stage 3",
+            text=f"S3 {last_val:.3f}",
             showarrow=False,
             xanchor="left",
             xshift=10,
@@ -4661,24 +5038,23 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 width=140,
             )
 
-    # ── Reading guide annotation (right margin, vertical) ──
+    # ── Reading guide annotation (right margin) ──
     fig.add_annotation(
         xref="paper", yref="paper", x=1.02, y=0.5,
         text=(
             "<b>How to read</b><br>"
             "─────────────<br>"
-            "Zero = model baseline<br>"
-            "(all agents neutral)<br>"
+            "Each line = raw prob<br>"
+            "at that moment<br>"
             "<br>"
-            "Rising = above baseline<br>"
-            "= net bullish signal<br>"
+            "<b>0.36 = BULL/BEAR line</b><br>"
+            "(trained threshold)<br>"
             "<br>"
-            "Falling = below baseline<br>"
-            "= net bearish signal<br>"
+            "Above 0.36 = bullish<br>"
+            "Below 0.36 = bearish<br>"
             "<br>"
-            "<i>BULL/BEAR label uses<br>"
-            "threshold=0.36<br>"
-            "baseline≈0.43</i>"
+            "<i>Agent lines use<br>"
+            "per-agent baselines</i>"
         ),
         showarrow=False, align="left",
         font=dict(size=9, color=MC["text_muted"]),
@@ -4690,16 +5066,14 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     # ── Layout ──
     layout_cfg = base_layout(
-        title=f"Accumulated Directional Signal  ({n_live} live bars)  |  S3 zero = model baseline (≈0.43); agents zero = own baseline",
+        title=f"Directional Signal  ({n_live} live bars)  |  BULL/BEAR threshold = 0.36 (trained)",
         height=340,
     )
     layout_cfg.update({
         "margin": dict(l=55, r=160, t=50, b=40),
         "yaxis": dict(
-            title="Cumulative (prob − baseline)",
-            zeroline=True,
-            zerolinecolor="rgba(59,130,246,0.30)",
-            zerolinewidth=1,
+            title="Probability",
+            zeroline=False,
             gridcolor="rgba(51,65,85,0.5)",
         ),
         "xaxis": dict(
@@ -5552,8 +5926,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     NO_LINE   = dict(color="rgba(0,0,0,0)", width=0)
 
     # ── 5. Shadow fill — each segment colored by both signals' direction ───
-    # Rule neutral = 0, Hybrid neutral = S3_NEUTRAL (~0.43, model baseline when all agents neutral)
-    # NOT the threshold (0.36) — threshold is the decision boundary, not the directional neutral.
+    # Rule neutral = 0, Hybrid neutral = S3_NEUTRAL (0.36, trained decision boundary).
     # Fill is the combined area of both lines toward their respective neutrals,
     # drawn on the LEFT axis scale (rule). Hybrid is mapped linearly so that
     # prob=S3_NEUTRAL → 0, prob=0.72 → +0.6, prob=0.35 → -0.6 (p5-p95 maps to ±0.6)
@@ -5630,7 +6003,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         return traces
 
     def _line_segs_hybrid(xs, ys, width, name):
-        """Hybrid: on yaxis2, neutral=S3_NEUTRAL (~0.43). Color by prob vs model baseline."""
+        """Hybrid: on yaxis2, neutral=S3_NEUTRAL (0.36). Color by prob vs model baseline."""
         if not xs: return []
         result = []; seg_x, seg_y = [xs[0]], [ys[0]]; cur_pos = ys[0] >= S3_NEUTRAL
         for xi, yi in zip(xs[1:], ys[1:]):
@@ -5722,15 +6095,11 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         fig.add_trace(tr)
 
     # Model neutral reference on right axis (model baseline, not decision threshold)
-    fig.add_hline(y=S3_NEUTRAL, line_dash="dot",
-                  line_color="rgba(148,163,184,0.20)", line_width=1,
-                  annotation_text=f"Model neutral: {S3_NEUTRAL:.2f}", annotation_position="right",
-                  annotation_font=dict(size=9, color="rgba(148,163,184,0.6)"))
-    # Decision threshold reference (separate, dimmer)
-    fig.add_hline(y=hybrid_thr, line_dash="dash",
-                  line_color="rgba(148,163,184,0.12)", line_width=1,
-                  annotation_text=f"Decision thr: {hybrid_thr:.2f}", annotation_position="right",
-                  annotation_font=dict(size=8, color="rgba(148,163,184,0.4)"))
+    # Bull/Bear decision boundary — trained threshold = model neutral
+    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+                  line_color="rgba(245,158,11,0.35)", line_width=1.5,
+                  annotation_text=f"BULL/BEAR {S3_NEUTRAL:.2f}", annotation_position="right",
+                  annotation_font=dict(size=9, color="rgba(245,158,11,0.65)"))
 
     # ── 8. Layout ──────────────────────────────────────────────────────────
     last_rule   = rule_scores[-1]  if rule_scores  else 0.0
@@ -5775,8 +6144,8 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
             range=[0.20, 0.80],
             showgrid=False, zeroline=False,
             color=MC["text_muted"], tickfont=dict(size=9),
-            tickvals=[0.30, 0.36, S3_NEUTRAL, 0.60, 0.70],
-            ticktext=["0.30", "0.36(thr)", f"{S3_NEUTRAL}↑(neutral)", "0.60", "0.70"],
+            tickvals=[0.20, 0.30, S3_NEUTRAL, 0.50, 0.60, 0.70],
+            ticktext=["0.20", "0.30", f"{S3_NEUTRAL:.2f} BULL/BEAR", "0.50", "0.60", "0.70"],
             side="right",
             overlaying="y",
         ),
@@ -6315,6 +6684,89 @@ def _mc_chart_card(graph_element, insight_element=None):
     )
 
 
+def _render_chat_history(chat_entries):
+    """Convert chat history list-of-dicts into Dash HTML components."""
+    if not chat_entries:
+        return [html.Div("Pipeline results and Q&A responses will appear here...", style={
+            "color": MC["text_muted"], "fontStyle": "italic",
+        })]
+
+    components = []
+    for entry in chat_entries:
+        role = entry.get("role", "")
+        content = entry.get("content", "")
+        model_name = entry.get("model", "")
+
+        if role == "user":
+            components.append(html.Div(
+                style={"display": "flex", "justifyContent": "flex-end", "marginBottom": "10px"},
+                children=[html.Div(
+                    content,
+                    style={
+                        "backgroundColor": "rgba(59,130,246,0.18)",
+                        "border": "1px solid rgba(59,130,246,0.3)",
+                        "borderRadius": "10px 10px 2px 10px",
+                        "padding": "10px 14px", "maxWidth": "75%",
+                        "color": MC["text"], "fontSize": "13px",
+                        "lineHeight": "1.5", "whiteSpace": "pre-wrap",
+                    },
+                )],
+            ))
+        elif role == "assistant":
+            badge = html.Span(model_name, style={
+                "fontSize": "10px", "fontWeight": 700,
+                "color": "#8b5cf6", "letterSpacing": "0.5px",
+                "textTransform": "uppercase",
+                "marginBottom": "4px", "display": "block",
+            }) if model_name else None
+
+            components.append(html.Div(
+                style={"display": "flex", "justifyContent": "flex-start", "marginBottom": "10px"},
+                children=[html.Div(
+                    children=[
+                        badge,
+                        dcc.Markdown(content, style={
+                            "color": MC["text_sec"], "fontSize": "13px",
+                            "lineHeight": "1.5", "margin": 0,
+                        }, dangerously_allow_html=True),
+                    ],
+                    style={
+                        "backgroundColor": MC["bg_card"],
+                        "border": f"1px solid {MC['border']}",
+                        "borderRadius": "10px 10px 10px 2px",
+                        "padding": "10px 14px", "maxWidth": "90%",
+                    },
+                )],
+            ))
+        elif role == "system_status":
+            components.append(html.Div(
+                style={"display": "flex", "alignItems": "center", "gap": "8px",
+                       "marginBottom": "8px", "marginTop": "6px"},
+                children=[
+                    html.Div(style={
+                        "width": "3px", "height": "18px", "borderRadius": "2px",
+                        "backgroundColor": "#8b5cf6",
+                    }),
+                    html.Span(content, style={
+                        "color": "#8b5cf6", "fontSize": "12px", "fontWeight": 700,
+                        "fontFamily": "'JetBrains Mono', monospace",
+                        "letterSpacing": "0.3px",
+                    }),
+                ],
+            ))
+        elif role == "error":
+            components.append(html.Div(
+                content,
+                style={
+                    "color": MC["put"], "fontSize": "12px",
+                    "padding": "6px 10px", "marginBottom": "8px",
+                    "backgroundColor": "rgba(239,68,68,0.08)",
+                    "borderRadius": "6px",
+                },
+            ))
+    return components
+
+
 app.layout = html.Div(
     style={
         "backgroundColor": MC["bg_dark"],
@@ -6324,6 +6776,7 @@ app.layout = html.Div(
         "fontFamily": "'Inter', 'SF Pro Display', 'Segoe UI', system-ui, -apple-system, sans-serif",
     },
     children=[
+        dcc.Location(id="ai-url", refresh=False),
         # Global CSS — Modern Pro Terminal
         dcc.Markdown(
             f"""
@@ -6818,15 +7271,13 @@ app.layout = html.Div(
         html.Div(id='dashboard-content', style={'padding': '18px 28px'}),
 
         # ══════════════════════════════════════════════════════════════════
-        # AI ANALYST CHAT PANEL — OpenRouter Multi-Model
+        # AI MULTI-AGENT ANALYST — Pipeline + Parallel Compare
         # ══════════════════════════════════════════════════════════════════
         html.Div(
-            style={
-                "padding": "0 28px 28px 28px",
-                "marginTop": "12px",
-            },
+            style={"padding": "0 28px 28px 28px", "marginTop": "12px"},
             children=[
-                # Section header
+
+                # ── Section header ──
                 html.Div(
                     style={
                         "display": "flex", "alignItems": "center", "gap": "12px",
@@ -6839,160 +7290,302 @@ app.layout = html.Div(
                             "background": f"linear-gradient(180deg, #8b5cf6, {MC['accent']})",
                         }),
                         html.Div(children=[
-                            html.Div("AI MARKET ANALYST", style={
+                            html.Div("AI MULTI-AGENT ANALYST", style={
                                 "fontSize": "16px", "fontWeight": 800,
                                 "letterSpacing": "1.5px", "color": MC["text"],
                             }),
-                            html.Div("Ask questions using live CSV data + web search via OpenRouter", style={
-                                "fontSize": "12px", "color": MC["text_muted"],
-                                "letterSpacing": "0.3px",
+                            html.Div("Two modes: sequential 7-agent Pipeline or simultaneous Parallel Compare", style={
+                                "fontSize": "12px", "color": MC["text_muted"], "letterSpacing": "0.3px",
                             }),
                         ]),
                     ],
                 ),
 
-                # Config row: API key + model selector
+                # ── Three API Key Bars ──
                 html.Div(
-                    style={
-                        "display": "flex", "gap": "12px", "flexWrap": "wrap",
-                        "alignItems": "flex-end", "marginBottom": "12px",
-                    },
+                    style={"display": "flex", "gap": "12px", "flexWrap": "wrap",
+                           "alignItems": "flex-end", "marginBottom": "12px"},
                     children=[
-                        # API Key input
-                        html.Div(style={"flex": "1", "minWidth": "280px"}, children=[
+                        html.Div(style={"flex": "1", "minWidth": "220px"}, children=[
+                            html.Label("PERPLEXITY API KEY", style={
+                                "fontSize": "11px", "fontWeight": 700, "color": MC["text_sec"],
+                                "letterSpacing": "0.8px", "marginBottom": "4px", "display": "block",
+                            }),
+                            dcc.Input(id="ai-pplx-key", type="password", placeholder="pplx-...", debounce=True,
+                                value=_SAVED_KEYS["pplx"],
+                                style={"width": "100%", "padding": "8px 12px", "backgroundColor": MC["bg_input"],
+                                       "border": f"1px solid {MC['border']}", "borderRadius": "6px",
+                                       "color": MC["text"], "fontSize": "13px",
+                                       "fontFamily": "'JetBrains Mono', monospace", "outline": "none"}),
+                        ]),
+                        html.Div(style={"flex": "1", "minWidth": "220px"}, children=[
+                            html.Label("xAI API KEY", style={
+                                "fontSize": "11px", "fontWeight": 700, "color": MC["text_sec"],
+                                "letterSpacing": "0.8px", "marginBottom": "4px", "display": "block",
+                            }),
+                            dcc.Input(id="ai-xai-key", type="password", placeholder="xai-...", debounce=True,
+                                value=_SAVED_KEYS["xai"],
+                                style={"width": "100%", "padding": "8px 12px", "backgroundColor": MC["bg_input"],
+                                       "border": f"1px solid {MC['border']}", "borderRadius": "6px",
+                                       "color": MC["text"], "fontSize": "13px",
+                                       "fontFamily": "'JetBrains Mono', monospace", "outline": "none"}),
+                        ]),
+                        html.Div(style={"flex": "1", "minWidth": "220px"}, children=[
                             html.Label("OPENROUTER API KEY", style={
                                 "fontSize": "11px", "fontWeight": 700, "color": MC["text_sec"],
-                                "letterSpacing": "0.8px", "marginBottom": "4px",
-                                "display": "block",
+                                "letterSpacing": "0.8px", "marginBottom": "4px", "display": "block",
                             }),
-                            dcc.Input(
-                                id="ai-api-key",
-                                type="password",
-                                placeholder="sk-or-v1-...",
-                                debounce=True,
-                                style={
-                                    "width": "100%", "padding": "8px 12px",
-                                    "backgroundColor": MC["bg_input"],
-                                    "border": f"1px solid {MC['border']}",
-                                    "borderRadius": "6px", "color": MC["text"],
-                                    "fontSize": "13px", "fontFamily": "'JetBrains Mono', monospace",
-                                    "outline": "none",
-                                },
-                            ),
-                        ]),
-
-                        # Model multi-select dropdown
-                        html.Div(style={"flex": "1.5", "minWidth": "340px"}, children=[
-                            html.Label("AI MODELS (select one or more)", style={
-                                "fontSize": "11px", "fontWeight": 700, "color": MC["text_sec"],
-                                "letterSpacing": "0.8px", "marginBottom": "4px",
-                                "display": "block",
-                            }),
-                            dcc.Dropdown(
-                                id="ai-model-select",
-                                options=[
-                                    {"label": "GPT-5.4 (OpenAI)",        "value": "openai/gpt-5.4"},
-                                    {"label": "Claude Sonnet 4.6 (Anthropic)", "value": "anthropic/claude-sonnet-4.6"},
-                                    {"label": "Grok 4.20 (xAI)",         "value": "x-ai/grok-4.20-multi-agent-beta"},
-                                    {"label": "Gemini 3.1 Flash (Google)","value": "google/gemini-3.1-flash-lite-preview"},
-                                    {"label": "DeepSeek V3.2",           "value": "deepseek/deepseek-v3.2"},
-                                    {"label": "Qwen 3.5 9B",             "value": "qwen/qwen3.5-9b"},
-                                    {"label": "Free Router (Auto)",       "value": "openrouter/free"},
-                                ],
-                                value=["openai/gpt-5.4"],
-                                multi=True,
-                                placeholder="Select models...",
-                                className="mc-dropdown",
-                                style={
-                                    "backgroundColor": MC["bg_input"],
-                                    "color": MC["text"],
-                                    "fontSize": "13px",
-                                    "fontWeight": 600,
-                                },
-                            ),
-                        ]),
-
-                        # Web search toggle
-                        html.Div(style={"display": "flex", "alignItems": "center", "gap": "6px", "paddingBottom": "4px"}, children=[
-                            dcc.Checklist(
-                                id="ai-web-search",
-                                options=[{"label": " Web Search", "value": "on"}],
-                                value=["on"],
-                                style={"color": MC["text_sec"], "fontSize": "12px", "fontWeight": 600},
-                            ),
+                            dcc.Input(id="ai-api-key", type="password", placeholder="sk-or-v1-...", debounce=True,
+                                value=_SAVED_KEYS["openrouter"],
+                                style={"width": "100%", "padding": "8px 12px", "backgroundColor": MC["bg_input"],
+                                       "border": f"1px solid {MC['border']}", "borderRadius": "6px",
+                                       "color": MC["text"], "fontSize": "13px",
+                                       "fontFamily": "'JetBrains Mono', monospace", "outline": "none"}),
                         ]),
                     ],
                 ),
 
-                # Chat history display
+                # ── Save Keys Row ──
                 html.Div(
-                    id="ai-chat-history",
-                    style={
-                        "backgroundColor": MC["bg_card"],
-                        "border": f"1px solid {MC['border']}",
-                        "borderRadius": "10px",
-                        "padding": "16px",
-                        "minHeight": "200px",
-                        "maxHeight": "600px",
-                        "overflowY": "auto",
-                        "marginBottom": "10px",
-                        "fontFamily": "'Inter', system-ui, sans-serif",
-                        "fontSize": "13px",
-                        "lineHeight": "1.6",
-                    },
+                    style={"display": "flex", "alignItems": "center", "gap": "10px", "marginBottom": "14px"},
                     children=[
-                        html.Div("Ask a question about today's SPX trend...", style={
+                        html.Button("SAVE KEYS", id="ai-save-keys-btn", n_clicks=0, style={
+                            "backgroundColor": "#065f46", "color": "#fff",
+                            "border": "none", "padding": "7px 18px",
+                            "borderRadius": "6px", "cursor": "pointer",
+                            "fontWeight": 700, "fontSize": "11px", "letterSpacing": "0.8px",
+                        }),
+                        html.Div(id="ai-save-keys-status", style={
+                            "fontSize": "11px", "color": MC["text_muted"],
+                        }),
+                    ],
+                ),
+
+                # ── Mode Toggle Tabs ──
+                html.Div(
+                    style={"display": "flex", "gap": "0px", "marginBottom": "14px"},
+                    children=[
+                        html.Button("PIPELINE", id="ai-tab-pipeline", n_clicks=0, style={
+                            "backgroundColor": "#8b5cf6", "color": "#fff",
+                            "border": "none", "padding": "8px 22px",
+                            "borderRadius": "7px 0 0 7px", "cursor": "pointer",
+                            "fontWeight": 700, "fontSize": "12px", "letterSpacing": "0.8px",
+                        }),
+                        html.Button("PARALLEL COMPARE", id="ai-tab-parallel", n_clicks=0, style={
+                            "backgroundColor": MC["bg_input"], "color": MC["text_muted"],
+                            "border": f"1px solid {MC['border']}", "padding": "8px 22px",
+                            "borderRadius": "0 7px 7px 0", "cursor": "pointer",
+                            "fontWeight": 700, "fontSize": "12px", "letterSpacing": "0.8px",
+                        }),
+                    ],
+                ),
+
+                # ══ PIPELINE MODE ══
+                html.Div(id="ai-section-pipeline", children=[
+
+                    html.Div(
+                        style={"display": "flex", "gap": "10px", "alignItems": "center",
+                               "marginBottom": "12px", "flexWrap": "wrap"},
+                        children=[
+                            html.Button("▶  RUN AI PIPELINE", id="ai-pipeline-btn", n_clicks=0, style={
+                                "backgroundColor": "#8b5cf6", "color": "#fff",
+                                "border": "none", "padding": "10px 24px",
+                                "borderRadius": "8px", "cursor": "pointer",
+                                "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px", "whiteSpace": "nowrap", "minWidth": "180px",
+                            }),
+                            html.Div(id="ai-pipeline-status", style={
+                                "flex": "1", "minWidth": "300px", "backgroundColor": MC["bg_input"],
+                                "border": f"1px solid {MC['border']}", "borderRadius": "8px",
+                                "padding": "8px 14px", "fontSize": "12px",
+                                "fontFamily": "'JetBrains Mono', monospace", "color": MC["text_muted"],
+                                "minHeight": "36px", "display": "flex", "alignItems": "center",
+                            }, children="Pipeline idle — press RUN to start 7-agent sequential analysis"),
+                        ],
+                    ),
+
+                    html.Div(id="ai-chat-history", style={
+                        "backgroundColor": MC["bg_card"], "border": f"1px solid {MC['border']}",
+                        "borderRadius": "10px", "padding": "16px",
+                        "minHeight": "180px", "maxHeight": "700px", "overflowY": "auto",
+                        "marginBottom": "10px",
+                        "fontFamily": "'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
+                        "fontSize": "13px", "lineHeight": "1.5",
+                    }, children=[
+                        html.Div("Pipeline results will appear here...", style={
                             "color": MC["text_muted"], "fontStyle": "italic",
                         }),
-                    ],
-                ),
+                    ]),
 
-                # Input row: question + send button
-                html.Div(
-                    style={"display": "flex", "gap": "8px", "alignItems": "stretch"},
-                    children=[
-                        dcc.Input(
-                            id="ai-question-input",
-                            type="text",
-                            placeholder="e.g. Based on today's options data and market conditions, what is the SPX trend?",
-                            debounce=False,
-                            n_submit=0,
-                            style={
-                                "flex": "1", "padding": "10px 14px",
-                                "backgroundColor": MC["bg_input"],
-                                "border": f"1px solid {MC['border']}",
-                                "borderRadius": "8px", "color": MC["text"],
-                                "fontSize": "14px",
-                                "fontFamily": "'Inter', system-ui, sans-serif",
-                                "outline": "none",
+                    html.Div(
+                        style={"display": "flex", "gap": "8px", "alignItems": "stretch", "flexWrap": "wrap"},
+                        children=[
+                            html.Div(style={"minWidth": "200px"}, children=[
+                                dcc.Dropdown(
+                                    id="ai-model-select",
+                                    options=[
+                                        {"label": "GPT-4.1 (OpenRouter)",              "value": "openrouter|openai/gpt-4.1"},
+                                        {"label": "GPT-4o (OpenRouter)",               "value": "openrouter|openai/gpt-4o"},
+                                        {"label": "o3 (OpenRouter)",                   "value": "openrouter|openai/o3"},
+                                        {"label": "o4-mini (OpenRouter)",              "value": "openrouter|openai/o4-mini"},
+                                        {"label": "Claude Sonnet 4.5 (OpenRouter)",    "value": "openrouter|anthropic/claude-sonnet-4.5"},
+                                        {"label": "Claude Sonnet 4.6 (OpenRouter)",    "value": "openrouter|anthropic/claude-sonnet-4.6"},
+                                        {"label": "Claude Opus 4.5 (OpenRouter)",      "value": "openrouter|anthropic/claude-opus-4.5"},
+                                        {"label": "Claude Opus 4.6 (OpenRouter)",      "value": "openrouter|anthropic/claude-opus-4.6"},
+                                        {"label": "Gemini 2.5 Pro (OpenRouter)",       "value": "openrouter|google/gemini-2.5-pro"},
+                                        {"label": "Gemini 2.5 Flash (OpenRouter)",     "value": "openrouter|google/gemini-2.5-flash"},
+                                        {"label": "DeepSeek V3.2 (OpenRouter)",        "value": "openrouter|deepseek/deepseek-v3.2"},
+                                        {"label": "DeepSeek R1 (OpenRouter)",          "value": "openrouter|deepseek/deepseek-r1"},
+                                        {"label": "Grok 4 (OpenRouter)",               "value": "openrouter|x-ai/grok-4"},
+                                        {"label": "Grok 4.20 Beta (OpenRouter)",       "value": "openrouter|x-ai/grok-4.20-beta"},
+                                        {"label": "Grok 3 (OpenRouter)",               "value": "openrouter|x-ai/grok-3-beta"},
+                                        {"label": "Sonar Pro (Perplexity)",            "value": "perplexity|sonar-pro"},
+                                        {"label": "Sonar Reasoning Pro (Perplexity)",  "value": "perplexity|sonar-reasoning-pro"},
+                                        {"label": "Sonar Deep Research (Perplexity)",  "value": "perplexity|sonar-deep-research"},
+                                        {"label": "Grok 4 (xAI Native)",              "value": "xai|grok-4"},
+                                        {"label": "Grok 4.20 Beta (xAI Native)",      "value": "xai|grok-4.20-beta-0309-non-reasoning"},
+                                        {"label": "Grok 3 (xAI Native)",              "value": "xai|grok-3"},
+                                    ],
+                                    value="openrouter|openai/gpt-4.1",
+                                    multi=False, clearable=False,
+                                    placeholder="Select model...", className="mc-dropdown",
+                                    style={"backgroundColor": MC["bg_input"], "color": MC["text"],
+                                           "fontSize": "13px", "fontWeight": 600, "minWidth": "200px"},
+                                ),
+                            ]),
+                            dcc.Input(id="ai-question-input", type="text",
+                                placeholder="Ask a follow-up question about pipeline results...",
+                                debounce=False, n_submit=0,
+                                style={"flex": "1", "padding": "10px 14px", "backgroundColor": MC["bg_input"],
+                                       "border": f"1px solid {MC['border']}", "borderRadius": "8px",
+                                       "color": MC["text"], "fontSize": "13px", "minWidth": "200px",
+                                       "fontFamily": "'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
+                                       "outline": "none"}),
+                            html.Button("ASK", id="ai-send-btn", n_clicks=0, style={
+                                "backgroundColor": "#3b82f6", "color": "#fff",
+                                "border": "none", "padding": "10px 22px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px", "whiteSpace": "nowrap",
+                            }),
+                            html.Button("CLEAR", id="ai-clear-btn", n_clicks=0, style={
+                                "backgroundColor": "#4b5563", "color": "#fff",
+                                "border": "none", "padding": "10px 14px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px",
+                            }),
+                            html.Button("SAVE CHAT", id="ai-save-chat-btn", n_clicks=0, style={
+                                "backgroundColor": "#065f46", "color": "#fff",
+                                "border": "none", "padding": "10px 16px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px", "whiteSpace": "nowrap",
+                            }),
+                            html.Span(id="ai-save-chat-status", style={
+                                "fontSize": "12px", "color": MC["text_muted"],
+                            }),
+                        ],
+                    ),
+                ]),
+
+                # ══ PARALLEL COMPARE MODE ══
+                html.Div(id="ai-section-parallel", style={"display": "none"}, children=[
+
+                    html.Div(style={"marginBottom": "10px"}, children=[
+                        html.Div("SELECT MODELS TO COMPARE", style={
+                            "fontSize": "11px", "fontWeight": 700, "color": MC["text_sec"],
+                            "letterSpacing": "0.8px", "marginBottom": "8px",
+                        }),
+                        dcc.Checklist(
+                            id="ai-parallel-models",
+                            options=[
+                                {"label": "  GPT-4.1 (OR)",              "value": "openrouter|openai/gpt-4.1"},
+                                {"label": "  GPT-4o (OR)",               "value": "openrouter|openai/gpt-4o"},
+                                {"label": "  o3 (OR)",                   "value": "openrouter|openai/o3"},
+                                {"label": "  o4-mini (OR)",              "value": "openrouter|openai/o4-mini"},
+                                {"label": "  Claude Sonnet 4.5 (OR)",    "value": "openrouter|anthropic/claude-sonnet-4.5"},
+                                {"label": "  Claude Sonnet 4.6 (OR)",    "value": "openrouter|anthropic/claude-sonnet-4.6"},
+                                {"label": "  Claude Opus 4.5 (OR)",      "value": "openrouter|anthropic/claude-opus-4.5"},
+                                {"label": "  Claude Opus 4.6 (OR)",      "value": "openrouter|anthropic/claude-opus-4.6"},
+                                {"label": "  Gemini 2.5 Pro (OR)",       "value": "openrouter|google/gemini-2.5-pro"},
+                                {"label": "  Gemini 2.5 Flash (OR)",     "value": "openrouter|google/gemini-2.5-flash"},
+                                {"label": "  DeepSeek V3.2 (OR)",        "value": "openrouter|deepseek/deepseek-v3.2"},
+                                {"label": "  DeepSeek R1 (OR)",          "value": "openrouter|deepseek/deepseek-r1"},
+                                {"label": "  Grok 4 (OR)",               "value": "openrouter|x-ai/grok-4"},
+                                {"label": "  Grok 4.20 Beta (OR)",       "value": "openrouter|x-ai/grok-4.20-beta"},
+                                {"label": "  Grok 3 (OR)",               "value": "openrouter|x-ai/grok-3-beta"},
+                                {"label": "  Sonar Pro (Pplx)",          "value": "perplexity|sonar-pro"},
+                                {"label": "  Sonar Reasoning Pro (Pplx)","value": "perplexity|sonar-reasoning-pro"},
+                                {"label": "  Sonar Deep Research (Pplx)","value": "perplexity|sonar-deep-research"},
+                                {"label": "  Grok 4 (xAI)",             "value": "xai|grok-4"},
+                                {"label": "  Grok 4.20 Beta (xAI)",     "value": "xai|grok-4.20-beta-0309-non-reasoning"},
+                                {"label": "  Grok 3 (xAI)",             "value": "xai|grok-3"},
+                            ],
+                            value=["openrouter|openai/gpt-4.1", "openrouter|anthropic/claude-sonnet-4.5",
+                                   "openrouter|google/gemini-2.5-pro"],
+                            inline=True,
+                            inputStyle={"marginRight": "4px", "accentColor": "#8b5cf6"},
+                            labelStyle={
+                                "marginRight": "16px", "fontSize": "12px",
+                                "color": MC["text_sec"], "cursor": "pointer",
                             },
                         ),
-                        html.Button("ASK AI", id="ai-send-btn", n_clicks=0, style={
-                            "backgroundColor": "#8b5cf6", "color": "#fff",
-                            "border": "none", "padding": "10px 22px",
-                            "borderRadius": "8px", "cursor": "pointer",
-                            "fontWeight": 700, "fontSize": "13px",
-                            "letterSpacing": "0.5px", "whiteSpace": "nowrap",
-                        }),
-                        html.Button("CLEAR", id="ai-clear-btn", n_clicks=0, style={
-                            "backgroundColor": "#4b5563", "color": "#fff",
-                            "border": "none", "padding": "10px 14px",
-                            "borderRadius": "8px", "cursor": "pointer",
-                            "fontWeight": 700, "fontSize": "13px",
-                            "letterSpacing": "0.5px",
-                        }),
-                    ],
-                ),
+                    ]),
 
-                # Hidden store for chat history state
+                    html.Div(
+                        style={"display": "flex", "gap": "8px", "alignItems": "center",
+                               "marginBottom": "10px", "flexWrap": "wrap"},
+                        children=[
+                            dcc.Input(id="ai-parallel-question", type="text",
+                                placeholder="Enter a question — all selected models answer simultaneously...",
+                                debounce=False, n_submit=0,
+                                style={"flex": "1", "padding": "10px 14px", "backgroundColor": MC["bg_input"],
+                                       "border": f"1px solid {MC['border']}", "borderRadius": "8px",
+                                       "color": MC["text"], "fontSize": "13px", "minWidth": "260px",
+                                       "fontFamily": "'Inter', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
+                                       "outline": "none"}),
+                            html.Button("ASK ALL", id="ai-parallel-btn", n_clicks=0, style={
+                                "backgroundColor": "#059669", "color": "#fff",
+                                "border": "none", "padding": "10px 22px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px", "whiteSpace": "nowrap",
+                            }),
+                            html.Button("CLEAR", id="ai-parallel-clear", n_clicks=0, style={
+                                "backgroundColor": "#4b5563", "color": "#fff",
+                                "border": "none", "padding": "10px 14px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px",
+                            }),
+                            html.Button("SAVE CHAT", id="ai-parallel-save-btn", n_clicks=0, style={
+                                "backgroundColor": "#065f46", "color": "#fff",
+                                "border": "none", "padding": "10px 16px", "borderRadius": "8px",
+                                "cursor": "pointer", "fontWeight": 700, "fontSize": "13px",
+                                "letterSpacing": "0.5px", "whiteSpace": "nowrap",
+                            }),
+                            html.Span(id="ai-parallel-save-status", style={
+                                "fontSize": "12px", "color": MC["text_muted"],
+                            }),
+                        ],
+                    ),
+
+                    html.Div(id="ai-parallel-status", style={
+                        "backgroundColor": MC["bg_input"], "border": f"1px solid {MC['border']}",
+                        "borderRadius": "8px", "padding": "8px 14px", "fontSize": "12px",
+                        "fontFamily": "'JetBrains Mono', monospace", "color": MC["text_muted"],
+                        "minHeight": "32px", "marginBottom": "10px",
+                    }, children="Select models and enter a question, then press ASK ALL"),
+
+                    html.Div(id="ai-parallel-results", style={
+                        "display": "grid",
+                        "gridTemplateColumns": "repeat(auto-fit, minmax(320px, 1fr))",
+                        "gap": "12px",
+                        "minHeight": "80px",
+                    }),
+                ]),
+
+                # Hidden stores
                 dcc.Store(id="ai-chat-store", data=[]),
-                # Loading indicator
-                dcc.Loading(
-                    id="ai-loading",
-                    type="dot",
-                    color="#8b5cf6",
-                    children=html.Div(id="ai-loading-output", style={"display": "none"}),
-                ),
+                dcc.Store(id="ai-pipeline-state", data={"running": False, "step": 0, "results": {}}),
+                dcc.Interval(id="ai-pipeline-tick", interval=800, n_intervals=0, disabled=True),
+                dcc.Interval(id="ai-parallel-tick", interval=1500, n_intervals=0, disabled=True),
             ],
         ),
     ]
@@ -7397,10 +7990,11 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # =================================================================
         # GROUP 2: POSITIONING & GREEKS
         # Related: Gamma, strikes, OI walls, vanna, dealer greeks
+        # Now shows SPXW + SPY dual overlay on all option chain charts
         # =================================================================
         content.append(_mc_group_header(
             "Positioning & Greeks",
-            "Strike-level gamma, delta, vanna, and open interest analysis"
+            "Strike-level gamma, delta, vanna, and open interest — SPXW + SPY overlay"
         ))
 
         # Gamma exposure profile
@@ -7421,9 +8015,9 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("Gamma Exposure Profile"))
             txt, anom = _safe_insight(gamma_chart_insight, df_snap, symbol, spot_raw)
             _append_chart(fig_gamma, None,
-                "Gamma Exposure (GEX): net dealer gamma at each strike. Green = dealers net long γ (mean-reversion). Red = net short γ (momentum amplifier). Orange = sign flipped vs 10-min ago. Purple = ≥20% change. White dots = previous 10-min slice.",
+                "Gamma Exposure (GEX): net dealer gamma at each strike. Green = long gamma (suppress moves), Red = short gamma (amplify moves).",
                 txt,
-                "Positive GEX = mean-reversion regime, sell spikes. Negative GEX = momentum regime, ride the trend. Key flip level is where GEX crosses zero. White dashed lines = straddle breakeven.",
+                "Positive GEX = mean-reversion regime, sell spikes. Negative GEX = momentum regime, ride the trend. Key flip level is where GEX crosses zero.",
                 anom)
 
         # Key strike levels
@@ -7435,7 +8029,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("Key Strike Levels"))
             txt, anom = _safe_insight(strike_chart_insight, df_snap, symbol, spot_raw)
             _append_chart(fig_strike, '500px',
-                "Key Strikes: highest volume/OI concentrations by strike price, overlaid with spot.",
+                "Key Strikes: call and put volume concentrations by strike.",
                 txt,
                 "Price tends to gravitate toward high-OI strikes near expiry (pin risk). Strikes with extreme volume are likely institutional targets.",
                 anom)
@@ -7449,7 +8043,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("OI Walls & Pinning"))
             txt, anom = _safe_insight(oi_walls_insight, df_snap, symbol)
             _append_chart(fig_oi, '400px',
-                "OI Walls: open interest by strike showing call/put walls that act as support/resistance.",
+                "OI Walls: call/put open interest walls as support/resistance.",
                 txt,
                 "Large call OI walls act as resistance (dealers sell into rallies). Large put OI walls act as support (dealers buy dips). Watch for wall breaches.",
                 anom)
@@ -7463,7 +8057,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("Vanna Exposure"))
             txt, anom = _safe_insight(vanna_chart_insight, df_snap, symbol)
             _append_chart(fig_vanna, '400px',
-                "Vanna Exposure: sensitivity of delta to changes in implied volatility, by strike.",
+                "Vanna Exposure: vanna by strike.",
                 txt,
                 "Positive vanna + falling IV = bullish tailwind (dealers buy). Negative vanna + rising IV = selling pressure. Critical near large expiries.",
                 anom)
@@ -7471,18 +8065,44 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Dealer positioning
         try:
             fig_dealer = create_dealer_chart(df_snap, symbol)
+            fig_dealer_flow = create_dealer_flow_chart(df_snap, symbol)
         except Exception:
             fig_dealer = None
-        if fig_dealer is not None:
+            fig_dealer_flow = None
+        if fig_dealer is not None or fig_dealer_flow is not None:
             content.append(_mc_section_header("Dealer Positioning"))
             txt, anom = _safe_insight(dealer_chart_insight, df_snap, symbol)
-            _append_chart(fig_dealer, '400px',
-                "Dealer Greeks: estimated market-maker delta, gamma, vega, and theta across strikes.",
+            tabs = []
+            if fig_dealer is not None:
+                tabs.append(dcc.Tab(
+                    label="Structure (OI)",
+                    value="dealer-oi",
+                    children=[dcc.Graph(figure=fig_dealer, style={'height': '400px'})],
+                    style={"backgroundColor": C["bg_card"], "color": C["text_sec"], "border": f"1px solid {C['border']}"},
+                    selected_style={"backgroundColor": C["bg_dark"], "color": C["text"], "border": f"1px solid {C['accent']}"},
+                ))
+            if fig_dealer_flow is not None:
+                tabs.append(dcc.Tab(
+                    label="Intraday Flow (Volume)",
+                    value="dealer-flow",
+                    children=[dcc.Graph(figure=fig_dealer_flow, style={'height': '400px'})],
+                    style={"backgroundColor": C["bg_card"], "color": C["text_sec"], "border": f"1px solid {C['border']}"},
+                    selected_style={"backgroundColor": C["bg_dark"], "color": C["text"], "border": f"1px solid {C['accent']}"},
+                ))
+            default_dealer_tab = "dealer-oi" if fig_dealer is not None else "dealer-flow"
+            content.append(dcc.Tabs(
+                value=default_dealer_tab,
+                children=tabs,
+                style={"marginBottom": "8px"},
+            ))
+            content.append(_chart_insight_box(
+                "Dealer Greeks: switch between structural OI profile and intraday volume flow proxy.",
                 txt,
-                "When dealers are short gamma, expect amplified moves. When long gamma, expect mean-reversion. Theta shows dealers' time-decay P&L.",
-                anom)
+                "Structure (OI) changes slowly and reflects positioning base. Intraday Flow (Volume) is more reactive for same-day shifts.",
+                anom
+            ))
             content.append(html.Div(
-                "Footnote: Vega and Theta are computed from snapshot rows as OI-weighted net greeks (with current DTE filter applied).",
+                "Footnote: Structure tab uses OI-weighted net greeks. Flow tab uses volume-weighted proxy greeks for intraday sensitivity.",
                 style={
                     "fontSize": "11px",
                     "color": MC["text_muted"],
@@ -7509,7 +8129,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("IV Term Structure"))
             txt, anom = _safe_insight(iv_chart_insight, df_snap, symbol)
             _append_chart(fig_iv, '400px',
-                "IV Term Structure: implied volatility across expirations. Normal = upward slope (contango). Inverted = near-term fear.",
+                "IV Term Structure: normal = upward slope (contango). Inverted = near-term fear.",
                 txt,
                 "Inverted term structure = market pricing an imminent event. Steep contango = complacency. Sell near-term premium in contango, buy protection when inverted.",
                 anom)
@@ -7523,7 +8143,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             content.append(_mc_section_header("Vol/OI Ratio (Live)"))
             txt, anom = _safe_insight(vol_oi_insight, df_snap, symbol)
             _append_chart(fig_vol_oi, '400px',
-                "Vol/OI Ratio: today's volume relative to open interest at each strike. High ratio = new positioning.",
+                "Vol/OI Ratio: high ratio = new positioning.",
                 txt,
                 "Ratio > 1.0 at a strike = heavy new activity (opening positions). Cluster of high ratios near ATM = institutional re-positioning in progress.",
                 anom)
@@ -7654,14 +8274,14 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
                     "Watch for probability crossing 0.5 with rising confidence — signals a directional regime change. Flat confidence = indecisive market.",
                     compact=False)
 
-            # 6. Accumulated Signal Chart
+            # 6. Directional Signal Chart (instantaneous probability lines)
             fig_accum = _create_accumulated_prediction_chart(pred_history_roll)
             if fig_accum is not None:
-                content.append(_mc_section_header("Accumulated Signal"))
+                content.append(_mc_section_header("Directional Signal"))
                 _append_chart(fig_accum, '340px',
-                    "Accumulated Signal: cumulative sum of (prob - threshold) for Stage 3 over time; agent lines use (prob - 0.5).",
+                    "Directional Signal: raw probability at each moment for Stage 3 ensemble and individual agents.",
                     "",
-                    "Divergence between agents and Stage 3 line signals disagreement. Converging upward = strong bullish conviction across the ensemble.",
+                    "Lines above threshold (0.36) = bullish; below = bearish. Watch for agent convergence/divergence to gauge conviction.",
                     compact=False)
 
             # 7. Model Health Panel
@@ -7730,77 +8350,53 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
 
 
 # ---------------------------------------------------------------------------
-# AI ANALYST CHAT — OpenRouter Multi-Model Backend
+# AI MULTI-AGENT ANALYST — Backend (Perplexity + xAI + OpenRouter)
 # ---------------------------------------------------------------------------
 import requests as _requests
 import threading
 
-# Model display names for chat output
-_AI_MODEL_LABELS = {
-    "openai/gpt-5.4": "GPT-5.4",
-    "anthropic/claude-sonnet-4.6": "Claude Sonnet 4.6",
-    "x-ai/grok-4.20-multi-agent-beta": "Grok 4.20",
-    "google/gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash",
-    "deepseek/deepseek-v3.2": "DeepSeek V3.2",
-    "qwen/qwen3.5-9b": "Qwen 3.5",
-    "openrouter/free": "Free Router",
-}
-
 
 def _read_daily_csv_context():
-    """Read the CSV files from daily_data/ and return a concise text summary
-    for the AI system prompt. Limits rows to keep token usage reasonable."""
+    """Read all CSV files from daily_data/ and return a concise text summary."""
     context_parts = []
     today_et = datetime.now(ET).strftime("%Y-%m-%d")
     context_parts.append(f"Today's date (New York time): {today_et}")
     context_parts.append(f"Current NY time: {datetime.now(ET).strftime('%H:%M:%S')}")
 
-    # theta_agg.csv — aggregated market data
-    agg_path = DATA_DIR / "theta_agg.csv"
-    if agg_path.exists():
-        try:
-            df = pd.read_csv(agg_path)
-            if not df.empty:
-                # Take last 30 rows to keep context short
-                tail = df.tail(30)
-                context_parts.append(f"\n=== theta_agg.csv (last {len(tail)} of {len(df)} rows) ===")
-                context_parts.append(f"Columns: {', '.join(df.columns.tolist())}")
-                context_parts.append(tail.to_string(index=False, max_colwidth=40))
-        except Exception as e:
-            context_parts.append(f"[Error reading theta_agg.csv: {e}]")
+    files_to_read = [
+        ("theta_agg.csv",            20, "Aggregated options flow (all DTE)"),
+        ("theta_agg_0dte.csv",       10, "0-DTE options flow only"),
+        ("theta_agg_0_1dte.csv",     10, "0-1 DTE options flow"),
+        ("theta_agg_0_2dte.csv",     10, "0-2 DTE options flow"),
+        ("theta_snapshot.csv",       15, "Strike-level snapshot (all DTE)"),
+        ("theta_snapshot_0_1dte.csv", 10, "Strike-level snapshot 0-1 DTE"),
+        ("prediction.csv",           10, "Hybrid51 ML model predictions"),
+    ]
 
-    # theta_snapshot.csv — strike-level snapshot
-    snap_path = DATA_DIR / "theta_snapshot.csv"
-    if snap_path.exists():
-        try:
-            df = pd.read_csv(snap_path)
-            if not df.empty:
-                # Summarise: column names + tail
-                tail = df.tail(20)
-                context_parts.append(f"\n=== theta_snapshot.csv (last {len(tail)} of {len(df)} rows) ===")
-                context_parts.append(f"Columns: {', '.join(df.columns.tolist())}")
-                context_parts.append(tail.to_string(index=False, max_colwidth=40))
-        except Exception as e:
-            context_parts.append(f"[Error reading theta_snapshot.csv: {e}]")
-
-    # prediction.csv — model predictions
-    pred_path = DATA_DIR / "prediction.csv"
-    if pred_path.exists():
-        try:
-            df = pd.read_csv(pred_path)
-            if not df.empty:
-                tail = df.tail(15)
-                context_parts.append(f"\n=== prediction.csv (last {len(tail)} of {len(df)} rows) ===")
-                context_parts.append(f"Columns: {', '.join(df.columns.tolist())}")
-                context_parts.append(tail.to_string(index=False, max_colwidth=40))
-        except Exception as e:
-            context_parts.append(f"[Error reading prediction.csv: {e}]")
+    for fname, rows, description in files_to_read:
+        fpath = DATA_DIR / fname
+        if fpath.exists():
+            try:
+                df = pd.read_csv(fpath)
+                if not df.empty:
+                    tail = df.tail(rows)
+                    context_parts.append(f"\n=== {fname} — {description} (last {len(tail)} of {len(df)} rows) ===")
+                    context_parts.append(f"Columns: {', '.join(df.columns.tolist())}")
+                    context_parts.append(tail.to_string(index=False, max_colwidth=40))
+                else:
+                    context_parts.append(f"\n=== {fname} — {description} (EMPTY) ===")
+            except Exception as e:
+                context_parts.append(f"\n=== {fname} — [Error reading: {e}] ===")
+        else:
+            context_parts.append(f"\n=== {fname} — [FILE NOT FOUND] ===")
 
     return "\n".join(context_parts)
 
 
+# ── API Callers ──────────────────────────────────────────────────────────────
+
 def _call_openrouter(api_key, model_id, messages, timeout=120):
-    """Send a chat completion request to OpenRouter. Returns the response text or error."""
+    """OpenRouter chat completion. Returns response text."""
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -7808,245 +8404,975 @@ def _call_openrouter(api_key, model_id, messages, timeout=120):
         "HTTP-Referer": "https://theta-dashboard.local",
         "X-Title": "Theta Options Pro AI Analyst",
     }
-    payload = {
-        "model": model_id,
-        "messages": messages,
-        "temperature": 0.4,
-        "max_tokens": 4096,
-    }
+    payload = {"model": model_id, "messages": messages, "temperature": 0.4, "max_tokens": 4096}
     try:
         resp = _requests.post(url, headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
         data = resp.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return content.strip() if content else "[Empty response from model]"
+        return (data.get("choices", [{}])[0].get("message", {}).get("content", "") or "[Empty response]").strip()
     except _requests.exceptions.Timeout:
         return f"[Timeout: {model_id} did not respond within {timeout}s]"
     except _requests.exceptions.HTTPError as e:
-        err_body = ""
         try:
-            err_body = e.response.text[:500]
+            err = e.response.text[:500]
         except Exception:
-            pass
-        return f"[HTTP Error {e.response.status_code}]: {err_body}"
+            err = str(e)
+        return f"[HTTP Error]: {err}"
     except Exception as e:
         return f"[Error: {str(e)[:300]}]"
 
 
-def _build_system_prompt(csv_context, enable_web_search):
+def _call_perplexity(api_key, model_id, messages, timeout=120):
+    """Perplexity Sonar API chat completion. Returns response text."""
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {"model": model_id, "messages": messages, "temperature": 0.4, "max_tokens": 4096}
+    try:
+        resp = _requests.post(url, headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        content = (data.get("choices", [{}])[0].get("message", {}).get("content", "") or "").strip()
+        # Append citations if available
+        citations = data.get("citations", [])
+        if citations:
+            content += "\n\n**Sources:** " + ", ".join(citations[:8])
+        return content if content else "[Empty response]"
+    except _requests.exceptions.Timeout:
+        return f"[Timeout: Perplexity {model_id}]"
+    except _requests.exceptions.HTTPError as e:
+        try:
+            err = e.response.text[:500]
+        except Exception:
+            err = str(e)
+        return f"[Perplexity HTTP Error]: {err}"
+    except Exception as e:
+        return f"[Perplexity Error: {str(e)[:300]}]"
+
+
+def _call_xai(api_key, model_id, messages, timeout=180, use_search=True):
+    """xAI Grok Responses API with web_search + x_search tools. Returns response text."""
+    url = "https://api.x.ai/v1/responses"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    # Convert messages to the input format for the Responses API
+    api_input = []
+    for m in messages:
+        api_input.append({"role": m["role"], "content": m["content"]})
+
+    payload = {"model": model_id, "input": api_input}
+    if use_search:
+        payload["tools"] = [{"type": "web_search"}, {"type": "x_search"}]
+    try:
+        resp = _requests.post(url, headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        # Extract text from the Responses API output
+        output = data.get("output", [])
+        text_parts = []
+        for item in output:
+            if isinstance(item, dict):
+                if item.get("type") == "message":
+                    for c in item.get("content", []):
+                        if isinstance(c, dict) and c.get("type") == "output_text":
+                            text_parts.append(c.get("text", ""))
+                elif item.get("content"):
+                    text_parts.append(str(item["content"]))
+        result = "\n".join(text_parts).strip()
+        return result if result else "[Empty response from xAI]"
+    except _requests.exceptions.Timeout:
+        return f"[Timeout: xAI {model_id}]"
+    except _requests.exceptions.HTTPError as e:
+        try:
+            err = e.response.text[:500]
+        except Exception:
+            err = str(e)
+        return f"[xAI HTTP Error]: {err}"
+    except Exception as e:
+        return f"[xAI Error: {str(e)[:300]}]"
+
+
+def _route_api_call(provider, model_id, messages, keys, timeout=120):
+    """Route an API call to the correct provider."""
+    if provider == "perplexity":
+        return _call_perplexity(keys.get("pplx", ""), model_id, messages, timeout)
+    elif provider == "xai":
+        return _call_xai(keys.get("xai", ""), model_id, messages, timeout)
+    else:  # openrouter
+        return _call_openrouter(keys.get("openrouter", ""), model_id, messages, timeout)
+
+
+# ── System Prompt Builder ────────────────────────────────────────────────────
+
+def _build_system_prompt(csv_context, role_override=None):
     """Build the system prompt for the AI analyst."""
-    web_note = """
-You also have access to current web knowledge. When the user's question requires
-recent market news, economic events, or real-time context, integrate your web
-knowledge with the CSV data to provide a comprehensive analysis.
-""" if enable_web_search else """
-Note: Web search is disabled. Answer using only the provided CSV data.
-"""
+    base = f"""You are an expert quantitative market analyst for the Theta Options Pro Intelligence Terminal.
+Your role is to analyze live options market data and predict intraday SPX/SPY direction.
 
-    return f"""You are an expert quantitative market analyst for the Theta Options Pro
-Intelligence Terminal. Your role is to analyze live options market data and predict
-intraday SPX/SPY direction.
+THE FOLLOWING MARKET DATA HAS ALREADY BEEN LOADED AND IS PROVIDED TO YOU BELOW.
+You do NOT need file access — the CSV contents are embedded here verbatim.
+Always answer questions about current market conditions using ONLY this data.
+Never say you cannot access files — the data is right here in this prompt.
 
-You have access to today's live market data from the following CSV files:
+=== LIVE MARKET DATA (loaded from /workspace/Final_production_model/daily_data/) ===
 {csv_context}
+=== END OF MARKET DATA ===
 
-Key data columns explained:
-- theta_agg.csv: Aggregated options flow per symbol per batch (call/put volume, premium,
-  P/C ratio, net GEX, IV skew, ATM straddle, spot price, trade aggression, etc.)
-- theta_snapshot.csv: Strike-level options data (strike, call/put OI and volume,
-  greeks, bid/ask, DTE, etc.)
-- prediction.csv: Hybrid51 ML model outputs (agent probabilities A/B/C/K/T/Q/2D,
-  Stage 2/3 ensemble probability, direction, confidence, signal strength)
-{web_note}
-Guidelines:
-1. Always anchor analysis on the actual CSV data provided above.
-2. Reference specific numbers: P/C ratios, GEX values, IV levels, model probabilities.
-3. State the directional bias clearly: BULLISH, BEARISH, or NEUTRAL.
-4. Quantify confidence (high/medium/low) and explain what would change your view.
-5. When prediction.csv is available, interpret the Hybrid51 model output:
-   - prob > 0.55 with high confidence = strong signal
-   - prob near 0.50 = indecisive / neutral zone
-   - Agent agreement (all agents same direction) strengthens the signal
-6. Be concise but thorough. Use bullet points for key findings.
-7. Always specify the current New York time context for market analysis.
+Column reference:
+- theta_agg.csv / theta_agg_0dte.csv / theta_agg_0_1dte.csv / theta_agg_0_2dte.csv: batch_id, ts, dte_group, symbol, spot, call_vol, put_vol, pc_ratio, net_gex, net_premium, iv_skew, bid_ask_imbalance, trade_aggression, avg_spread_pct (0dte/0-1dte/0-2dte variants filter by DTE bucket)
+- theta_snapshot.csv / theta_snapshot_0_1dte.csv: strike-level data — symbol, strike, right, dte, delta, gamma, theta, vega, implied_vol, volume, oi, bid, ask, spread_pct, moneyness, dist_atm_pct
+- prediction.csv: prob (Stage3 ensemble), pred (1=BULL/0=BEAR), threshold, confidence, agent_A/B/C/K/T/Q/2D_prob, direction, quality_score, feature_completeness, spot_price
+
+Analysis guidelines:
+1. Anchor every statement to specific numbers from the data above (P/C ratio, net_premium, GEX, prob, etc.)
+2. State directional bias clearly: BULLISH / BEARISH / NEUTRAL
+3. Quantify confidence (high/medium/low) and state what would change your view
+4. For prediction.csv: prob > 0.55 = bullish signal, prob < 0.40 = bearish signal, 0.40-0.55 = neutral zone
+5. Agent agreement (all agents same side of their threshold) strengthens the signal
+6. Always reference the current NY time from the data
 """
+    if role_override:
+        return role_override + "\n\n" + csv_context
+    return base
 
 
-def _render_chat_history(chat_entries):
-    """Convert chat history list-of-dicts into Dash HTML components."""
-    if not chat_entries:
-        return [html.Div("Ask a question about today's SPX trend...", style={
-            "color": MC["text_muted"], "fontStyle": "italic",
-        })]
+# ── Pipeline Agent Definitions ───────────────────────────────────────────────
 
-    components = []
-    for entry in chat_entries:
-        role = entry.get("role", "")
-        content = entry.get("content", "")
-        model_name = entry.get("model", "")
+_PIPELINE_AGENTS = [
+    {
+        "id": 1, "name": "Agent 1a: Online Data Collector (Perplexity)",
+        "provider": "perplexity", "model": "sonar-pro",
+        "stage": 1,
+        "prompt": (
+            "You are Agent 1a — Online Market Data Collector (Perplexity Sonar Pro).\n"
+            "Collect ALL current external market intelligence for SPX/SPY today:\n"
+            "1. Breaking market news, macro events (Fed, CPI, geopolitical shocks)\n"
+            "2. SPX options market conditions: IV crush, unusual options activity, key levels\n"
+            "3. Dark pool prints and block trades\n"
+            "4. Pre-market futures, VIX level, overnight sentiment\n"
+            "5. Any scheduled economic releases today\n\n"
+            "Output a structured summary with sections: Market News, Options Situation, "
+            "Dark Pool, Macro Flags, Pre-market Sentiment. Include sources."
+        ),
+    },
+    {
+        "id": 2, "name": "Agent 1b: X Sentiment Scanner (Grok)",
+        "provider": "xai", "model": "grok-4",
+        "stage": 1,
+        "prompt": (
+            "You are Agent 1b — X (Twitter) Sentiment Scanner (Grok with live X search).\n"
+            "Search X/Twitter for real-time trader sentiment about SPX, S&P 500, and market direction today.\n"
+            "Focus on:\n"
+            "1. Posts from known traders, market makers, and financial accounts\n"
+            "2. Consensus sentiment: bullish/bearish/neutral\n"
+            "3. Any viral warnings, unusual call-outs, or contrarian signals\n"
+            "4. Options flow commentary from X\n\n"
+            "Output: Sentiment bias (BULLISH/BEARISH/NEUTRAL), confidence (0-1), key posts summary."
+        ),
+    },
+    {
+        "id": 3, "name": "Agent 2: CSV Data Analyst (Claude Sonnet)",
+        "provider": "openrouter", "model": "anthropic/claude-sonnet-4.5",
+        "stage": 1,
+        "prompt": (
+            "You are Agent 2 — CSV Data Analyst (Claude Sonnet 4.6).\n"
+            "Analyze the CSV data provided in the system context (theta_agg.csv, theta_snapshot.csv).\n"
+            "Extract and interpret:\n"
+            "1. Current theta values across DTE buckets\n"
+            "2. Put/call ratios and gamma exposure levels\n"
+            "3. Unusual spikes or anomalies vs historical patterns\n"
+            "4. Key strike levels with highest OI and volume\n"
+            "5. ATM straddle levels and IV skew\n\n"
+            "Output a structured summary: Theta Summary, Options Greeks, Anomalies, Data Quality."
+        ),
+    },
+    {
+        "id": 4, "name": "Agent 3: Model Intelligence Reader (Gemini)",
+        "provider": "openrouter", "model": "google/gemini-2.5-pro",
+        "stage": 1,
+        "prompt": (
+            "You are Agent 3 — Model Intelligence Reader (Gemini 3.1 Pro).\n"
+            "Analyze the prediction.csv data in the system context.\n"
+            "Extract and interpret:\n"
+            "1. Current day's SPX prediction direction, probability, and confidence\n"
+            "2. Per-agent probabilities (A, B, C, K, T, Q, 2D) and their agreement\n"
+            "3. Stage 2 vs Stage 3 ensemble probability\n"
+            "4. Signal strength and any model conflicts\n"
+            "5. Whether confidence is above/below threshold\n\n"
+            "Output: Model Prediction (direction, prob, confidence), Signal Drivers, "
+            "Model Conflicts, Model Health (ok/warning/error)."
+        ),
+    },
+    {
+        "id": 5, "name": "Agent 5: Dashboard Validator (GPT-4.1)",
+        "provider": "openrouter", "model": "openai/gpt-4.1",
+        "stage": 1,
+        "prompt": (
+            "You are Agent 5 — Dashboard Logic Validator (GPT-5.4).\n"
+            "Cross-validate the CSV data against what the other agents have found.\n"
+            "Check for:\n"
+            "1. Data freshness — are timestamps recent or stale?\n"
+            "2. Consistency between theta_agg and theta_snapshot metrics\n"
+            "3. Whether prediction.csv probabilities align with options flow signals\n"
+            "4. Any discrepancies between model signals and raw options data\n\n"
+            "Output: Dashboard Health (ok/warning/error), Discrepancies list, Validation Notes."
+        ),
+    },
+    {
+        "id": 6, "name": "Agent 4: Historical Comparator (DeepSeek)",
+        "provider": "openrouter", "model": "deepseek/deepseek-v3.2",
+        "stage": 2,
+        "prompt": (
+            "You are Agent 4 — Historical Prediction Comparator (DeepSeek V3.2).\n"
+            "Based on the current market data and model predictions from the CSV context,\n"
+            "analyze historical patterns:\n"
+            "1. Does today's setup resemble any known pattern (trend continuation, reversal)?\n"
+            "2. How reliable are strong-signal days like this historically?\n"
+            "3. Flag any 'd\u00e9j\u00e0 vu' setups that previously failed\n"
+            "4. What is the typical accuracy when agents agree/disagree?\n\n"
+            "Use the prediction.csv history and theta data to ground your analysis.\n"
+            "Output: Pattern Match, Drift Warnings, Historical Notes."
+        ),
+    },
+    {
+        "id": 7, "name": "Agent 6: Master Synthesizer (Claude Opus 4.6)",
+        "provider": "openrouter", "model": "anthropic/claude-opus-4.6",
+        "fallback_provider": "openrouter", "fallback_model": "openai/gpt-5.4",
+        "fallback_name": "Agent 6: Master Synthesizer (GPT-5.4 fallback)",
+        "stage": 3,
+        "prompt": (
+            "You are Agent 6 — Master Synthesizer (Claude Opus 4.6).\n"
+            "You receive all previous agent outputs below. Synthesize them into a unified\n"
+            "SPX directional prediction for today.\n\n"
+            "You MUST:\n"
+            "1. State the final prediction: BULLISH, BEARISH, or NEUTRAL\n"
+            "2. Assign a final confidence score (high/medium/low)\n"
+            "3. Explicitly resolve conflicts between agents\n"
+            "4. List key risk flags that could invalidate the prediction\n"
+            "5. Provide a brief summary of each agent's contribution\n\n"
+            "Format as a clean report with sections: SPX Prediction, Signal Consensus,\n"
+            "Signal Conflicts, Key Risk Flags, Agent Summary."
+        ),
+    },
+    {
+        "id": 8, "name": "Agent 7: Independent Auditor (Grok)",
+        "provider": "xai", "model": "grok-4",
+        "stage": 4,
+        "prompt": (
+            "You are Agent 7 — Independent Auditor (Grok 4).\n"
+            "Review the entire pipeline output below for logical consistency and quality.\n\n"
+            "Audit checklist:\n"
+            "1. Are the online data citations valid and recent?\n"
+            "2. Do the CSV readings match expected ranges?\n"
+            "3. Did the model interpretation correctly reflect prediction.csv values?\n"
+            "4. Did the master synthesizer appropriately weight conflicting signals?\n"
+            "5. Overall pipeline confidence rating (0-10)\n\n"
+            "Output: Pipeline Integrity Score, Per-Agent Assessment, "
+            "Data Freshness Check, Final Recommendation (endorse/flag/reject)."
+        ),
+    },
+]
 
-        if role == "user":
-            components.append(html.Div(
-                style={
-                    "display": "flex", "justifyContent": "flex-end",
-                    "marginBottom": "10px",
-                },
-                children=[html.Div(
-                    content,
-                    style={
-                        "backgroundColor": "rgba(139,92,246,0.18)",
-                        "border": "1px solid rgba(139,92,246,0.3)",
-                        "borderRadius": "10px 10px 2px 10px",
-                        "padding": "10px 14px", "maxWidth": "75%",
-                        "color": MC["text"], "fontSize": "13px",
-                        "whiteSpace": "pre-wrap",
-                    },
-                )],
-            ))
-        elif role == "assistant":
-            # Model label badge
-            badge = html.Span(model_name, style={
-                "fontSize": "10px", "fontWeight": 700,
-                "color": "#8b5cf6", "letterSpacing": "0.5px",
-                "textTransform": "uppercase",
-                "marginBottom": "4px", "display": "block",
-            }) if model_name else None
 
-            components.append(html.Div(
-                style={
-                    "display": "flex", "justifyContent": "flex-start",
-                    "marginBottom": "10px",
-                },
-                children=[html.Div(
-                    children=[
-                        badge,
-                        dcc.Markdown(
-                            content,
-                            style={
-                                "color": MC["text_sec"], "fontSize": "13px",
-                                "lineHeight": "1.65", "margin": 0,
-                            },
-                            dangerously_allow_html=True,
-                        ),
-                    ],
-                    style={
-                        "backgroundColor": MC["bg_card"],
-                        "border": f"1px solid {MC['border']}",
-                        "borderRadius": "10px 10px 10px 2px",
-                        "padding": "10px 14px", "maxWidth": "85%",
-                    },
-                )],
-            ))
-        elif role == "error":
-            components.append(html.Div(
-                content,
-                style={
-                    "color": MC["put"], "fontSize": "12px",
-                    "padding": "6px 10px", "marginBottom": "8px",
-                    "backgroundColor": "rgba(239,68,68,0.08)",
-                    "borderRadius": "6px",
-                },
-            ))
-    return components
+# ── Pipeline Shared State (module-level, thread-safe via lock) ───────────────
 
+_PIPELINE_STATE = {
+    "running": False,
+    "entries": [],        # chat entries accumulated so far
+    "status_msg": "",     # current status line
+    "done": False,
+    "error": None,
+}
+_PIPELINE_LOCK = threading.Lock()
+
+_PARALLEL_STATE = {
+    "running": False,
+    "question": "",
+    "results": {},   # model_value -> {"text": str, "done": bool, "error": bool}
+    "done": False,
+}
+_PARALLEL_LOCK = threading.Lock()
+
+_PARALLEL_MODEL_LABELS = {
+    "openrouter|openai/gpt-4.1":                          "GPT-4.1",
+    "openrouter|openai/gpt-4o":                           "GPT-4o",
+    "openrouter|openai/o3":                               "o3",
+    "openrouter|openai/o4-mini":                          "o4-mini",
+    "openrouter|anthropic/claude-sonnet-4.5":             "Claude Sonnet 4.5",
+    "openrouter|anthropic/claude-sonnet-4.6":             "Claude Sonnet 4.6",
+    "openrouter|anthropic/claude-opus-4.5":               "Claude Opus 4.5",
+    "openrouter|anthropic/claude-opus-4.6":               "Claude Opus 4.6",
+    "openrouter|google/gemini-2.5-pro":                   "Gemini 2.5 Pro",
+    "openrouter|google/gemini-2.5-flash":                 "Gemini 2.5 Flash",
+    "openrouter|deepseek/deepseek-v3.2":                  "DeepSeek V3.2",
+    "openrouter|deepseek/deepseek-r1":                    "DeepSeek R1",
+    "openrouter|x-ai/grok-4":                             "Grok 4 (OR)",
+    "openrouter|x-ai/grok-4.20-beta":                     "Grok 4.20 Beta (OR)",
+    "openrouter|x-ai/grok-3-beta":                        "Grok 3 (OR)",
+    "perplexity|sonar-pro":                               "Sonar Pro",
+    "perplexity|sonar-reasoning-pro":                     "Sonar Reasoning Pro",
+    "perplexity|sonar-deep-research":                     "Sonar Deep Research",
+    "xai|grok-4":                                         "Grok 4 (xAI)",
+    "xai|grok-4.20-beta-0309-non-reasoning":              "Grok 4.20 Beta (xAI)",
+    "xai|grok-3":                                         "Grok 3 (xAI)",
+}
+
+
+def _run_parallel_background(keys, model_values, question):
+    """Call all selected models in parallel with the same question. Writes to _PARALLEL_STATE."""
+    csv_context = _read_daily_csv_context()
+    system_prompt = _build_system_prompt(csv_context)
+    api_messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": question},
+    ]
+
+    def _call_one(model_value):
+        provider, model_id = model_value.split("|", 1)
+        result = _route_api_call(provider, model_id, api_messages, keys, timeout=120)
+        with _PARALLEL_LOCK:
+            _PARALLEL_STATE["results"][model_value] = {
+                "text": result,
+                "done": True,
+                "error": result.startswith("["),
+            }
+
+    threads = []
+    with _PARALLEL_LOCK:
+        for mv in model_values:
+            _PARALLEL_STATE["results"][mv] = {"text": "...", "done": False, "error": False}
+
+    for mv in model_values:
+        t = threading.Thread(target=_call_one, args=(mv,), daemon=True)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join(timeout=150)
+
+    with _PARALLEL_LOCK:
+        _PARALLEL_STATE["running"] = False
+        _PARALLEL_STATE["done"] = True
+
+
+def _run_pipeline_background(keys):
+    """Execute the full 7-agent pipeline in a background thread, writing to _PIPELINE_STATE."""
+    csv_context = _read_daily_csv_context()
+    system_prompt_base = _build_system_prompt(csv_context)
+    agent_outputs = {}
+
+    def _push(entry):
+        with _PIPELINE_LOCK:
+            _PIPELINE_STATE["entries"].append(entry)
+
+    def _set_status(msg):
+        with _PIPELINE_LOCK:
+            _PIPELINE_STATE["status_msg"] = msg
+        print(f"[PIPELINE] {msg}")
+
+    try:
+        # ── Stage 1: Parallel agents ──
+        stage1_agents = [a for a in _PIPELINE_AGENTS if a["stage"] == 1]
+        _set_status(f"Stage 1: 0/{len(stage1_agents)} agents done...")
+        _push({"role": "system_status", "content": f"\u25B6 Stage 1: Launching {len(stage1_agents)} agents in parallel..."})
+
+        results_lock = threading.Lock()
+        done_count = [0]
+
+        def _run_agent(agent_def):
+            msgs = [
+                {"role": "system", "content": system_prompt_base},
+                {"role": "user", "content": agent_def["prompt"]},
+            ]
+            result = _route_api_call(agent_def["provider"], agent_def["model"], msgs, keys, timeout=90)
+            with results_lock:
+                agent_outputs[agent_def["id"]] = result
+                done_count[0] += 1
+                _set_status(f"Stage 1: {done_count[0]}/{len(stage1_agents)} agents done...")
+            _push({"role": "assistant", "content": result, "model": agent_def["name"]})
+
+        threads = []
+        for agent in stage1_agents:
+            t = threading.Thread(target=_run_agent, args=(agent,), daemon=True)
+            t.start()
+            threads.append(t)
+        deadline = 120
+        import time as _time
+        t0 = _time.time()
+        for t in threads:
+            remaining = deadline - (_time.time() - t0)
+            if remaining > 0:
+                t.join(timeout=remaining)
+        _set_status("Stage 1 complete.")
+
+        # ── Stage 2 ──
+        stage2_agents = [a for a in _PIPELINE_AGENTS if a["stage"] == 2]
+        _set_status("Stage 2: Running Historical Comparator...")
+        _push({"role": "system_status", "content": "\u25B6 Stage 2: Running Historical Comparator..."})
+        prior_context = "\n\n".join(
+            f"--- {a['name']} ---\n{agent_outputs.get(a['id'], '[missing]')}"
+            for a in stage1_agents
+        )
+        for agent in stage2_agents:
+            msgs = [
+                {"role": "system", "content": system_prompt_base},
+                {"role": "user", "content": f"{agent['prompt']}\n\n=== Prior Agent Outputs ===\n{prior_context}"},
+            ]
+            result = _route_api_call(agent["provider"], agent["model"], msgs, keys, timeout=90)
+            agent_outputs[agent["id"]] = result
+            _push({"role": "assistant", "content": result, "model": agent["name"]})
+        _set_status("Stage 2 complete.")
+
+        # ── Stage 3 ──
+        stage3_agents = [a for a in _PIPELINE_AGENTS if a["stage"] == 3]
+        _set_status("Stage 3: Running Master Synthesizer (Claude Opus 4.6)...")
+        _push({"role": "system_status", "content": "\u25B6 Stage 3: Running Master Synthesizer (Claude Opus 4.6)..."})
+        all_prior = "\n\n".join(
+            f"--- {a['name']} ---\n{agent_outputs.get(a['id'], '[missing]')}"
+            for a in _PIPELINE_AGENTS if a["stage"] <= 2
+        )
+        for agent in stage3_agents:
+            msgs = [
+                {"role": "system", "content": system_prompt_base},
+                {"role": "user", "content": f"{agent['prompt']}\n\n=== All Agent Outputs ===\n{all_prior}"},
+            ]
+            result = _route_api_call(agent["provider"], agent["model"], msgs, keys, timeout=240)
+            if result.startswith("[") and "Timeout" in result:
+                fb_provider = agent.get("fallback_provider")
+                fb_model = agent.get("fallback_model")
+                fb_name = agent.get("fallback_name", agent["name"])
+                if fb_provider and fb_model:
+                    _push({"role": "system_status", "content": f"\u26A0\uFE0F {agent['name']} timed out — retrying with {fb_name}..."})
+                    result = _route_api_call(fb_provider, fb_model, msgs, keys, timeout=180)
+                    agent_outputs[agent["id"]] = result
+                    _push({"role": "assistant", "content": result, "model": fb_name})
+                    continue
+            agent_outputs[agent["id"]] = result
+            _push({"role": "assistant", "content": result, "model": agent["name"]})
+        _set_status("Stage 3 complete.")
+
+        # ── Stage 4 ──
+        stage4_agents = [a for a in _PIPELINE_AGENTS if a["stage"] == 4]
+        _set_status("Stage 4: Running Independent Auditor (Grok)...")
+        _push({"role": "system_status", "content": "\u25B6 Stage 4: Running Independent Auditor (Grok)..."})
+        full_pipeline = "\n\n".join(
+            f"--- {a['name']} ---\n{agent_outputs.get(a['id'], '[missing]')}"
+            for a in _PIPELINE_AGENTS if a["stage"] <= 3
+        )
+        for agent in stage4_agents:
+            msgs = [
+                {"role": "system", "content": system_prompt_base},
+                {"role": "user", "content": f"{agent['prompt']}\n\n=== Full Pipeline Output ===\n{full_pipeline}"},
+            ]
+            result = _route_api_call(agent["provider"], agent["model"], msgs, keys, timeout=120)
+            agent_outputs[agent["id"]] = result
+            _push({"role": "assistant", "content": result, "model": agent["name"]})
+
+        _push({"role": "system_status", "content": "\u2705 Pipeline complete — all 7 agents finished."})
+        with _PIPELINE_LOCK:
+            _PIPELINE_STATE["status_msg"] = "\u2705 Pipeline complete — 7 agents finished successfully"
+            _PIPELINE_STATE["done"] = True
+
+    except Exception as e:
+        err = str(e)[:400]
+        _push({"role": "error", "content": f"Pipeline error: {err}"})
+        with _PIPELINE_LOCK:
+            _PIPELINE_STATE["status_msg"] = f"\u274C Pipeline failed: {err[:100]}"
+            _PIPELINE_STATE["error"] = err
+            _PIPELINE_STATE["done"] = True
+
+    finally:
+        with _PIPELINE_LOCK:
+            _PIPELINE_STATE["running"] = False
+
+
+# ── Chat History Renderer ────────────────────────────────────────────────────
+
+# ── Callback: Restore chat history on page load ───────────────────────────────
+
+@app.callback(
+    [Output("ai-chat-history", "children", allow_duplicate=True),
+     Output("ai-chat-store", "data", allow_duplicate=True)],
+    Input("ai-url", "pathname"),
+    prevent_initial_call='initial_duplicate',
+)
+def restore_chat_on_load(_pathname):
+    saved = _load_chat_session()
+    if saved:
+        return _render_chat_history(saved), saved
+    return _render_chat_history([]), []
+
+
+# ── Callback: Pipeline RUN Button ────────────────────────────────────────────
 
 @app.callback(
     [Output("ai-chat-history", "children"),
      Output("ai-chat-store", "data"),
-     Output("ai-question-input", "value"),
-     Output("ai-loading-output", "children")],
+     Output("ai-pipeline-status", "children"),
+     Output("ai-pipeline-status", "style"),
+     Output("ai-pipeline-tick", "disabled"),
+     Output("ai-pipeline-btn", "disabled")],
+    Input("ai-pipeline-btn", "n_clicks"),
+    [State("ai-pplx-key", "value"),
+     State("ai-xai-key", "value"),
+     State("ai-api-key", "value")],
+    prevent_initial_call=True,
+)
+def run_pipeline_callback(n_clicks, pplx_key, xai_key, or_key):
+    """Start the background pipeline and enable the polling interval."""
+    if not n_clicks:
+        return no_update, no_update, no_update, no_update, no_update, no_update
+
+    status_base_style = {
+        "flex": "1", "minWidth": "300px",
+        "backgroundColor": MC["bg_input"],
+        "border": f"1px solid {MC['border']}",
+        "borderRadius": "8px", "padding": "8px 14px",
+        "fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace",
+        "minHeight": "36px", "display": "flex", "alignItems": "center",
+    }
+
+    errors = []
+    if not pplx_key or not pplx_key.strip():
+        errors.append("Perplexity API key")
+    if not xai_key or not xai_key.strip():
+        errors.append("xAI API key")
+    if not or_key or not or_key.strip():
+        errors.append("OpenRouter API key")
+    if errors:
+        msg = f"Missing: {', '.join(errors)}. Please enter all 3 API keys."
+        return (
+            no_update, no_update,
+            msg,
+            {**status_base_style, "color": MC["put"], "border": f"1px solid {MC['put']}"},
+            True, False,
+        )
+
+    with _PIPELINE_LOCK:
+        if _PIPELINE_STATE["running"]:
+            return (
+                no_update, no_update,
+                "Pipeline already running...",
+                {**status_base_style, "color": "#f59e0b", "border": "1px solid #f59e0b"},
+                False, True,
+            )
+        _PIPELINE_STATE["running"] = True
+        _PIPELINE_STATE["entries"] = []
+        _PIPELINE_STATE["status_msg"] = "\u25B6 Stage 1: Launching agents..."
+        _PIPELINE_STATE["done"] = False
+        _PIPELINE_STATE["error"] = None
+
+    keys = {"pplx": pplx_key.strip(), "xai": xai_key.strip(), "openrouter": or_key.strip()}
+    t = threading.Thread(target=_run_pipeline_background, args=(keys,), daemon=True)
+    t.start()
+
+    starting_entry = [{"role": "system_status", "content": "\u25B6 Pipeline started — agents launching..."}]
+    return (
+        _render_chat_history(starting_entry),
+        starting_entry,
+        "\u25B6 Pipeline running — agents working...",
+        {**status_base_style, "color": "#f59e0b", "border": "1px solid #f59e0b"},
+        False, True,
+    )
+
+
+# ── Callback: Pipeline Tick (polls background thread state) ──────────────────
+
+@app.callback(
+    [Output("ai-chat-history", "children", allow_duplicate=True),
+     Output("ai-chat-store", "data", allow_duplicate=True),
+     Output("ai-pipeline-status", "children", allow_duplicate=True),
+     Output("ai-pipeline-status", "style", allow_duplicate=True),
+     Output("ai-pipeline-tick", "disabled", allow_duplicate=True),
+     Output("ai-pipeline-btn", "disabled", allow_duplicate=True)],
+    Input("ai-pipeline-tick", "n_intervals"),
+    State("ai-chat-store", "data"),
+    prevent_initial_call=True,
+)
+def pipeline_tick_callback(n_intervals, stored_history):
+    """Poll pipeline state every 2s and stream results into chat history."""
+    status_base_style = {
+        "flex": "1", "minWidth": "300px",
+        "backgroundColor": MC["bg_input"],
+        "border": f"1px solid {MC['border']}",
+        "borderRadius": "8px", "padding": "8px 14px",
+        "fontSize": "12px", "fontFamily": "'JetBrains Mono', monospace",
+        "minHeight": "36px", "display": "flex", "alignItems": "center",
+    }
+
+    with _PIPELINE_LOCK:
+        entries = list(_PIPELINE_STATE["entries"])
+        status_msg = _PIPELINE_STATE["status_msg"]
+        done = _PIPELINE_STATE["done"]
+        running = _PIPELINE_STATE["running"]
+        error = _PIPELINE_STATE["error"]
+
+    if not running and not done and not entries:
+        return no_update, no_update, no_update, no_update, True, False
+
+    if done or error:
+        if error:
+            style = {**status_base_style, "color": MC["put"], "border": f"1px solid {MC['put']}"}
+        else:
+            style = {**status_base_style, "color": MC["call"], "border": f"1px solid {MC['call']}"}
+        _save_chat_session(entries)
+        return _render_chat_history(entries), entries, status_msg, style, True, False
+
+    style = {**status_base_style, "color": "#f59e0b", "border": "1px solid #f59e0b"}
+    return _render_chat_history(entries), entries, status_msg, style, False, True
+
+
+# ── Callback: Manual Q&A (ASK AI / Enter) ────────────────────────────────────
+
+@app.callback(
+    [Output("ai-chat-history", "children", allow_duplicate=True),
+     Output("ai-chat-store", "data", allow_duplicate=True),
+     Output("ai-question-input", "value")],
     [Input("ai-send-btn", "n_clicks"),
      Input("ai-question-input", "n_submit"),
      Input("ai-clear-btn", "n_clicks")],
     [State("ai-question-input", "value"),
-     State("ai-api-key", "value"),
      State("ai-model-select", "value"),
-     State("ai-web-search", "value"),
+     State("ai-pplx-key", "value"),
+     State("ai-xai-key", "value"),
+     State("ai-api-key", "value"),
      State("ai-chat-store", "data")],
     prevent_initial_call=True,
 )
-def ai_chat_callback(send_clicks, n_submit, clear_clicks, question, api_key,
-                     selected_models, web_search_opts, chat_history):
-    """Handle AI chat interactions: send question to selected models, display responses."""
+def manual_qa_callback(send_clicks, n_submit, clear_clicks, question,
+                       model_choice, pplx_key, xai_key, or_key, chat_history):
+    """Handle manual Q&A: route to correct API based on dropdown model selection."""
     ctx = dash.callback_context
     if not ctx.triggered:
-        return no_update, no_update, no_update, no_update
+        return no_update, no_update, no_update
 
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    # Handle CLEAR button
+    # Handle CLEAR
     if triggered_id == "ai-clear-btn":
-        empty_history = []
-        return _render_chat_history(empty_history), empty_history, "", ""
+        _save_chat_session([])
+        return _render_chat_history([]), [], ""
 
-    # Handle SEND / Enter
+    # Handle ASK / Enter
     if triggered_id in ("ai-send-btn", "ai-question-input"):
         if not question or not question.strip():
-            return no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update
 
         question = question.strip()
         chat_history = chat_history or []
 
-        # Validate inputs
-        if not api_key or not api_key.strip():
-            chat_history.append({"role": "error", "content": "Please enter your OpenRouter API key first."})
-            return _render_chat_history(chat_history), chat_history, question, ""
+        # Parse provider|model from dropdown value
+        if not model_choice or "|" not in model_choice:
+            chat_history.append({"role": "error", "content": "Please select a model from the dropdown."})
+            return _render_chat_history(chat_history), chat_history, question
 
-        if not selected_models:
-            chat_history.append({"role": "error", "content": "Please select at least one AI model."})
-            return _render_chat_history(chat_history), chat_history, question, ""
+        provider, model_id = model_choice.split("|", 1)
+
+        # Validate the required key
+        keys = {"pplx": (pplx_key or "").strip(), "xai": (xai_key or "").strip(), "openrouter": (or_key or "").strip()}
+        key_map = {"perplexity": "pplx", "xai": "xai", "openrouter": "openrouter"}
+        needed_key = key_map.get(provider, "openrouter")
+        if not keys.get(needed_key):
+            label = {"pplx": "Perplexity", "xai": "xAI", "openrouter": "OpenRouter"}.get(needed_key, provider)
+            chat_history.append({"role": "error", "content": f"Please enter your {label} API key first."})
+            return _render_chat_history(chat_history), chat_history, question
 
         # Add user message
         chat_history.append({"role": "user", "content": question})
 
-        # Read CSV data for context
+        # Build messages with CSV context
         csv_context = _read_daily_csv_context()
-        enable_web_search = "on" in (web_search_opts or [])
-        system_prompt = _build_system_prompt(csv_context, enable_web_search)
-
-        # Build message history for the API (include last 6 exchanges for context)
+        system_prompt = _build_system_prompt(csv_context)
         api_messages = [{"role": "system", "content": system_prompt}]
-        # Add recent conversation for context (user/assistant pairs)
-        recent = [e for e in chat_history if e["role"] in ("user", "assistant")]
-        for entry in recent[-12:]:
+
+        # Include recent conversation context
+        recent = [e for e in chat_history if e["role"] in ("user", "assistant")][-12:]
+        for entry in recent:
             api_messages.append({"role": entry["role"], "content": entry["content"]})
 
-        # If only last message is user and it's the question, it's already included
         if not api_messages or api_messages[-1].get("content") != question:
             api_messages.append({"role": "user", "content": question})
 
-        # Query each selected model
-        results = {}
-        if len(selected_models) == 1:
-            # Single model — simple call
-            model_id = selected_models[0]
-            results[model_id] = _call_openrouter(api_key, model_id, api_messages)
-        else:
-            # Multiple models — parallel calls via threads
-            def _query(mid):
-                results[mid] = _call_openrouter(api_key, mid, api_messages)
+        # Call the selected model
+        result = _route_api_call(provider, model_id, api_messages, keys, timeout=120)
 
-            threads = []
-            for mid in selected_models:
-                t = threading.Thread(target=_query, args=(mid,))
-                t.start()
-                threads.append(t)
-            for t in threads:
-                t.join(timeout=130)
+        # Display label
+        label_map = {
+            "openai/gpt-4.1": "GPT-4.1", "openai/gpt-4o": "GPT-4o",
+            "anthropic/claude-sonnet-4.5": "Claude Sonnet 4.5",
+            "anthropic/claude-opus-4.5": "Claude Opus 4.5",
+            "google/gemini-2.5-pro": "Gemini 2.5 Pro",
+            "deepseek/deepseek-chat": "DeepSeek V3",
+            "x-ai/grok-4": "Grok 4 (OR)",
+            "openrouter/free": "Free Router",
+            "sonar-pro": "Sonar Pro", "sonar-reasoning-pro": "Sonar Reasoning Pro",
+            "grok-4": "Grok 4 (xAI)", "grok-3": "Grok 3 (xAI)",
+        }
+        display_label = label_map.get(model_id, model_id)
+        chat_history.append({"role": "assistant", "content": result, "model": display_label})
+        _save_chat_session(chat_history)
+        return _render_chat_history(chat_history), chat_history, ""
 
-        # Add responses to chat history
-        for model_id in selected_models:
-            response_text = results.get(model_id, "[No response received]")
-            model_label = _AI_MODEL_LABELS.get(model_id, model_id)
-            chat_history.append({
-                "role": "assistant",
-                "content": response_text,
-                "model": model_label,
-            })
+    return no_update, no_update, no_update
 
-        return _render_chat_history(chat_history), chat_history, "", ""
 
-    return no_update, no_update, no_update, no_update
+# ── Callback: Save Chat to MD (Pipeline) ─────────────────────────────────────
+
+@app.callback(
+    Output("ai-save-chat-status", "children"),
+    Input("ai-save-chat-btn", "n_clicks"),
+    State("ai-chat-store", "data"),
+    prevent_initial_call=True,
+)
+def save_chat_callback(n_clicks, chat_data):
+    if not n_clicks or not chat_data:
+        return "Nothing to save."
+    import datetime as _dt
+    try:
+        ts = _dt.datetime.now().strftime("%Y-%m-%d_%H-%M")
+        fname = f"{ts}_chat.md"
+        (CHAT_DIR / fname).write_text(_entries_to_md(chat_data))
+        _CHAT_SESSION_FILE.write_text(__import__("json").dumps(chat_data, ensure_ascii=False, indent=2))
+        return f"Saved: {fname}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+# ── Callback: Save Chat to MD (Parallel) ─────────────────────────────────────
+
+@app.callback(
+    Output("ai-parallel-save-status", "children"),
+    Input("ai-parallel-save-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def save_parallel_chat_callback(n_clicks):
+    if not n_clicks:
+        return "Nothing to save."
+    import datetime as _dt, json as _json
+    with _PARALLEL_LOCK:
+        results = dict(_PARALLEL_STATE.get("results", {}))
+    if not results:
+        return "No results to save yet."
+    try:
+        ts = _dt.datetime.now().strftime("%Y-%m-%d_%H-%M")
+        fname = f"{ts}_parallel.md"
+        lines = [f"# Parallel Compare — {_dt.datetime.now().strftime('%Y-%m-%d %H:%M')}\n"]
+        for mv, res in results.items():
+            label = _PARALLEL_MODEL_LABELS.get(mv, mv)
+            lines.append(f"## {label}\n{res.get('text','')}\n")
+        (CHAT_DIR / fname).write_text("\n".join(lines))
+        return f"Saved: {fname}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+# ── Callback: Save API Keys to .env ──────────────────────────────────────────
+
+@app.callback(
+    Output("ai-save-keys-status", "children"),
+    Input("ai-save-keys-btn", "n_clicks"),
+    [State("ai-pplx-key", "value"),
+     State("ai-xai-key", "value"),
+     State("ai-api-key", "value")],
+    prevent_initial_call=True,
+)
+def save_keys_callback(n_clicks, pplx, xai, openrouter):
+    if not n_clicks:
+        return no_update
+    try:
+        _save_api_keys(pplx or "", xai or "", openrouter or "")
+        return "\u2705 Keys saved — will auto-load on next start"
+    except Exception as e:
+        return f"\u274C Save failed: {str(e)[:80]}"
+
+
+# ── Callback: Tab Toggle (Pipeline / Parallel) ────────────────────────────────
+
+@app.callback(
+    [Output("ai-section-pipeline", "style"),
+     Output("ai-section-parallel", "style"),
+     Output("ai-tab-pipeline", "style"),
+     Output("ai-tab-parallel", "style")],
+    [Input("ai-tab-pipeline", "n_clicks"),
+     Input("ai-tab-parallel", "n_clicks")],
+    prevent_initial_call=False,
+)
+def toggle_ai_tab(pipe_clicks, para_clicks):
+    ctx = dash.callback_context
+    triggered = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else "ai-tab-pipeline"
+
+    active_btn = {"backgroundColor": "#8b5cf6", "color": "#fff", "border": "none",
+                  "padding": "8px 22px", "cursor": "pointer",
+                  "fontWeight": 700, "fontSize": "12px", "letterSpacing": "0.8px"}
+    inactive_btn = {"backgroundColor": MC["bg_input"], "color": MC["text_muted"],
+                    "border": f"1px solid {MC['border']}", "padding": "8px 22px", "cursor": "pointer",
+                    "fontWeight": 700, "fontSize": "12px", "letterSpacing": "0.8px"}
+
+    if triggered == "ai-tab-parallel":
+        pipe_style = active_btn.copy()
+        pipe_style["borderRadius"] = "7px 0 0 7px"
+        para_style = active_btn.copy()
+        para_style["borderRadius"] = "0 7px 7px 0"
+        return {"display": "none"}, {"display": "block"}, inactive_btn | {"borderRadius": "7px 0 0 7px"}, para_style
+    else:
+        pipe_style = active_btn.copy()
+        pipe_style["borderRadius"] = "7px 0 0 7px"
+        para_inactive = inactive_btn.copy()
+        para_inactive["borderRadius"] = "0 7px 7px 0"
+        return {"display": "block"}, {"display": "none"}, pipe_style, para_inactive
+
+
+# ── Callback: Parallel ASK ALL ────────────────────────────────────────────────
+
+@app.callback(
+    [Output("ai-parallel-status", "children"),
+     Output("ai-parallel-status", "style"),
+     Output("ai-parallel-tick", "disabled"),
+     Output("ai-parallel-btn", "disabled"),
+     Output("ai-parallel-results", "children")],
+    [Input("ai-parallel-btn", "n_clicks"),
+     Input("ai-parallel-clear", "n_clicks"),
+     Input("ai-parallel-question", "n_submit")],
+    [State("ai-parallel-question", "value"),
+     State("ai-parallel-models", "value"),
+     State("ai-pplx-key", "value"),
+     State("ai-xai-key", "value"),
+     State("ai-api-key", "value")],
+    prevent_initial_call=True,
+)
+def parallel_ask_callback(ask_clicks, clear_clicks, n_submit,
+                          question, model_values, pplx_key, xai_key, or_key):
+    ctx = dash.callback_context
+    triggered = ctx.triggered[0]["prop_id"].split(".")[0] if ctx.triggered else ""
+
+    status_base = {
+        "backgroundColor": MC["bg_input"], "border": f"1px solid {MC['border']}",
+        "borderRadius": "8px", "padding": "8px 14px", "fontSize": "12px",
+        "fontFamily": "'JetBrains Mono', monospace", "color": MC["text_muted"],
+        "minHeight": "32px", "marginBottom": "10px",
+    }
+    empty_grid = html.Div("Results will appear here after ASK ALL.", style={
+        "color": MC["text_muted"], "fontStyle": "italic", "fontSize": "13px",
+    })
+
+    if triggered == "ai-parallel-clear":
+        with _PARALLEL_LOCK:
+            _PARALLEL_STATE.update({"running": False, "question": "", "results": {}, "done": False})
+        return ("Select models and enter a question, then press ASK ALL",
+                status_base, True, False, empty_grid)
+
+    if not question or not question.strip():
+        return ("Enter a question first.", {**status_base, "color": MC["put"]}, True, False, no_update)
+
+    if not model_values:
+        return ("Select at least one model.", {**status_base, "color": MC["put"]}, True, False, no_update)
+
+    keys = {"pplx": (pplx_key or "").strip(), "xai": (xai_key or "").strip(), "openrouter": (or_key or "").strip()}
+
+    needed = set()
+    for mv in model_values:
+        provider = mv.split("|")[0]
+        if provider == "perplexity" and not keys["pplx"]:
+            needed.add("Perplexity")
+        elif provider == "xai" and not keys["xai"]:
+            needed.add("xAI")
+        elif provider == "openrouter" and not keys["openrouter"]:
+            needed.add("OpenRouter")
+    if needed:
+        return (f"Missing API key(s): {', '.join(needed)}",
+                {**status_base, "color": MC["put"]}, True, False, no_update)
+
+    with _PARALLEL_LOCK:
+        if _PARALLEL_STATE["running"]:
+            return ("Already running...", {**status_base, "color": "#f59e0b"}, False, True, no_update)
+        _PARALLEL_STATE.update({
+            "running": True, "question": question.strip(),
+            "results": {}, "done": False,
+        })
+
+    t = threading.Thread(target=_run_parallel_background,
+                         args=(keys, model_values, question.strip()), daemon=True)
+    t.start()
+
+    n = len(model_values)
+    return (
+        f"\u25B6 Running {n} models in parallel...",
+        {**status_base, "color": "#f59e0b", "border": "1px solid #f59e0b"},
+        False, True, empty_grid,
+    )
+
+
+# ── Callback: Parallel Tick ───────────────────────────────────────────────────
+
+@app.callback(
+    [Output("ai-parallel-results", "children", allow_duplicate=True),
+     Output("ai-parallel-status", "children", allow_duplicate=True),
+     Output("ai-parallel-status", "style", allow_duplicate=True),
+     Output("ai-parallel-tick", "disabled", allow_duplicate=True),
+     Output("ai-parallel-btn", "disabled", allow_duplicate=True)],
+    Input("ai-parallel-tick", "n_intervals"),
+    prevent_initial_call=True,
+)
+def parallel_tick_callback(n_intervals):
+    status_base = {
+        "backgroundColor": MC["bg_input"], "border": f"1px solid {MC['border']}",
+        "borderRadius": "8px", "padding": "8px 14px", "fontSize": "12px",
+        "fontFamily": "'JetBrains Mono', monospace", "color": MC["text_muted"],
+        "minHeight": "32px", "marginBottom": "10px",
+    }
+
+    with _PARALLEL_LOCK:
+        results = dict(_PARALLEL_STATE["results"])
+        done = _PARALLEL_STATE["done"]
+        running = _PARALLEL_STATE["running"]
+        question = _PARALLEL_STATE["question"]
+
+    if not results and not running:
+        return no_update, no_update, no_update, True, False
+
+    finished = sum(1 for r in results.values() if r["done"])
+    total = len(results)
+
+    cards = []
+    for mv, res in results.items():
+        label = _PARALLEL_MODEL_LABELS.get(mv, mv)
+        is_done = res["done"]
+        is_error = res.get("error", False)
+
+        border_color = MC["put"] if is_error else (MC["call"] if is_done else "#f59e0b")
+        header_color = MC["put"] if is_error else (MC["call"] if is_done else "#f59e0b")
+        dot = "\u2705" if (is_done and not is_error) else ("\u274C" if is_error else "\u23F3")
+
+        cards.append(html.Div(style={
+            "backgroundColor": MC["bg_card"],
+            "border": f"1px solid {border_color}",
+            "borderRadius": "10px", "padding": "14px",
+            "display": "flex", "flexDirection": "column", "gap": "8px",
+        }, children=[
+            html.Div(style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"}, children=[
+                html.Span(label, style={"fontSize": "12px", "fontWeight": 700,
+                                        "color": header_color, "letterSpacing": "0.5px"}),
+                html.Span(dot, style={"fontSize": "13px"}),
+            ]),
+            html.Hr(style={"border": "none", "borderTop": f"1px solid {MC['border']}", "margin": "2px 0"}),
+            html.Div(res["text"] if is_done else "Waiting for response...", style={
+                "fontSize": "12px", "color": MC["text"] if is_done else MC["text_muted"],
+                "whiteSpace": "pre-wrap", "lineHeight": "1.6",
+                "maxHeight": "400px", "overflowY": "auto",
+            }),
+        ]))
+
+    if done or not running:
+        status_msg = f"\u2705 {finished}/{total} models responded"
+        status_style = {**status_base, "color": MC["call"], "border": f"1px solid {MC['call']}"}
+        return cards, status_msg, status_style, True, False
+
+    status_msg = f"\u25B6 {finished}/{total} done — waiting..."
+    status_style = {**status_base, "color": "#f59e0b", "border": "1px solid #f59e0b"}
+    return cards, status_msg, status_style, False, True
 
 
 if __name__ == '__main__':

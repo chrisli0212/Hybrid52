@@ -1,0 +1,121 @@
+Here is the correction note for Cursor AI, based on the revised plan.
+
+Correction Note
+The revised alignment plan fixes the main mistakes in the original wiring plan. The most important correction is that the feature contract mismatch is now treated as Step 0, because patched agents already expect compact dims like 53, 34, 25, and 20 while feature_subsets.py still slices the legacy 325-dim shared tensor.
+​
+
+Cursor should treat this as the current source of truth: do not start with namespace cleanup or path cleanup first. First resolve agent-to-subset dimensional alignment, verify shape-only forward passes for all agents, then decide how Agent T and Agent Q will be trained given that the historical source lacks real OPRA trade/quote data.
+​
+
+What was corrected
+The execution order was fixed so feature-contract alignment comes before import/path cleanup.
+​
+
+The revised plan now explicitly addresses missing norm regeneration, and states that old tier3_binary_v5 norm files must not be reused for Hybrid52 retraining.
+​
+
+The revised plan also corrects the earlier confusion around agent_2d.py, noting that the synthetic fallback patch was already done and should be verified, not re-applied.
+​
+
+Agent T and Agent Q are now treated as a data-availability problem, not just an architecture problem, because the historical chain snapshots do not provide reliable real trade-flow features.
+​
+
+What Cursor should do next
+Update config/feature_subsets.py so every agent slice matches the patched constructor dims exactly.
+​
+
+Verify hybrid52_models/independent_agent.py passes the right static/seq dims to agents B, C, T, and Q.
+​
+
+Run shape-only forward-pass checks with dummy (batch, 20, 325) Tier3 tensors before any retraining.
+​
+
+Decide whether T/Q are remapped to available bid/ask-size and spread features, disabled for this retrain, or backed by another real TQ source.
+​
+
+Only after that, clean Hybrid51 imports, standardize artifact roots, regenerate Tier3 plus norm files, and finalize the chain_2d contract.
+​
+
+Key caution
+The revised plan is much better, but Cursor should still avoid assuming that “Option A works automatically.” Option A only works if the 325-dim layout can be sliced into the exact compact views the patched agents expect, and that must be proven by code-level verification before training starts.
+
+For an SPX directional prediction model where accuracy and reliability matter more than trading speed, the right design is to treat the 7-agent system as a decision-support forecaster, not an execution engine, and to bias the whole stack toward stable, data-grounded signals rather than fragile microstructure alpha.
+
+Best framing
+Your model should optimize for:
+
+directional correctness,
+
+calibration of confidence,
+
+robustness across regimes,
+
+and graceful abstention when data quality is weak.
+
+That means the 7 agents should not all be weighted equally. The most reliable agents are the ones built on real, consistently populated SPX option-chain fields such as Greeks, IV, OI, spread, bid/ask size, and chain structure, while any agent relying on sparse or synthetic trade-flow proxies should be treated as lower trust until remapped to actual available fields.
+​
+
+Recommended 7-agent structure
+For a high-reliability directional SPX model, the clean 7-agent lineup is:
+
+Agent	Role	Reliability view
+Agent A	Main baseline temporal + static options structure model	High, because it now uses 53 real Theta fields and removed dead columns
+Agent B	Sequence specialist for contract-level / cross-bar structure	Medium-high if subset wiring is fixed 
+​
+Agent C	Context + sequence fusion specialist	Medium-high if static/seq dimension contract is fixed 
+​
+Agent K	Compact structural/options regime specialist	Medium-high once subset mapping is verified 
+​
+Agent Q	Quote-pressure specialist	Medium unless remapped to actual bid/ask-size + spread features from historical data 
+​
+Agent T	Flow / pressure specialist	Medium-low unless remapped away from missing OPRA-style trade-flow fields 
+​
+Agent 2D	Chain-surface / strike-time tensor specialist	High potential, but only if real chain_2d files are built and no synthetic fallback is used 
+​
+If your priority is accuracy over coverage, the model should be allowed to abstain or down-weight weak agents rather than forcing all 7 to vote every time.
+​
+
+Main reliability rule
+The biggest practical rule is this: only trust agents whose input data is real and aligned. Right now, the revised plan says the first blocker is feature-contract alignment, because patched agents already expect compact dimensions like 53, 34, 25, and 20, while the shared pipeline still slices the old 325-dim tensor unless feature_subsets.py is corrected.
+​
+
+So before retraining, the order should be:
+
+fix subset-to-agent dimensional contracts,
+
+verify shape-only forward passes for all agents,
+
+regenerate fresh norm files,
+
+confirm Agent 2D uses real chain tensors,
+
+remap or disable weak T/Q domains if their source data is not truly present.
+​
+
+Practical recommendation
+If you want the most reliable directional predictor, I would use this policy:
+
+Keep A, B, C, K, and 2D as the core ensemble.
+
+Keep Q only if it is remapped to real quote-pressure proxies already present in the chain snapshots, such as bid_size, ask_size, spread, and spread_pct.
+​
+
+Keep T only if it is similarly remapped; otherwise disable it for this retrain rather than letting it learn from near-empty fake trade-flow features.
+​
+
+That gives you a model that is more conservative but more trustworthy, which is exactly what you want for an SPX directional system that is not auto-trading.
+​
+
+Objective to optimize
+For this kind of model, do not optimize only raw accuracy. Optimize:
+
+high-confidence accuracy,
+
+F1 or balanced accuracy by regime,
+
+calibration error,
+
+and abstain rate when data completeness is poor.
+​
+
+In plain terms: a model that predicts less often but is right more often is better for your use case than a model that always gives a signal. For SPX directional prediction, reliability beats activity.

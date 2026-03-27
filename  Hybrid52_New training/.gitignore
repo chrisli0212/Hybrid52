@@ -29,3 +29,14 @@ __pycache__/
 .ipynb_checkpoints/
 *.bak
 *.bak2
+
+# Data files - never push
+*.parquet
+*.csv
+*.npy
+*.zip
+*.pkl
+*.h5
+*.feather
+data/
+/workspace/data/

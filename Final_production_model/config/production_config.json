@@ -44,8 +44,8 @@
     }
   },
   "data_paths": {
-    "tier3_binary_root": "/workspace/data/tier3_binary_v5",
-    "vix_features_root": "/workspace/data/tier3_vix_v4/VIXW"
+    "tier3_binary_root": "/workspace/data/tier3_binary_2026_duckdb",
+    "vix_features_root": "/workspace/data/tier3_vix_2026_duckdb/VIXW"
   },
   "inference": {
     "batch_size": 1024,

@@ -1,7 +1,7 @@
 """
 Agent A: Neural Baseline Agent
 Primary temporal agent with static MLP + causal CNN + backbone fusion.
-input_dim=53  (grounded in actual Theta Data columns — zero/constant cols removed)
+input_dim=130  (Greeks 0-74 + IV 125-149 + walls 200-213 + CSV-derived 270-285)
 ~195k parameters
 """
 
@@ -14,7 +14,7 @@ from typing import Tuple, Optional
 class AgentA(nn.Module):
     def __init__(
         self,
-        input_dim: int = 64,      # 64 dims: compact core + expanded CSV-derived aux features
+        input_dim: int = 130,     # 130 dims: Greeks(75) + IV(25) + walls(14) + CSV-derived(16)
         temporal_dim: int = 128,
         hidden_dim: int = 256
     ):
@@ -48,6 +48,7 @@ class AgentA(nn.Module):
         self.fusion = nn.Linear(fusion_dim, 64)
         self.fusion_norm = nn.LayerNorm(64)
 
+        self._stored_temporal_dim = temporal_dim
         self.score_head = nn.Linear(64, 1)
         self.confidence_head = nn.Linear(64, 1)
         self.signal_head = nn.Linear(64, 5)
@@ -75,7 +76,7 @@ class AgentA(nn.Module):
             # Handle missing temporal (e.g. standalone inference)
             fused = torch.cat([
                 static_out,
-                torch.zeros(static_out.size(0), self._temporal_dim(), device=static_out.device),
+                torch.zeros(static_out.size(0), self._stored_temporal_dim, device=static_out.device),
                 gated_cnn
             ], dim=-1)
         fused = self.fusion_norm(F.gelu(self.fusion(fused)))

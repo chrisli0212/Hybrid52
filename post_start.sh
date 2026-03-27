@@ -20,7 +20,8 @@ echo "→ Setting up persistent AI memory..."
 # Create folders on the persistent /workspace volume
 mkdir -p /workspace/.config/Cursor \
          /workspace/.cursor \
-         /workspace/.codeium \
+         /workspace/.persist/codeium \
+         /workspace/.persist/windsurf-server \
          /workspace/.verdent \
          /workspace/.vscode-server \
          /workspace/.persist/cursor-config/User/workspaceStorage
@@ -32,9 +33,6 @@ ln -sfn /workspace/.persist/cursor-config /root/.config/Cursor
 rm -rf /root/.cursor 2>/dev/null || true
 ln -sfn /workspace/.cursor /root/.cursor
 
-rm -rf /root/.codeium 2>/dev/null || true
-ln -sfn /workspace/.codeium /root/.codeium
-
 rm -rf /root/.verdent 2>/dev/null || true
 ln -sfn /workspace/.verdent /root/.verdent
 
@@ -42,6 +40,7 @@ rm -rf /root/.vscode-server 2>/dev/null || true
 ln -sfn /workspace/.vscode-server /root/.vscode-server
 
 echo "→ Restoring Cursor & Windsurf..."
+bash /workspace/.windsurf_persist/setup_symlinks.sh || echo "Warning: Windsurf symlinks setup failed"
 bash /workspace/init_windsurf.sh || echo "Warning: Windsurf init failed"
 bash /workspace/init_cursor.sh || echo "Warning: Cursor init failed"
 

@@ -40,7 +40,15 @@ class ValidationReport:
     usable_names: List[str] = field(default_factory=list)
 
 
-KNOWN_ZERO_COLUMNS = {'speed', 'vera', 'dual_delta', 'dual_gamma', 'd1', 'd2', 'iv_error', 'ultima'}
+KNOWN_ZERO_COLUMNS = {
+    'speed', 'vera',
+    'rho', 'epsilon',
+    'vomma', 'veta', 'zomma', 'color',
+    'ultima',
+    'dual_delta', 'dual_gamma',
+    'd1', 'd2',
+    'iv_error',
+}
 
 METADATA_COLUMNS = {
     'symbol', 'expiration', 'strike', 'right', 
@@ -145,18 +153,18 @@ def validate_greek_columns() -> ValidationReport:
 
 def get_usable_greek_columns() -> List[str]:
     return [
-        'delta', 'gamma', 'vega', 'theta', 'rho', 'epsilon', 'lambda',
-        'vanna', 'charm', 'vomma', 'veta', 'zomma', 'color',
-        'ultima',
-        'dual_delta', 'dual_gamma',
-        'd1', 'd2',
-        'implied_vol', 'iv_error',
+        'delta', 'gamma', 'vega', 'theta', 'lambda',
+        'vanna', 'charm',
+        'implied_vol',
         'bid', 'ask', 'underlying_price',
+        'open_interest', 'moneyness', 'dist_atm_pct',
+        'mid', 'spread', 'spread_pct', 'lambda_ratio',
+        'dte_int', 'cp_sign',
     ]
 
 
 def get_excluded_columns() -> List[str]:
-    return ['speed', 'vera']
+    return list(KNOWN_ZERO_COLUMNS)
 
 
 def get_metadata_columns() -> List[str]:

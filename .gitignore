@@ -30,3 +30,6 @@ Final_production_model/daily_data/.ipynb_checkpoints/
 # Local bulk data / samples (do not commit)
 historical_data/
 testdata/
+*.csv
+*.parquet
+data/

@@ -1,0 +1,201 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.502,
+    "f1": 0.6684,
+    "auc": 0.5089,
+    "ic": 0.0214,
+    "brier": 0.250719,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -1.1005,
+      "q2": -0.9878,
+      "q3": -1.3991,
+      "q4": -1.001,
+      "q5": 1.8094
+    },
+    "quintile_spread_bp": 2.9099,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.502,
+        "f1": 0.6684,
+        "coverage": 1.0,
+        "n": 69529
+      },
+      "conf>=0.2": {
+        "accuracy": 0.2377,
+        "f1": 0.3841,
+        "coverage": 0.0035,
+        "n": 244
+      }
+    },
+    "n_params": 519032
+  },
+  "agent_B_classifier": {
+    "accuracy": 0.502,
+    "f1": 0.6684,
+    "auc": 0.4988,
+    "ic": 0.0053,
+    "brier": 0.251345,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -1.2087,
+      "q2": -0.3211,
+      "q3": -1.1041,
+      "q4": -0.1857,
+      "q5": 0.1406
+    },
+    "quintile_spread_bp": 1.3493,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.502,
+        "f1": 0.6684,
+        "coverage": 1.0,
+        "n": 69529
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6124,
+        "f1": 0.7596,
+        "coverage": 0.0049,
+        "n": 338
+      }
+    },
+    "n_params": 435523
+  },
+  "agent_K_classifier": {
+    "accuracy": 0.5021,
+    "f1": 0.6675,
+    "auc": 0.5078,
+    "ic": 0.0199,
+    "brier": 0.251616,
+    "threshold": 0.41,
+    "quintile_mean_returns_bp": {
+      "q1": -1.7058,
+      "q2": -0.4393,
+      "q3": -1.1162,
+      "q4": -0.5269,
+      "q5": 1.1093
+    },
+    "quintile_spread_bp": 2.8151,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5021,
+        "f1": 0.6675,
+        "coverage": 1.0,
+        "n": 69529
+      },
+      "conf>=0.2": {
+        "accuracy": 0.533,
+        "f1": 0.6719,
+        "coverage": 0.0347,
+        "n": 2411
+      }
+    },
+    "n_params": 231076
+  },
+  "agent_C_classifier": {
+    "accuracy": 0.5041,
+    "f1": 0.6675,
+    "auc": 0.4917,
+    "ic": -0.0175,
+    "brier": 0.250345,
+    "threshold": 0.45,
+    "quintile_mean_returns_bp": {
+      "q1": 0.7755,
+      "q2": -1.3152,
+      "q3": -0.094,
+      "q4": -1.0724,
+      "q5": -0.9729
+    },
+    "quintile_spread_bp": -1.7484,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5041,
+        "f1": 0.6675,
+        "coverage": 1.0,
+        "n": 69529
+      }
+    },
+    "n_params": 545328
+  },
+  "agent_T_classifier": {
+    "accuracy": 0.502,
+    "f1": 0.6684,
+    "auc": 0.5014,
+    "ic": 0.0121,
+    "brier": 0.250196,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": 0.115,
+      "q2": 0.0109,
+      "q3": -0.4949,
+      "q4": -0.5608,
+      "q5": -1.7495
+    },
+    "quintile_spread_bp": -1.8645,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.502,
+        "f1": 0.6684,
+        "coverage": 1.0,
+        "n": 69529
+      }
+    },
+    "n_params": 161500
+  },
+  "agent_Q_classifier": {
+    "accuracy": 0.502,
+    "f1": 0.6684,
+    "auc": 0.5207,
+    "ic": 0.0353,
+    "brier": 0.249997,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -1.9125,
+      "q2": -1.0138,
+      "q3": -0.4655,
+      "q4": -0.3189,
+      "q5": 1.0317
+    },
+    "quintile_spread_bp": 2.9443,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.502,
+        "f1": 0.6684,
+        "coverage": 1.0,
+        "n": 69529
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6194,
+        "f1": 0.7639,
+        "coverage": 0.0042,
+        "n": 289
+      }
+    },
+    "n_params": 183692
+  },
+  "agent_2D_classifier": {
+    "accuracy": 0.502,
+    "f1": 0.6684,
+    "auc": 0.4997,
+    "ic": -0.0098,
+    "brier": 0.250157,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": -0.9074,
+      "q2": 0.6443,
+      "q3": -0.4396,
+      "q4": -0.6518,
+      "q5": -1.3247
+    },
+    "quintile_spread_bp": -0.4173,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.502,
+        "f1": 0.6684,
+        "coverage": 1.0,
+        "n": 69529
+      }
+    },
+    "n_params": 678469
+  }
+}

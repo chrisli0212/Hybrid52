@@ -16,10 +16,12 @@ class ArtifactPaths:
 
     @staticmethod
     def default() -> "ArtifactPaths":
-        # Optional env overrides let us run isolated retrains (e.g., 1-year full train)
-        # without touching the legacy 5-year artifact tree.
-        root = Path(os.getenv("HYBRID51_ARTIFACT_ROOT", str(Path(__file__).resolve().parent.parent)))
-        data_root = Path(os.getenv("HYBRID51_DATA_ROOT", "/workspace/data/tier3_binary_v5"))
+        # Env vars:
+        #   HYBRID52_ARTIFACT_ROOT  — override model checkpoint/results root
+        #   HYBRID52_DATA_ROOT      — override tier3 binary data root
+        #                             default: /workspace/data/tier3_binary_hybrid52
+        root = Path(os.getenv("HYBRID52_ARTIFACT_ROOT", str(Path(__file__).resolve().parent.parent)))
+        data_root = Path(os.getenv("HYBRID52_DATA_ROOT", "/workspace/data/tier3_binary_hybrid52"))
         return ArtifactPaths(root=root, data_root=data_root)
 
     @property
@@ -95,7 +97,7 @@ class ArtifactPaths:
 
     @property
     def tier3_vix_root(self) -> Path:
-        return Path("/workspace/data/tier3_vix_v4")
+        return Path("/workspace/data/tier3_vix_hybrid52")
 
     def tier3_vix_dir(self, symbol: str = "VIXW") -> Path:
         return self.tier3_vix_root / symbol

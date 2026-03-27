@@ -180,7 +180,7 @@ FEATURE_GROUPS = {
             "lambda_features": (270, 273),
             "dist_atm_features": (273, 275),
             "spread_pct_features": (275, 278),
-            "greek_aux_features": (278, 284),
+            "chain_aux_features": (278, 284),
             "oi_features": (284, 286),
         }
     ),
@@ -199,11 +199,13 @@ DELTA_BUCKETS = [
 ]
 
 GREEKS_FOR_BUCKETING = [
-    'delta', 'gamma', 'vega', 'theta', 'rho', 'epsilon', 'lambda',
-    'vanna', 'charm', 'vomma', 'veta', 'zomma', 'color',
+    'delta', 'gamma', 'vega', 'theta', 'lambda',
+    'vanna', 'charm',
+    'implied_vol', 'open_interest', 'moneyness',
+    'bid', 'ask', 'mid',
 ]
 
-ATM_GREEKS = ['delta', 'gamma', 'vega', 'theta', 'rho', 'epsilon', 'lambda']
+ATM_GREEKS = ['delta', 'gamma', 'vega', 'theta', 'lambda', 'vanna', 'charm']
 
 MONEYNESS_LEVELS = [-0.30, -0.15, -0.05, 0.0, 0.05, 0.15, 0.30]
 
@@ -321,9 +323,9 @@ def get_feature_names() -> List[str]:
         'lambda_mean', 'lambda_atm', 'lambda_skew',
         'dist_atm_mean', 'dist_atm_weighted',
         'spread_pct_mean', 'spread_pct_atm', 'spread_pct_skew',
-        'dual_delta_mean', 'dual_gamma_mean',
-        'd1_atm', 'd2_atm',
-        'iv_error_mean', 'ultima_mean',
+        'dte_mean', 'dte_std',
+        'cp_sign_mean', 'mid_mean',
+        'spread_atm', 'iv_std',
         'oi_mean', 'oi_put_call_ratio',
     ])
     

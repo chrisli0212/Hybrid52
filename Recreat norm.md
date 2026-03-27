@@ -25,3 +25,8 @@ python /workspace/Final_production_model/compute_production_norms.py \
   --output-dir /workspace/data/tier3_binary_v5 \
   --horizon 30 \
   --symbols SPXW SPY QQQ IWM TLT
+
+
+  python "/workspace/Hybrid51/6. Hybrid51_new stage/scripts/phase0/build_tier2_fast.py" \
+>   --all-symbols \
+>   --tier1-root /workspace/data/tier1_v4_recreat/

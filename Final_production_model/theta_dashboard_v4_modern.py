@@ -213,15 +213,14 @@ MC = {
 ET = ZoneInfo("America/New_York")
 
 # ── Multi-symbol overlay constants ────────────────────────────────────────────
-# Ratio charts: 4 lines (SPXW + SPY + QQQ + IWM)
-_RATIO_SYMBOLS = ['SPXW', 'SPY', 'QQQ', 'IWM']
-_RATIO_COLORS    = {'SPXW': '#3b82f6', 'SPY': '#a855f7', 'QQQ': '#f97316', 'IWM': '#22c55e'}
-_RATIO_WIDTHS    = {'SPXW': 2.5, 'SPY': 1.8, 'QQQ': 1.8, 'IWM': 1.8}
-_RATIO_OPACITIES = {'SPXW': 1.0,  'SPY': 0.45, 'QQQ': 0.45, 'IWM': 0.45}
-# Option chain charts: 2 overlays (SPXW primary + SPY secondary)
+# Ratio charts: SPXW only
+_RATIO_SYMBOLS = ['SPXW']
+_RATIO_COLORS    = {'SPXW': '#3b82f6'}
+_RATIO_WIDTHS    = {'SPXW': 2.5}
+_RATIO_OPACITIES = {'SPXW': 1.0}
+# Option chain charts: SPXW only
 _CHAIN_OVERLAY_COLORS = {
     'SPXW': {'call': '#10b981', 'put': '#ef4444', 'neutral': '#3b82f6'},
-    'SPY':  {'call': '#67e8f9', 'put': '#fda4af', 'neutral': '#c084fc'},
 }
 
 
@@ -2195,7 +2194,7 @@ def _single_ts_chart(x_time, y_data, title, chart_type='line', color=None,
 
 def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
                            hline=None, height=340, legend_title=None):
-    """Create a multi-symbol overlay line chart (SPXW, SPY, QQQ, IWM).
+    """Create a SPXW line chart via the shared overlay helper.
 
     Returns a Plotly Figure with one line per symbol, styled to match the
     user's reference image (dark bg, colored lines, legend at top).
@@ -2244,7 +2243,7 @@ def _multi_symbol_ts_chart(agg_df, column, title, window_minutes=30,
 
 def _multi_symbol_bar_chart(agg_df, column, title, window_minutes=30,
                             height=340, color_by_sign=False, legend_title=None):
-    """Hybrid chart: SPXW as bars, SPY/QQQ/IWM as overlay lines.
+    """SPXW bar/line chart helper.
 
     If *color_by_sign* is True, SPXW bars are green/red based on value
     (useful for Net GEX, Net Premium). Secondary symbols always use their
@@ -2305,9 +2304,8 @@ def _multi_symbol_bar_chart(agg_df, column, title, window_minutes=30,
 def create_timeseries_individual(agg_df, symbol, window_minutes=30):
     """Returns list of (fig, insight_html) tuples for each time-series metric.
 
-    Ratio metrics (P/C Ratio, IV Skew, ATM Straddle) are now multi-symbol
-    overlays showing SPXW, SPY, QQQ, and IWM on the same chart.
-    Net GEX is shown as grouped bars by symbol.
+    Ratio metrics are rendered from SPXW only.
+    Net GEX is shown from SPXW only.
     Insight text is still derived from the selected symbol.
     """
     sym_df = _filter_by_window(agg_df, symbol, window_minutes)
@@ -2316,10 +2314,10 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
     x_time = parse_agg_timestamps(sym_df)
     charts = []
 
-    # ── P/C Ratio: 4-line overlay ────────────────────────────────────────
+    # ── P/C Ratio: SPXW ──────────────────────────────────────────────────
     if 'pc_ratio' in sym_df.columns:
         fig = _multi_symbol_ts_chart(agg_df, 'pc_ratio',
-            'Put/Call Ratio  (SPXW · SPY · QQQ · IWM)',
+            'Put/Call Ratio  (SPXW)',
             window_minutes=window_minutes, hline=1.0)
         if fig is None:
             fig = _single_ts_chart(x_time, sym_df['pc_ratio'], 'P/C Ratio',
@@ -2328,10 +2326,10 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         text, anomaly = pc_ratio_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
 
-    # ── Net GEX: grouped bars by symbol ──────────────────────────────────
+    # ── Net GEX: SPXW bars ───────────────────────────────────────────────
     if 'net_gex' in sym_df.columns:
         fig = _multi_symbol_bar_chart(agg_df, 'net_gex',
-            'Net GEX  (SPXW · SPY · QQQ · IWM)',
+            'Net GEX  (SPXW)',
             window_minutes=window_minutes, color_by_sign=True)
         if fig is None:
             gex_colors = [C['call'] if g > 0 else C['put'] for g in sym_df['net_gex']]
@@ -2341,10 +2339,10 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         text, anomaly = gex_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
 
-    # ── IV Skew: 4-line overlay ──────────────────────────────────────────
+    # ── IV Skew: SPXW ────────────────────────────────────────────────────
     if 'iv_skew' in sym_df.columns:
         fig = _multi_symbol_ts_chart(agg_df, 'iv_skew',
-            'IV Skew  (SPXW · SPY · QQQ · IWM)',
+            'IV Skew  (SPXW)',
             window_minutes=window_minutes)
         if fig is None:
             fig = _single_ts_chart(x_time, sym_df['iv_skew'], 'IV Skew',
@@ -2353,10 +2351,10 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         text, anomaly = iv_skew_insight(val)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
 
-    # ── ATM Straddle: 4-line overlay ─────────────────────────────────────
+    # ── ATM Straddle: SPXW ───────────────────────────────────────────────
     if 'atm_straddle' in sym_df.columns:
         fig = _multi_symbol_ts_chart(agg_df, 'atm_straddle',
-            'ATM Straddle  (SPXW · SPY · QQQ · IWM)',
+            'ATM Straddle  (SPXW)',
             window_minutes=window_minutes)
         if fig is None:
             fig = _single_ts_chart(x_time, sym_df['atm_straddle'], 'ATM Straddle',
@@ -2366,12 +2364,12 @@ def create_timeseries_individual(agg_df, symbol, window_minutes=30):
         text, anomaly = straddle_insight(val, spot_raw)
         charts.append((fig, implication_box_html(text, anomaly) if text else ""))
 
-    # ── Net Premium: grouped bars ────────────────────────────────────────
+    # ── Net Premium: SPXW ────────────────────────────────────────────────
     has_premium = 'net_premium' in sym_df.columns and sym_df['net_premium'].notna().any()
     if has_premium:
         # Try multi-symbol grouped bar
         fig = _multi_symbol_bar_chart(agg_df, 'net_premium',
-            'Net Premium  (SPXW · SPY · QQQ · IWM)',
+            'Net Premium  (SPXW)',
             window_minutes=window_minutes, color_by_sign=True)
         if fig is not None:
             # Scale to millions on the y-axis label
@@ -5223,7 +5221,7 @@ def _mc_ticker_ribbon(all_stats):
     if not all_stats:
         return None
     items = []
-    for sym in ['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT', 'VIXW']:
+    for sym in ['SPXW']:
         if sym not in all_stats:
             continue
         st = all_stats[sym]
@@ -5947,6 +5945,30 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     last_prob   = hybrid_probs[-1] if hybrid_probs else S3_NEUTRAL
     diverging   = (last_rule >= 0) != (last_prob >= S3_NEUTRAL)
     status_text = "DIVERGING" if diverging else "ALIGNED"
+    if hybrid_probs:
+        pmin = max(0.0, float(min(hybrid_probs)))
+        pmax = min(1.0, float(max(hybrid_probs)))
+    else:
+        pmin, pmax = S3_NEUTRAL - 0.12, S3_NEUTRAL + 0.12
+    pad = max(0.03, (pmax - pmin) * 0.18)
+    y2_low = max(0.0, pmin - pad)
+    y2_high = min(1.0, pmax + pad)
+    if (y2_high - y2_low) < 0.14:
+        center = float(np.clip(last_prob, 0.0, 1.0))
+        y2_low = max(0.0, center - 0.07)
+        y2_high = min(1.0, center + 0.07)
+    tick_candidates = sorted({
+        round(y2_low, 2),
+        round((y2_low + S3_NEUTRAL) / 2.0, 2),
+        round(S3_NEUTRAL, 2),
+        round((S3_NEUTRAL + y2_high) / 2.0, 2),
+        round(y2_high, 2),
+    })
+    y2_ticks = [t for t in tick_candidates if y2_low <= t <= y2_high]
+    y2_ticktext = [f"{t:.2f}" for t in y2_ticks]
+    for i, t in enumerate(y2_ticks):
+        if abs(t - S3_NEUTRAL) < 1e-9:
+            y2_ticktext[i] = f"{S3_NEUTRAL:.2f} BULL/BEAR"
 
     fig.update_layout(
         template="plotly_dark",
@@ -5982,11 +6004,11 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         ),
         yaxis2=dict(
             title=dict(text="Hybrid51 Probability", font=dict(size=9, color=MC["text_muted"])),
-            range=[0.20, 0.80],
+            range=[y2_low, y2_high],
             showgrid=False, zeroline=False,
             color=MC["text_muted"], tickfont=dict(size=9),
-            tickvals=[0.20, 0.30, S3_NEUTRAL, 0.50, 0.60, 0.70],
-            ticktext=["0.20", "0.30", f"{S3_NEUTRAL:.2f} BULL/BEAR", "0.50", "0.60", "0.70"],
+            tickvals=y2_ticks,
+            ticktext=y2_ticktext,
             side="right",
             overlaying="y",
         ),
@@ -6090,6 +6112,17 @@ def _create_pipeline_monitor():
             return df[col].iloc[-1]
         except Exception:
             return None
+
+    def _prediction_service_running():
+        """Best-effort process check for prediction_service.py."""
+        try:
+            proc = subprocess.run(
+                ["pgrep", "-f", "prediction_service.py"],
+                capture_output=True, text=True, check=False
+            )
+            return proc.returncode == 0 and bool((proc.stdout or "").strip())
+        except Exception:
+            return False
 
     # ── colour / status tokens ───────────────────────────────────────────────
     OK   = MC['call']
@@ -6212,14 +6245,18 @@ def _create_pipeline_monitor():
     _PRED_DEAD  = 360
     _pred_path = DATA_DIR / "prediction.csv"
     age_pred = _file_age(_pred_path)
+    pred_running = _prediction_service_running()
     if age_pred is None:
-        _c5, _d5 = ERR, "prediction.csv missing"
+        _c5, _d5 = (WARN, "service running · waiting for first write") if pred_running else (ERR, "prediction.csv missing")
     elif age_pred < _PRED_STALE:
         _c5, _d5 = OK, f"writing · {int(age_pred)}s ago"
     elif age_pred < _PRED_DEAD:
         _c5, _d5 = WARN, f"no new batch {int(age_pred)}s"
     else:
-        _c5, _d5 = ERR, f"dead {int(age_pred)}s — service down?"
+        if pred_running:
+            _c5, _d5 = WARN, f"idle {int(age_pred)}s — no new batch yet"
+        else:
+            _c5, _d5 = ERR, f"dead {int(age_pred)}s — service down?"
 
     # ── 6. Inference quality (suppressed? stage failures?) ───────────────────
     try:
@@ -6461,7 +6498,7 @@ def _mc_cross_symbol_table(all_stats):
     cols = ['Symbol', 'Price', 'Chg%', 'P/C', 'Net GEX', 'IV Skew', 'Net Prem', 'Aggression']
     thead = html.Tr([html.Th(c, style={**hdr_s, 'textAlign': 'left' if c == 'Symbol' else 'right'}) for c in cols])
     rows = []
-    for sym in ['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT', 'VIXW']:
+    for sym in ['SPXW']:
         if sym not in all_stats:
             continue
         st = all_stats[sym]
@@ -7040,7 +7077,7 @@ app.layout = html.Div(
                 html.Div([
                     html.Label("Symbol", style={'marginRight': '5px', 'color': MC['text_sec'], 'fontSize': '13px', 'fontWeight': 700, 'letterSpacing': '0.5px', 'textTransform': 'uppercase'}),
                     dcc.Dropdown(id='symbol-dropdown',
-                        options=[{'label': s, 'value': s} for s in ['SPXW', 'SPY', 'QQQ', 'IWM', 'VIX', 'VIXW', 'TLT', 'ALL']],
+                        options=[{'label': 'SPXW', 'value': 'SPXW'}],
                         value='SPXW', clearable=False, searchable=False,
                         className='mc-dropdown',
                         style={'width': '140px', 'backgroundColor': MC['bg_input'], 'color': MC['text'], 'fontSize': '14px', 'fontWeight': '700'})
@@ -7831,75 +7868,12 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # =================================================================
         # GROUP 2: POSITIONING & GREEKS
         # Related: Gamma, strikes, OI walls, vanna, dealer greeks
-        # Now shows SPXW + SPY dual overlay on all option chain charts
+        # SPXW-only option chain charts
         # =================================================================
         content.append(_mc_group_header(
             "Positioning & Greeks",
-            "Strike-level gamma, delta, vanna, and open interest — SPXW + SPY overlay"
+            "Strike-level gamma, delta, vanna, and open interest — SPXW"
         ))
-
-        # ── Compute SPY spot for option chain overlay ──
-        _spy_spot = 0.0
-        if symbol != 'SPY' and not df_agg.empty and 'symbol' in df_agg.columns:
-            _spy_agg = df_agg[df_agg['symbol'] == 'SPY']
-            if not _spy_agg.empty and 'spot' in _spy_agg.columns:
-                _spy_spot = float(_spy_agg.iloc[-1].get('spot', 0.0) or 0.0)
-
-        # Helper: overlay SPY traces onto a primary figure
-        # Builds the same chart type for SPY and copies its traces with
-        # modified colors/opacity/legendgroup into the primary figure.
-        def _overlay_spy(primary_fig, chart_fn, *args, **kwargs):
-            """Try to build the same chart for SPY and merge traces into primary_fig.
-
-            Builds an identical chart for SPY, then copies each trace with
-            reduced opacity + pastel colors + 'SPY' prefix into the primary fig.
-            Silently skips if SPY data is unavailable or chart_fn errors.
-            """
-            if primary_fig is None or symbol == 'SPY':
-                return primary_fig
-            try:
-                spy_fig = chart_fn(df_snap, 'SPY', *args, **kwargs)
-                if spy_fig is None or not hasattr(spy_fig, 'data'):
-                    return primary_fig
-                # Color remapper: original -> pastel for SPY
-                _SPY_REMAP = {
-                    C['call']: '#67e8f9', '#10b981': '#67e8f9',  # green -> cyan
-                    C['put']:  '#fda4af', '#ef4444': '#fda4af',  # red -> pink
-                    C['accent']: '#c084fc', '#3b82f6': '#c084fc',  # blue -> purple
-                    C['warning']: '#fde68a', '#f59e0b': '#fde68a',  # amber -> light yellow
-                    '#06b6d4': '#a5f3fc',  # teal -> light cyan
-                }
-                def _remap_color(c):
-                    if isinstance(c, str):
-                        return _SPY_REMAP.get(c, '#c084fc')  # default to purple
-                    return c  # list of colors (per-bar) — leave as-is for now
-
-                for trace in spy_fig.data:
-                    # Clone the trace so we don't mutate the spy_fig
-                    cloned = trace.__class__(trace)
-                    cloned.opacity = 0.40
-                    orig_name = cloned.name or ''
-                    cloned.name = f"SPY {orig_name}" if orig_name else 'SPY'
-                    cloned.legendgroup = 'spy_overlay'
-                    cloned.showlegend = True
-                    # Remap line color
-                    if hasattr(cloned, 'line') and cloned.line and cloned.line.color:
-                        cloned.line.color = _remap_color(cloned.line.color)
-                    # Remap marker color
-                    if hasattr(cloned, 'marker') and cloned.marker and cloned.marker.color is not None:
-                        mc_val = cloned.marker.color
-                        if isinstance(mc_val, str):
-                            cloned.marker.color = _remap_color(mc_val)
-                        elif isinstance(mc_val, (list, tuple, np.ndarray)):
-                            cloned.marker.color = [_remap_color(c) if isinstance(c, str) else c for c in mc_val]
-                    # Remove fill for SPY traces (avoid visual clutter)
-                    if hasattr(cloned, 'fill') and cloned.fill:
-                        cloned.fill = None
-                        cloned.fillcolor = None
-                    primary_fig.add_trace(cloned)
-            except Exception:
-                pass  # Silently skip SPY overlay on error
-            return primary_fig
 
         # Gamma exposure profile
         try:
@@ -7913,15 +7887,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
             fig_gamma = create_gamma_chart(df_snap, symbol, spot_raw,
                                            lookback_df=_snap_lookback,
                                            atm_straddle=_straddle_val if _straddle_val > 0 else None)
-            fig_gamma = _overlay_spy(fig_gamma, create_gamma_chart, _spy_spot,
-                                     lookback_df=None, atm_straddle=None)
         except Exception:
             fig_gamma = None
         if fig_gamma is not None:
             content.append(_mc_section_header("Gamma Exposure Profile"))
             txt, anom = _safe_insight(gamma_chart_insight, df_snap, symbol, spot_raw)
             _append_chart(fig_gamma, None,
-                "Gamma Exposure (GEX): net dealer gamma at each strike. Solid = SPXW, translucent = SPY overlay.",
+                "Gamma Exposure (GEX): net dealer gamma at each strike for SPXW.",
                 txt,
                 "Positive GEX = mean-reversion regime, sell spikes. Negative GEX = momentum regime, ride the trend. Key flip level is where GEX crosses zero.",
                 anom)
@@ -7929,14 +7901,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Key strike levels
         try:
             fig_strike = create_strike_chart(df_snap, symbol, spot_raw, lookback_df=None)
-            fig_strike = _overlay_spy(fig_strike, create_strike_chart, _spy_spot, lookback_df=None)
         except Exception:
             fig_strike = None
         if fig_strike is not None:
             content.append(_mc_section_header("Key Strike Levels"))
             txt, anom = _safe_insight(strike_chart_insight, df_snap, symbol, spot_raw)
             _append_chart(fig_strike, '500px',
-                "Key Strikes: SPXW (solid) + SPY (translucent) volume concentrations by strike.",
+                "Key Strikes: SPXW volume concentrations by strike.",
                 txt,
                 "Price tends to gravitate toward high-OI strikes near expiry (pin risk). Strikes with extreme volume are likely institutional targets.",
                 anom)
@@ -7944,14 +7915,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # OI walls & pinning
         try:
             fig_oi = create_oi_walls_chart(df_snap, symbol, spot_raw)
-            fig_oi = _overlay_spy(fig_oi, create_oi_walls_chart, _spy_spot)
         except Exception:
             fig_oi = None
         if fig_oi is not None:
             content.append(_mc_section_header("OI Walls & Pinning"))
             txt, anom = _safe_insight(oi_walls_insight, df_snap, symbol)
             _append_chart(fig_oi, '400px',
-                "OI Walls: SPXW (solid) + SPY (translucent) — call/put walls as support/resistance.",
+                "OI Walls: SPXW call/put walls as support/resistance.",
                 txt,
                 "Large call OI walls act as resistance (dealers sell into rallies). Large put OI walls act as support (dealers buy dips). Watch for wall breaches.",
                 anom)
@@ -7959,14 +7929,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Vanna exposure
         try:
             fig_vanna = create_vanna_chart(df_snap, symbol, spot_raw)
-            fig_vanna = _overlay_spy(fig_vanna, create_vanna_chart, _spy_spot)
         except Exception:
             fig_vanna = None
         if fig_vanna is not None:
             content.append(_mc_section_header("Vanna Exposure"))
             txt, anom = _safe_insight(vanna_chart_insight, df_snap, symbol)
             _append_chart(fig_vanna, '400px',
-                "Vanna Exposure: SPXW (solid) + SPY (translucent) vanna by strike.",
+                "Vanna Exposure: SPXW vanna by strike.",
                 txt,
                 "Positive vanna + falling IV = bullish tailwind (dealers buy). Negative vanna + rising IV = selling pressure. Critical near large expiries.",
                 anom)
@@ -7974,7 +7943,6 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Dealer positioning
         try:
             fig_dealer = create_dealer_chart(df_snap, symbol)
-            fig_dealer = _overlay_spy(fig_dealer, create_dealer_chart)
         except Exception:
             fig_dealer = None
         if fig_dealer is not None:
@@ -8007,14 +7975,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # IV term structure
         try:
             fig_iv = create_iv_chart(df_snap, symbol)
-            fig_iv = _overlay_spy(fig_iv, create_iv_chart)
         except Exception:
             fig_iv = None
         if fig_iv is not None:
             content.append(_mc_section_header("IV Term Structure"))
             txt, anom = _safe_insight(iv_chart_insight, df_snap, symbol)
             _append_chart(fig_iv, '400px',
-                "IV Term Structure: SPXW (solid) + SPY (translucent). Normal = upward slope (contango). Inverted = near-term fear.",
+                "IV Term Structure: SPXW. Normal = upward slope (contango). Inverted = near-term fear.",
                 txt,
                 "Inverted term structure = market pricing an imminent event. Steep contango = complacency. Sell near-term premium in contango, buy protection when inverted.",
                 anom)
@@ -8022,14 +7989,13 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Vol/OI ratio
         try:
             fig_vol_oi = create_vol_oi_chart(df_snap, symbol, spot_raw)
-            fig_vol_oi = _overlay_spy(fig_vol_oi, create_vol_oi_chart, _spy_spot)
         except Exception:
             fig_vol_oi = None
         if fig_vol_oi is not None:
             content.append(_mc_section_header("Vol/OI Ratio (Live)"))
             txt, anom = _safe_insight(vol_oi_insight, df_snap, symbol)
             _append_chart(fig_vol_oi, '400px',
-                "Vol/OI Ratio: SPXW (solid) + SPY (translucent). High ratio = new positioning.",
+                "Vol/OI Ratio: SPXW. High ratio = new positioning.",
                 txt,
                 "Ratio > 1.0 at a strike = heavy new activity (opening positions). Cluster of high ratios near ATM = institutional re-positioning in progress.",
                 anom)
@@ -8066,7 +8032,6 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
         # Expiration concentration
         try:
             fig_dte = create_dte_concentration_chart(df_snap, symbol)
-            fig_dte = _overlay_spy(fig_dte, create_dte_concentration_chart)
         except Exception:
             fig_dte = None
         if fig_dte is not None:

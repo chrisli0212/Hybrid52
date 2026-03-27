@@ -6,6 +6,11 @@ Changes from v1:
 - Backbone feat_dim matches agent's subset dimension
 - Agent T/Q still slice their specific features from the subset
 - Support for disabling backbone (Agent K uses static MLP only)
+
+Fix 2026-03-26:
+- Removed inverse-sigmoid (logit restore) before classifier — score is passed raw
+- classifier now receives (score, confidence, temporal_embed) directly
+- num_classes forced to 1 for binary mode via BinaryIndependentAgent wrapper
 """
 
 import torch
@@ -22,23 +27,6 @@ from config.feature_subsets import AGENT_FEATURE_SUBSETS, TOTAL_FEAT_DIM, get_fe
 
 
 class IndependentAgent(nn.Module):
-    """
-    Single agent with backbone for independent decision making.
-    v2: Supports feature subsetting per agent for diversity.
-
-    Args:
-        agent_type: Type of agent ('A', 'B', 'K', 'C', '2D', 'T', 'Q')
-        feat_dim: Full input feature dimension (default: TOTAL_FEAT_DIM)
-        temporal_dim: Temporal embedding dimension (default: 128)
-        dropout: Dropout rate for classifier (default: 0.2)
-        num_classes: Number of output classes (default: 5)
-        use_feature_subset: If True, apply per-agent feature subsetting
-        trade_feat_start: Start index for trade features in FULL vector (default: 270)
-        trade_feat_end: End index for trade features in FULL vector (default: 307)
-        quote_feat_start: Start index for quote features in FULL vector (default: 307)
-        quote_feat_end: End index for quote features in FULL vector (default: TOTAL_FEAT_DIM)
-    """
-
     def __init__(
         self,
         agent_type: str = 'A',
@@ -76,63 +64,47 @@ class IndependentAgent(nn.Module):
                 self.feature_indices = self.feature_indices + [idx + TOTAL_FEAT_DIM for idx in self.feature_indices]
             self.subset_feat_dim = len(self.feature_indices)
             self.use_backbone = subset_config['use_backbone']
-            # Register feature indices as buffer (moves with model to GPU)
-            self.register_buffer(
-                '_feat_idx',
-                torch.tensor(self.feature_indices, dtype=torch.long)
-            )
+            self.register_buffer('_feat_idx', torch.tensor(self.feature_indices, dtype=torch.long))
         else:
             self.feature_indices = list(range(feat_dim))
             self.subset_feat_dim = feat_dim
             self.use_backbone = True
-            self.register_buffer(
-                '_feat_idx',
-                torch.arange(feat_dim, dtype=torch.long)
-            )
+            self.register_buffer('_feat_idx', torch.arange(feat_dim, dtype=torch.long))
 
-        # Agents B and C require a separate static vector (Agent A's feature set)
-        # extracted from the full feature tensor, independent of their seq subset.
-        # Register Agent A's indices as a second buffer so it moves with the model to GPU.
+        # Agents B and C need Agent A's static indices separately
         if self.agent_type in ('B', 'C'):
             _static_indices = get_feature_indices('A')
             self.static_feat_dim = len(_static_indices)
-            self.register_buffer(
-                '_static_idx',
-                torch.tensor(_static_indices, dtype=torch.long)
-            )
+            self.register_buffer('_static_idx', torch.tensor(_static_indices, dtype=torch.long))
         else:
             self._static_idx = None
             self.static_feat_dim = self.subset_feat_dim
-
-        # Determine backbone input dim
-        backbone_feat_dim = self.subset_feat_dim if self.use_backbone else self.subset_feat_dim
 
         # Temporal backbone
         if self.use_backbone:
             if use_attention_backbone:
                 self.backbone = TemporalBackboneWithAttention(
-                    feat_dim=backbone_feat_dim,
+                    feat_dim=self.subset_feat_dim,
                     embed_dim=temporal_dim,
                     use_attention_pool=use_attention_pool,
                 )
             else:
                 self.backbone = TemporalBackbone(
-                    feat_dim=backbone_feat_dim,
+                    feat_dim=self.subset_feat_dim,
                     embed_dim=temporal_dim,
                     use_attention_pool=use_attention_pool,
                 )
         else:
             self.backbone = None
 
-        # Create agent based on type
         self.agent = self._create_agent()
 
-        # Classifier head: score + confidence + temporal_embed
+        # Classifier head
+        # Input: score(1) + confidence(1) + temporal_embed OR static_proj(32)
         if self.use_backbone:
             classifier_input_dim = 2 + temporal_dim
             self.static_proj = None
         else:
-            # Agents B and C use Agent-A static dims, not their seq subset dims.
             static_proj_dim = self.static_feat_dim if self.agent_type in ('B', 'C') else self.subset_feat_dim
             self.static_proj = nn.Linear(static_proj_dim, 32)
             classifier_input_dim = 2 + 32
@@ -145,141 +117,66 @@ class IndependentAgent(nn.Module):
         )
 
     def _create_agent(self):
-        """Create agent instance based on agent_type."""
         agent_map = {
-            'A': AgentA,
-            'B': AgentB,
-            'C': AgentC,
-            'K': AgentK,
-            '2D': Agent2D,
-            'T': AgentT,
-            'Q': AgentQ,
+            'A': AgentA, 'B': AgentB, 'C': AgentC,
+            'K': AgentK, '2D': Agent2D, 'T': AgentT, 'Q': AgentQ,
         }
-
         if self.agent_type not in agent_map:
-            raise ValueError(
-                f"Unknown agent type: {self.agent_type}. "
-                f"Must be one of {list(agent_map.keys())}"
-            )
-
+            raise ValueError(f"Unknown agent type: {self.agent_type}.")
         agent_class = agent_map[self.agent_type]
 
         if self.agent_type == 'A':
-            return agent_class(
-                input_dim=self.subset_feat_dim,
-                temporal_dim=self.temporal_dim
-            )
-
+            return agent_class(input_dim=self.subset_feat_dim, temporal_dim=self.temporal_dim)
         elif self.agent_type == 'B':
-            return agent_class(
-                input_dim=self.subset_feat_dim,
-                static_dim=self.static_feat_dim,
-                hidden_dim=128
-            )
-
+            return agent_class(input_dim=self.subset_feat_dim, static_dim=self.static_feat_dim, hidden_dim=128)
         elif self.agent_type == 'C':
-            return agent_class(
-                input_dim=self.subset_feat_dim,
-                static_dim=self.static_feat_dim,
-                seq_len=20,
-                embed_dim=96
-            )
-
+            return agent_class(input_dim=self.subset_feat_dim, static_dim=self.static_feat_dim, seq_len=20, embed_dim=96)
         elif self.agent_type == 'K':
-            return agent_class(
-                input_dim=self.subset_feat_dim,
-                hidden_dim=512
-            )
-
+            return agent_class(input_dim=self.subset_feat_dim, hidden_dim=512)
         elif self.agent_type == '2D':
-            return agent_class(
-                n_greeks=5,
-                n_strikes=20,
-                n_timesteps=20
-            )
-
+            return agent_class(n_greeks=5, n_strikes=20, n_timesteps=20)
         elif self.agent_type == 'T':
-            if not self.use_feature_subset:
-                raise ValueError("Agent T requires use_feature_subset=True in historical mode.")
-            # trade_feat_dim = self.subset_feat_dim (25) because feature_subsets.py
-            # ranges for T now produce exactly 25 real microstructure dims.
-            # Consistent automatically once Task 1 ranges are correct.
             trade_dim = self.subset_feat_dim if self.use_feature_subset else (self.trade_feat_end - self.trade_feat_start)
-            return agent_class(
-                trade_feat_dim=trade_dim,
-                temporal_dim=self.temporal_dim if self.use_backbone else 0
-            )
-
+            return agent_class(trade_feat_dim=trade_dim, temporal_dim=self.temporal_dim)
         elif self.agent_type == 'Q':
-            if not self.use_feature_subset:
-                raise ValueError("Agent Q requires use_feature_subset=True in historical mode.")
-            # quote_feat_dim = self.subset_feat_dim (20) because feature_subsets.py
-            # ranges for Q now produce exactly 20 real quote-pressure + microstructure dims.
-            # Consistent automatically once Task 1 ranges are correct.
             quote_dim = self.subset_feat_dim if self.use_feature_subset else (self.quote_feat_end - self.quote_feat_start)
-            return agent_class(
-                quote_feat_dim=quote_dim,
-                temporal_dim=self.temporal_dim if self.use_backbone else 0
-            )
-
+            return agent_class(quote_feat_dim=quote_dim, temporal_dim=self.temporal_dim)
         else:
             raise ValueError(f"Initialization not implemented for agent {self.agent_type}")
 
     def _select_features(self, x: torch.Tensor) -> torch.Tensor:
-        """Select feature subset from full feature vector."""
         if self.use_feature_subset:
             return x.index_select(-1, self._feat_idx)
         return x
 
     def forward(self, sequences: torch.Tensor, chain_2d: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Forward pass.
-
-        Args:
-            sequences: (batch_size, seq_len, full_feat_dim)
-            chain_2d: Optional (batch_size, n_greeks, n_strikes, seq_len) tensor for Agent2D
-
-        Returns:
-            logits: (batch_size, num_classes)
-        """
-        batch_size = sequences.size(0)
+        assert not torch.isnan(sequences).any(), "NaN in input sequences — check data pipeline"
 
         # Apply feature subsetting
         seq_subset = self._select_features(sequences)
 
-        # Get static features (last timestep of subset)
-        # For agents B and C: static must be Agent-A dims, not seq subset dims.
-        # Extract from the full sequence using the pre-registered _static_idx buffer.
+        # Static snapshot (last timestep)
         if self.agent_type in ('B', 'C'):
             static = sequences[:, -1, :].index_select(-1, self._static_idx)
         else:
-            static = seq_subset[:, -1, :]  # (B, subset_feat_dim)
+            static = seq_subset[:, -1, :]
 
-        # Extract temporal features from backbone (if applicable)
+        # Temporal backbone
         if self.backbone is not None:
-            temporal_embed = self.backbone(seq_subset)  # (B, temporal_dim)
+            temporal_embed = self.backbone(seq_subset)
         else:
             temporal_embed = None
 
-        # Agent-specific processing
+        # Agent-specific forward
         if self.agent_type == 'T':
-            if self.use_feature_subset:
-                agent_static = static
-                agent_seq = seq_subset
-            else:
-                agent_static = sequences[:, -1, self.trade_feat_start:self.trade_feat_end]
-                agent_seq = sequences[:, :, self.trade_feat_start:self.trade_feat_end]
+            agent_static = static if self.use_feature_subset else sequences[:, -1, self.trade_feat_start:self.trade_feat_end]
+            agent_seq    = seq_subset if self.use_feature_subset else sequences[:, :, self.trade_feat_start:self.trade_feat_end]
             score, confidence, signal = self.agent(agent_static, temporal_embed, agent_seq)
         elif self.agent_type == 'Q':
-            if self.use_feature_subset:
-                agent_static = static
-                agent_seq = seq_subset
-            else:
-                agent_static = sequences[:, -1, self.quote_feat_start:self.quote_feat_end]
-                agent_seq = sequences[:, :, self.quote_feat_start:self.quote_feat_end]
+            agent_static = static if self.use_feature_subset else sequences[:, -1, self.quote_feat_start:self.quote_feat_end]
+            agent_seq    = seq_subset if self.use_feature_subset else sequences[:, :, self.quote_feat_start:self.quote_feat_end]
             score, confidence, signal = self.agent(agent_static, temporal_embed, agent_seq)
         elif self.agent_type == '2D':
-            # 2D agent primarily uses chain_2d, with flat sequence inputs kept for interface compatibility
             score, confidence, signal = self.agent(
                 static,
                 temporal_embed if temporal_embed is not None else static,
@@ -287,18 +184,15 @@ class IndependentAgent(nn.Module):
                 chain_2d=chain_2d,
             )
         else:
-            # A, B, C, K agents
             if temporal_embed is not None:
                 score, confidence, signal = self.agent(static, temporal_embed, seq_subset)
             else:
-                # B / K without backbone: pass None as temporal so the agent
-                # handles its own zero-pad at the correct temporal_dim size.
                 score, confidence, signal = self.agent(static, None, seq_subset)
 
-        # Build classifier input
+        # Build classifier input — pass score/confidence RAW (no inverse-sigmoid)
         if temporal_embed is not None:
             features = torch.cat([score, confidence, temporal_embed], dim=1)
-        elif hasattr(self, 'static_proj'):
+        elif self.static_proj is not None:
             proj_static = torch.relu(self.static_proj(static))
             features = torch.cat([score, confidence, proj_static], dim=1)
         else:
@@ -308,29 +202,23 @@ class IndependentAgent(nn.Module):
         return logits
 
     def count_parameters(self):
-        """Count trainable parameters by component."""
-        backbone_params = sum(p.numel() for p in self.backbone.parameters()) if self.backbone else 0
-        agent_params = sum(p.numel() for p in self.agent.parameters())
-        classifier_params = sum(p.numel() for p in self.classifier.parameters())
-        total_params = sum(p.numel() for p in self.parameters())
-
+        backbone_params    = sum(p.numel() for p in self.backbone.parameters()) if self.backbone else 0
+        agent_params       = sum(p.numel() for p in self.agent.parameters())
+        classifier_params  = sum(p.numel() for p in self.classifier.parameters())
+        total_params       = sum(p.numel() for p in self.parameters())
         return {
-            'backbone': backbone_params,
-            'agent': agent_params,
-            'classifier': classifier_params,
-            'total': total_params,
+            'backbone':       backbone_params,
+            'agent':          agent_params,
+            'classifier':     classifier_params,
+            'total':          total_params,
             'subset_feat_dim': self.subset_feat_dim,
-            'use_backbone': self.use_backbone,
+            'use_backbone':   self.use_backbone,
         }
 
 
 def create_independent_agent(config):
-    """
-    Factory function to create IndependentAgent from config.
-    """
     agent_type = getattr(config, 'agent_type', config.get('agent_type', 'A'))
-
-    model = IndependentAgent(
+    return IndependentAgent(
         agent_type=agent_type,
         feat_dim=getattr(config, 'feat_dim', config.get('feat_dim', TOTAL_FEAT_DIM)),
         temporal_dim=getattr(config, 'temporal_dim', config.get('temporal_dim', 128)),
@@ -339,38 +227,13 @@ def create_independent_agent(config):
         use_feature_subset=getattr(config, 'use_feature_subset', config.get('use_feature_subset', True)),
     )
 
-    return model
-
 
 if __name__ == '__main__':
     print("Testing IndependentAgent v2 with Feature Subsetting...")
-
     for agent_type in ['A', 'B', 'K', 'C', 'T', 'Q']:
-        print(f"\n{'='*60}")
-        print(f"Testing Agent {agent_type}")
-        print(f"{'='*60}")
-
-        model = IndependentAgent(
-            agent_type=agent_type,
-            feat_dim=TOTAL_FEAT_DIM,
-            use_feature_subset=True,
-        )
-
-        params = model.count_parameters()
-        print(f"  Subset feat dim: {params['subset_feat_dim']}")
-        print(f"  Use backbone: {params['use_backbone']}")
-        print(f"  Backbone params: {params['backbone']:,}")
-        print(f"  Agent params: {params['agent']:,}")
-        print(f"  Classifier params: {params['classifier']:,}")
-        print(f"  Total params: {params['total']:,}")
-
-        batch_size = 16
-        seq_len = 20
-        dummy_input = torch.randn(batch_size, seq_len, TOTAL_FEAT_DIM)
-
+        model = IndependentAgent(agent_type=agent_type, feat_dim=TOTAL_FEAT_DIM, use_feature_subset=True)
+        dummy = torch.randn(16, 20, TOTAL_FEAT_DIM)
         with torch.no_grad():
-            logits = model(dummy_input)
-            print(f"  Input: {dummy_input.shape} → Output: {logits.shape}")
-
-    print(f"\n{'='*60}")
-    print("✓ All agent tests passed!")
+            out = model(dummy)
+        print(f"Agent {agent_type}: input={dummy.shape} output={out.shape} ✓")
+    print("All tests passed!")

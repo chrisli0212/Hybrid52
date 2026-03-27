@@ -3,7 +3,7 @@ Agent K: Greeks Core Agent
 Deep MLP focused on option Greek features with gamma-squeeze detection.
 
 Architecture:
-  static_dim  = 53   (real Theta Data features, no zero-padding)
+  static_dim  = 75   (GREEK_BY_STRIKE full 0-74)
   temporal_dim = 128  (backbone embedding)
 
 Changes vs v1:
@@ -25,7 +25,7 @@ from typing import Tuple, Optional
 class AgentK(nn.Module):
     def __init__(
         self,
-        input_dim: int = 64,       # compact static feature dim + expanded CSV-derived aux features
+        input_dim: int = 75,       # GREEK_BY_STRIKE full (75 dims)
         hidden_dim: int = 512,
         temporal_dim: int = 128,
     ):

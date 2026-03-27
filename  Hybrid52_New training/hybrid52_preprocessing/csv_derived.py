@@ -9,12 +9,12 @@ Extracts pre-computed CSV columns not captured by any other extractor:
   275: spread_pct_mean    - mean spread_pct (liquidity proxy)
   276: spread_pct_atm     - spread_pct at ATM strike
   277: spread_pct_skew    - OTM_put_spread / OTM_call_spread
-  278: dual_delta_mean    - mean dual_delta across active chain
-  279: dual_gamma_mean    - mean dual_gamma across active chain
-  280: d1_atm             - d1 at ATM strike
-  281: d2_atm             - d2 at ATM strike
-  282: iv_error_mean      - mean iv fitting error
-  283: ultima_mean        - mean ultima across chain
+  278: dte_mean           - mean days to expiration
+  279: dte_std            - DTE dispersion
+  280: cp_sign_mean       - call/put balance
+  281: mid_mean           - mean mid price
+  282: spread_atm         - spread at ATM strike
+  283: iv_std             - IV dispersion across chain
   284: oi_mean            - mean open interest across active chain
   285: oi_put_call_ratio  - put OI / call OI ratio
 """
@@ -91,12 +91,7 @@ class CsvDerivedExtractor:
                 p_sp = float(sp[puts_otm].mean())  if puts_otm.any()  else out[5]
                 out[7] = p_sp / c_sp if c_sp > 1e-6 else 1.0
 
-        # greek aux features (278-283)
-        if 'dual_delta' in df.columns:
-            out[8] = float(pd.to_numeric(df['dual_delta'], errors='coerce').fillna(0.0).mean())
-        if 'dual_gamma' in df.columns:
-            out[9] = float(pd.to_numeric(df['dual_gamma'], errors='coerce').fillna(0.0).mean())
-
+        # auxiliary features (278-283) — derived from live columns
         if 'moneyness' in df.columns:
             mn = pd.to_numeric(df['moneyness'], errors='coerce').fillna(1.0)
             atm_idx3 = (mn - 1.0).abs().idxmin()
@@ -106,16 +101,22 @@ class CsvDerivedExtractor:
         else:
             atm_idx3 = df.index[len(df) // 2]
 
-        if 'd1' in df.columns:
-            d1 = pd.to_numeric(df['d1'], errors='coerce').fillna(0.0)
-            out[10] = float(d1.loc[atm_idx3]) if atm_idx3 in d1.index else float(d1.mean())
-        if 'd2' in df.columns:
-            d2 = pd.to_numeric(df['d2'], errors='coerce').fillna(0.0)
-            out[11] = float(d2.loc[atm_idx3]) if atm_idx3 in d2.index else float(d2.mean())
-        if 'iv_error' in df.columns:
-            out[12] = float(pd.to_numeric(df['iv_error'], errors='coerce').fillna(0.0).mean())
-        if 'ultima' in df.columns:
-            out[13] = float(pd.to_numeric(df['ultima'], errors='coerce').fillna(0.0).mean())
+        if 'dte_int' in df.columns:
+            dte = pd.to_numeric(df['dte_int'], errors='coerce').fillna(0.0)
+            out[8] = float(dte.mean())
+            out[9] = float(dte.std()) if len(dte) > 1 else 0.0
+        if 'cp_sign' in df.columns:
+            cp = pd.to_numeric(df['cp_sign'], errors='coerce').fillna(0.0)
+            out[10] = float(cp.mean())
+        if 'mid' in df.columns:
+            mid_vals = pd.to_numeric(df['mid'], errors='coerce').fillna(0.0)
+            out[11] = float(mid_vals.mean())
+        if 'spread' in df.columns:
+            sprd = pd.to_numeric(df['spread'], errors='coerce').fillna(0.0)
+            out[12] = float(sprd.loc[atm_idx3]) if atm_idx3 in sprd.index else float(sprd.mean())
+        if 'implied_vol' in df.columns:
+            iv = pd.to_numeric(df['implied_vol'], errors='coerce').fillna(0.0)
+            out[13] = float(iv.std()) if len(iv) > 1 else 0.0
 
         # OI enrichments (284-285)
         oi_col = 'open_interest' if 'open_interest' in df.columns else ('oi' if 'oi' in df.columns else None)
