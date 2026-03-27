@@ -742,6 +742,9 @@ def main():
                     if platt_scaler is not None:
                         ckpt_data['platt_scaler_coef']      = platt_scaler.coef_.tolist()
                         ckpt_data['platt_scaler_intercept'] = platt_scaler.intercept_.tolist()
+                    if norm_mean is not None:
+                        ckpt_data['norm_mean'] = norm_mean.tolist()
+                        ckpt_data['norm_std']  = norm_std.tolist()
 
                     ckpt_path = output_root / f'{symbol}_agent{agent_type}_{mode}_h{horizon}.pt'
                     torch.save(ckpt_data, ckpt_path)
