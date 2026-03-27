@@ -39,7 +39,11 @@ class Hybrid51Dataset(Dataset):
     def _compute_normalization_stats(self):
         X_flat = self.X.view(-1, self.X.shape[-1])
         self.mean = X_flat.mean(dim=0, keepdim=True)
-        self.std = X_flat.std(dim=0, keepdim=True) + 1e-8
+        raw_std  = X_flat.std(dim=0, keepdim=True)
+        # Mask dead features: std < 1e-6 → set std=1.0 so they normalise to 0 cleanly
+        self.dead_mask = (raw_std < 1e-6).squeeze()   # [feat_dim] bool
+        self.std = raw_std.clone()
+        self.std[self.std < 1e-6] = 1.0               # dead → (x-mean)/1 = 0
     
     def _apply_normalization(self):
         original_shape = self.X.shape
@@ -119,7 +123,11 @@ def create_data_loaders(
     num_workers: int = 4
 ) -> Tuple[DataLoader, DataLoader]:
     train_dataset = Hybrid51Dataset(X_train, y_train, chain_2d_train, normalize=True)
-    val_dataset = Hybrid51Dataset(X_val, y_val, chain_2d_val, normalize=True)
+    # Val uses TRAIN stats — no leakage
+    val_dataset = Hybrid51Dataset(X_val, y_val, chain_2d_val, normalize=False)
+    val_dataset.mean = train_dataset.mean
+    val_dataset.std  = train_dataset.std
+    val_dataset._apply_normalization()
     
     if balanced:
         train_sampler = BalancedSampler(train_dataset.y)
