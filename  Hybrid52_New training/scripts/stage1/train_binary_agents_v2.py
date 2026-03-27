@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 DEFAULT_DATA_ROOT    = Path("/workspace/data/tier3_binary_hybrid52")
-DEFAULT_OUTPUT_ROOT  = Path("/workspace/Hybrid51/6. Hybrid51_new stage/results/stage1")
+DEFAULT_OUTPUT_ROOT  = Path("/workspace/ Hybrid52_New training/results/stage1")
 DEFAULT_CHAIN_2D_DIR = Path("/workspace/data/chain_2d")
 RETURN_SCALE = 10000.0
 

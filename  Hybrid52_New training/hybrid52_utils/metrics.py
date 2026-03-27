@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from typing import Dict, Tuple
 
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, roc_auc_score
 from scipy.stats import spearmanr
 
 
 @dataclass
 class BinaryMetrics:
     accuracy: float
+    balanced_accuracy: float
     f1: float
     auc: float
     ic: float
@@ -22,8 +23,9 @@ def compute_binary_metrics(raw_output: np.ndarray, labels: np.ndarray, returns: 
     probs = 1 / (1 + np.exp(-raw_output))
     preds = (probs > threshold).astype(int)
 
-    acc = float(accuracy_score(labels, preds))
-    f1 = float(f1_score(labels, preds, average='binary'))
+    acc  = float(accuracy_score(labels, preds))
+    bacc = float(balanced_accuracy_score(labels, preds))
+    f1   = float(f1_score(labels, preds, average='binary'))
 
     try:
         auc = float(roc_auc_score(labels, raw_output))
@@ -46,7 +48,7 @@ def compute_binary_metrics(raw_output: np.ndarray, labels: np.ndarray, returns: 
                 'n': int(mask.sum()),
             }
 
-    return BinaryMetrics(accuracy=acc, f1=f1, auc=auc, ic=float(ic)), buckets
+    return BinaryMetrics(accuracy=acc, balanced_accuracy=bacc, f1=f1, auc=auc, ic=float(ic)), buckets
 
 
 def sweep_threshold_for_f1(probs: np.ndarray, labels: np.ndarray, lo: float = 0.30, hi: float = 0.65, step: float = 0.01) -> Tuple[float, float]:

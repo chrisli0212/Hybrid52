@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 STAGE1 = Path(__file__).resolve().parent
 sys.path.insert(0, str(STAGE1))
 
-from hybrid51_utils.artifacts import DEFAULT_TRAINING_HORIZON_MINUTES
+from hybrid52_utils.artifacts import DEFAULT_TRAINING_HORIZON_MINUTES
 from train_binary_agents_v2 import BinaryIndependentAgent, evaluate_model
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")

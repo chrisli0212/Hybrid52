@@ -43,13 +43,13 @@ ALL_SYMBOLS = ['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT']
 FEAT_DIM = 286
 SEQ_LEN = 20
 HORIZONS = [5, 15, 30]  # minutes
-RETURN_THRESHOLD = 0.0  # |return| < 0.03% → flat sample, filtered out by default
+RETURN_THRESHOLD = 0.0003  # |return| < 0.03% → flat sample, filtered out by default
 BATCH_SIZE = 4096
 CHAIN_INPUT_STRIKES = 30
 CHAIN_OUTPUT_STRIKES = 20
 CHAIN_STRIKE_START = max(0, (CHAIN_INPUT_STRIKES - CHAIN_OUTPUT_STRIKES) // 2)
-TQ_FEAT_START = 270  # real TQ range
-TQ_FEAT_END = 286    # matches FEAT_DIM
+TQ_FEAT_START = 270  # CSV_DERIVED group starts here
+TQ_FEAT_END = 286
 
 
 def add_delta_features(sequences: np.ndarray) -> np.ndarray:
@@ -99,17 +99,18 @@ def compute_normalization_stats(train_features: np.ndarray) -> dict:
     if len(mean) == FEAT_DIM:
         # Log which feature groups have zero variance (only valid for the base 325-dim layout)
         group_ranges = {
-            'GREEK_BY_STRIKE (0-74)':      (0,   75),
-            'GAMMA_EXPOSURE (75-104)':     (75,  105),
-            'VANNA_CHARM (105-124)':       (105, 125),
-            'IV_SURFACE (125-149)':        (125, 150),
-            'FLOW_VOLUME (150-179)':       (150, 180),
-            'MICROSTRUCTURE (180-199)':    (180, 200),
-            'WALLS_POSITIONING (200-219)': (200, 220),
-            'CROSS_STRIKE (220-234)':      (220, 235),
-            'TIME_DECAY (235-249)':        (235, 250),
-            'SENTIMENT_REGIME (250-269)':  (250, 270),
-            'CSV_DERIVED (270-285)':      (270, 286),
+            'Core Greeks (0-49)': (0, 50),
+            'IV Surface (50-99)': (50, 100),
+            'Term Structure (100-127)': (100, 128),
+            'Flow & Volume (128-149)': (128, 150),
+            'Microstructure (150-179)': (150, 180),
+            'Sentiment/Regime (180-209)': (180, 210),
+            'Cross-Strike-Time (210-239)': (210, 240),
+            'Gamma Exposure (240-269)': (240, 270),
+            'Smart Money (270-284)': (270, 285),
+            'Volume Anomaly (285-296)': (285, 297),
+            'Trade Conditions (297-306)': (297, 307),
+            'Quote Pressure (307-324)': (307, 325),
         }
 
         for name, (start, end) in group_ranges.items():
@@ -260,7 +261,7 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
                 arr = chunk.to_numpy(zero_copy_only=False)
                 for row in arr:
                     if row is not None:
-                        all_chain[idx] = np.array(row, dtype=np.float32).reshape(5, CHAIN_INPUT_STRIKES)
+                        all_chain[idx] = np.array(row, dtype=np.float32).reshape(5, CHAIN_INPUT_STRIKES)  # 5×30 already
                     idx += 1
             del table_chain
             gc.collect()
@@ -283,31 +284,26 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
 
     tq_active_mask = np.any(np.abs(all_features[:, TQ_FEAT_START:TQ_FEAT_END]) > 1e-8, axis=1)
     tq_feature_coverage = float(tq_active_mask.mean()) if len(tq_active_mask) > 0 else 0.0
-    logger.info(f"{symbol}: CSV-derived feature coverage (dims {TQ_FEAT_START}-{TQ_FEAT_END-1})={tq_feature_coverage * 100:.1f}% of minutes")
-    if tq_feature_coverage < 0.05:
-        logger.warning(f"{symbol}: CSV-derived dims 270-285 are near-zero! "
-                       f"Check that tier2 parquet includes lambda/dist_atm/spread_pct columns. "
-                       f"Agents A, B, K will be significantly degraded.")
-    else:
-        logger.info(f"{symbol}: CSV-derived dims 270-285 are live ({tq_feature_coverage*100:.1f}% coverage)")
+    logger.info(f"{symbol}: TQ feature coverage={tq_feature_coverage * 100:.1f}% of minutes")
 
     max_horizon = max(horizons)
-    n_samples_check = len(all_features) - seq_len - max_horizon
-    if n_samples_check <= 0:
+    n_samples = len(all_features) - seq_len - max_horizon
+    if n_samples <= 0:
         logger.error(f"{symbol}: Not enough data for sequences (need {seq_len + max_horizon}, have {len(all_features)})")
         return None
 
+    logger.info(f"{symbol}: Preparing {n_samples:,} samples (seq_len={seq_len})")
+
     final_feat_dim = FEAT_DIM * 2 if add_delta else FEAT_DIM
+    train_end = int(0.6 * n_samples)
+    val_end = int(0.8 * n_samples)
     if add_delta:
         logger.info(f"{symbol}: Delta features enabled → {final_feat_dim} dims (was {FEAT_DIM})")
 
     results = {}
 
     for horizon in horizons:
-        n_samples = len(all_features) - seq_len - horizon
-        train_end = int(0.6 * n_samples)
-        val_end   = int(0.8 * n_samples)
-        logger.info(f"\n{symbol}: Building horizon={horizon}min labels... n_samples={n_samples:,}")
+        logger.info(f"\n{symbol}: Building horizon={horizon}min labels...")
 
         current_prices = all_prices[seq_len - 1:seq_len - 1 + n_samples]
         future_prices = all_prices[seq_len - 1 + horizon:seq_len - 1 + horizon + n_samples]
@@ -350,9 +346,13 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
         norm_stats = _compute_normalization_stats_batched(all_features, train_idx, seq_len, add_delta)
 
         if strip_zero_variance and norm_stats['n_zero'] > 0:
-            logger.info(
-                f"  {symbol} h{horizon}: strip_zero_variance enabled — keeping feat_dim={final_feat_dim} and saving mask only (no dim removal)"
-            )
+            live_idx = np.where(~norm_stats['zero_variance_mask'])[0]
+            final_feat_dim = len(live_idx)
+            logger.info(f"  {symbol} h{horizon}: strip_zero_variance — keeping {final_feat_dim} live features")
+            all_features = all_features[:, live_idx]
+            norm_stats['mean'] = norm_stats['mean'][live_idx]
+            norm_stats['std']  = norm_stats['std'][live_idx]
+            np.save(out_dir / 'live_feature_indices.npy', live_idx)
 
         out_dir = OUTPUT_ROOT / symbol / f"horizon_{horizon}min"
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -458,10 +458,7 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
             'chain_input_strikes': CHAIN_INPUT_STRIKES if all_chain is not None else 0,
             'chain_output_strikes': CHAIN_OUTPUT_STRIKES if all_chain is not None else 0,
             'chain_strike_start': CHAIN_STRIKE_START if all_chain is not None else None,
-            'csv_derived_feature_coverage': round(tq_feature_coverage, 4),
-            'csv_derived_feat_start': TQ_FEAT_START,
-            'csv_derived_feat_end': TQ_FEAT_END,
-            'csv_derived_n_dims': TQ_FEAT_END - TQ_FEAT_START,
+            'tq_feature_coverage': round(tq_feature_coverage, 4),
         }
         with open(out_dir / 'metadata.json', 'w') as f:
             json.dump(metadata, f, indent=2)

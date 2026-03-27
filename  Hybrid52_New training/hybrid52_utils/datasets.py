@@ -21,17 +21,24 @@ class Tier3BinaryPaths:
 
 
 class NumpySequenceDataset(Dataset):
-    """Simple Dataset wrapping numpy arrays for (seq, label)."""
+    """Dataset wrapping numpy arrays for (seq, label) with optional z-score norm."""
 
-    def __init__(self, sequences: np.ndarray, labels: np.ndarray):
+    def __init__(self, sequences: np.ndarray, labels: np.ndarray,
+                 norm_mean: Optional[np.ndarray] = None,
+                 norm_std: Optional[np.ndarray] = None):
         self.sequences = sequences.astype(np.float32)
-        self.labels = labels.astype(np.float32)
+        self.labels    = labels.astype(np.float32)
+        self.norm_mean = norm_mean.astype(np.float32) if norm_mean is not None else None
+        self.norm_std  = norm_std.astype(np.float32)  if norm_std  is not None else None
 
     def __len__(self) -> int:
         return len(self.sequences)
 
     def __getitem__(self, idx: int):
-        return torch.from_numpy(self.sequences[idx]), torch.tensor(self.labels[idx])
+        seq = torch.from_numpy(self.sequences[idx])
+        if self.norm_mean is not None and self.norm_std is not None:
+            seq = (seq - torch.from_numpy(self.norm_mean)) / torch.from_numpy(self.norm_std)
+        return seq, torch.tensor(self.labels[idx])
 
 
 def load_tier3_binary(paths: Tier3BinaryPaths):

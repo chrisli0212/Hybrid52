@@ -67,7 +67,7 @@ def _eval(model: AgentVIX, loader: DataLoader, crit: nn.Module, device: torch.de
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--data-root", default="/workspace/data/tier3_vix_v4/VIXW")
-    p.add_argument("--output-root", default="/workspace/Hybrid51/6. Hybrid51_new stage/results/stage1_vix")
+    p.add_argument("--output-root", default="/workspace/ Hybrid52_New training/results/stage1_vix")
     p.add_argument("--epochs", type=int, default=40)
     p.add_argument("--batch-size", type=int, default=256)
     p.add_argument("--lr", type=float, default=3e-4)
