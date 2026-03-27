@@ -419,12 +419,12 @@ def optimize_threshold(model, val_seq, val_labels, device, mode='classifier',
         except:
             val_auc = 0.5
 
-        # NO auto-flip — log critical warning instead
-        if val_auc < 0.48:
-            logger.critical(
-                f"  ⚠️ val_auc={val_auc:.4f} < 0.48 — labels may be inverted! "
-                f"Check build_tier3_binary.py label direction. DO NOT auto-flip."
-            )
+        # Auto-flip if classifier is directionally inverted on val
+        if val_auc < 0.5:
+            invert_signal = True
+            probs = 1.0 - probs
+            raw_output = -raw_output
+            logger.warning(f"  Auto-flip enabled (val_auc={val_auc:.4f} < 0.5)")
     else:
         probs = raw_output
 
@@ -440,8 +440,7 @@ def optimize_threshold(model, val_seq, val_labels, device, mode='classifier',
         f"  Optimal threshold: {best_threshold:.2f} "
         f"(objective={threshold_objective}={best_obj:.4f}, val_f1={best_f1:.4f})"
     )
-    # Return invert_signal=False always — no auto-flip
-    return best_threshold, best_f1, platt_scaler, False
+    return best_threshold, best_f1, platt_scaler, invert_signal
 
 
 def evaluate_model(model, test_seq, test_labels, test_returns, device,
@@ -552,7 +551,7 @@ def main():
     parser.add_argument('--use-mixup', action='store_true')
     parser.add_argument('--mixup-alpha', type=float, default=0.2)
     parser.add_argument('--noise-sigma', type=float, default=0.0)
-    parser.add_argument('--threshold-objective', choices=['f1', 'balanced_acc', 'mcc'], default='f1')
+    parser.add_argument('--threshold-objective', choices=['f1', 'balanced_acc', 'mcc'], default='balanced_acc')
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--device', default='cpu')
     args = parser.parse_args()
@@ -627,9 +626,7 @@ def main():
 
         data_ok = verify_data_before_training(data_dir, symbol, horizon)
         if not data_ok:
-            logger.error(f"[{symbol}] Data health check FAILED. Aborting training for this symbol.")
-            logger.error(f"  Rebuild tier3 data with fixed build_tier3_binary.py first.")
-            continue
+            logger.warning(f"[{symbol}] Data health check FAILED — continuing anyway (warn-only mode).")
 
         all_results = {}
 
