@@ -43,7 +43,7 @@ ALL_SYMBOLS = ['SPXW', 'SPY', 'QQQ', 'IWM', 'TLT']
 FEAT_DIM = 286
 SEQ_LEN = 20
 HORIZONS = [5, 15, 30]  # minutes
-RETURN_THRESHOLD = 0.0003  # |return| < 0.03% → flat sample, filtered out by default
+RETURN_THRESHOLD = 0.0  # |return| < 0.03% → flat sample, filtered out by default
 BATCH_SIZE = 4096
 CHAIN_INPUT_STRIKES = 30
 CHAIN_OUTPUT_STRIKES = 20
@@ -292,23 +292,22 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
         logger.info(f"{symbol}: CSV-derived dims 270-285 are live ({tq_feature_coverage*100:.1f}% coverage)")
 
     max_horizon = max(horizons)
-    n_samples = len(all_features) - seq_len - max_horizon
-    if n_samples <= 0:
+    n_samples_check = len(all_features) - seq_len - max_horizon
+    if n_samples_check <= 0:
         logger.error(f"{symbol}: Not enough data for sequences (need {seq_len + max_horizon}, have {len(all_features)})")
         return None
 
-    logger.info(f"{symbol}: Preparing {n_samples:,} samples (seq_len={seq_len})")
-
     final_feat_dim = FEAT_DIM * 2 if add_delta else FEAT_DIM
-    train_end = int(0.6 * n_samples)
-    val_end = int(0.8 * n_samples)
     if add_delta:
         logger.info(f"{symbol}: Delta features enabled → {final_feat_dim} dims (was {FEAT_DIM})")
 
     results = {}
 
     for horizon in horizons:
-        logger.info(f"\n{symbol}: Building horizon={horizon}min labels...")
+        n_samples = len(all_features) - seq_len - horizon
+        train_end = int(0.6 * n_samples)
+        val_end   = int(0.8 * n_samples)
+        logger.info(f"\n{symbol}: Building horizon={horizon}min labels... n_samples={n_samples:,}")
 
         current_prices = all_prices[seq_len - 1:seq_len - 1 + n_samples]
         future_prices = all_prices[seq_len - 1 + horizon:seq_len - 1 + horizon + n_samples]
