@@ -2,6 +2,13 @@
 """
 Phase 0 Step 3: Build tier2 minute bars from tier1 parquets using MasterFeatureExtractor v2.
 
+⚠️  DEPRECATED - HYBRID51 LEGACY SCRIPT ⚠️
+This script references hybrid51_preprocessing from an older Hybrid51 project and uses the OLD
+master_extractor pattern. It should NOT be used for Hybrid55 training.
+
+For Hybrid55, use build_tier2_fast.py instead (though it also needs refactoring to per-agent).
+This file is kept for reference only.
+
 Combines Greek + TQ tier1 data → 325-dim feature vectors per minute bar.
 This is a thin wrapper that delegates to the existing tier2_reprocess.py logic
 but points at the v2 tier1 output paths.

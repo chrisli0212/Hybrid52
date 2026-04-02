@@ -2,6 +2,15 @@
 """
 Build tier2 minute-bar features from tier1_hybrid55 per-trade_date parquets.
 
+⚠️  DEPRECATION WARNING ⚠️
+This script still uses the OLD master_extractor_v2.MasterFeatureExtractor which has been
+moved to old_mixed_processing/ backup. This processes all agent features together in a
+monolithic fashion, which caused training failures in Hybrid55.
+
+TODO: Refactor this script to use per-agent extractors from hybrid55_preprocessing/agents/
+For each agent that needs tier2 data, call the dedicated agent extractor instead of
+MasterFeatureExtractor.
+
 Tier1 layout per date:
   {YYYY-MM-DD}_greek.parquet
   {YYYY-MM-DD}_trade.parquet
@@ -264,7 +273,8 @@ def _filter_sparse_ohlc_rows(ohlc_df: pd.DataFrame) -> tuple[pd.DataFrame, dict[
 
 
 def create_feature_extractor():
-    from hybrid55_preprocessing.master_extractor_v2 import MasterFeatureExtractor
+    # TEMPORARY: Using old master_extractor from backup until refactored to per-agent extractors
+    from hybrid55_preprocessing.old_mixed_processing.master_extractor_v2 import MasterFeatureExtractor
     return MasterFeatureExtractor(
         include_chain_2d=False, include_phase1=False, normalize=False
     )
