@@ -441,6 +441,11 @@ class LitAgent(L.LightningModule):
         # model can express confidence without being penalised for UP predictions.
         self.criterion = AsymmetricTradingLoss(fp_weight=1.0, gamma=min(focal_gamma, 0.5))
 
+        # Register penalty targets as buffers to avoid creating tensors in forward pass
+        self.register_buffer('std_target_tensor', torch.tensor(0.15))  # Increased from 0.10 for better spread
+        self.register_buffer('deg_target_pos_min_tensor', torch.tensor(float(self.deg_target_pos_min)))
+        self.register_buffer('deg_target_pos_max_tensor', torch.tensor(float(self.deg_target_pos_max)))
+
         # Validation accumulators
         self._val_logits = []
         self._val_labels = []
@@ -455,16 +460,15 @@ class LitAgent(L.LightningModule):
         # 1. Spread penalty: reward output variance. The model trivially minimises BCE
         #    by predicting the class prior constantly (prob ≈ base_rate everywhere).
         #    Penalise low variance to force the model to produce spread-out predictions.
-        #    Target std >= 0.10 (probabilities spread over at least 0.1 range on average).
-        std_target = 0.10
-        std_penalty = torch.relu(torch.tensor(std_target, device=probs.device) - probs.std())
+        #    Target std >= 0.15 (increased from 0.10 for better spread).
+        std_penalty = torch.relu(self.std_target_tensor - probs.std())
         std_penalty = std_penalty ** 2
 
         # 2. Rate penalty: keep soft mean(prob) in target band so the model doesn't
         #    constantly predict all-UP or all-DOWN at any threshold.
         soft_rate = probs.mean()
-        low_violation = torch.relu(torch.tensor(self.deg_target_pos_min, device=probs.device) - soft_rate)
-        high_violation = torch.relu(soft_rate - torch.tensor(self.deg_target_pos_max, device=probs.device))
+        low_violation = torch.relu(self.deg_target_pos_min_tensor - soft_rate)
+        high_violation = torch.relu(soft_rate - self.deg_target_pos_max_tensor)
         rate_penalty = (low_violation + high_violation) ** 2
 
         # Combined: spread penalty weighted 5× more as it targets the primary failure mode.
@@ -1143,12 +1147,12 @@ def main():
     parser.add_argument('--use-mixup',              action='store_true')
     parser.add_argument('--mixup-alpha', type=float, default=0.2)
     parser.add_argument('--noise-sigma', type=float, default=0.02)
-    parser.add_argument('--deg-penalty-weight', type=float, default=0.20,
-                        help='Weight for anti-degeneracy prediction-rate penalty term.')
-    parser.add_argument('--deg-target-pos-min', type=float, default=0.35,
-                        help='Lower bound for target positive prediction rate.')
-    parser.add_argument('--deg-target-pos-max', type=float, default=0.65,
-                        help='Upper bound for target positive prediction rate.')
+    parser.add_argument('--deg-penalty-weight', type=float, default=0.50,
+                        help='Weight for anti-degeneracy prediction-rate penalty term (increased from 0.20).')
+    parser.add_argument('--deg-target-pos-min', type=float, default=0.40,
+                        help='Lower bound for target positive prediction rate (tightened from 0.35).')
+    parser.add_argument('--deg-target-pos-max', type=float, default=0.60,
+                        help='Upper bound for target positive prediction rate (tightened from 0.65).')
     parser.add_argument('--threshold-objective',
                         choices=['f1', 'balanced_acc', 'mcc'], default='mcc')
     parser.add_argument('--precision',   default='16-mixed',

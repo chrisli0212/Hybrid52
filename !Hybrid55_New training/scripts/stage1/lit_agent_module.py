@@ -52,8 +52,8 @@ class LitAgent(L.LightningModule):
         else:
             self.norm_mean = self.norm_std = None
 
-        # Losses
-        self.focal_loss = AsymmetricTradingLoss(fp_weight=1.5, gamma=focal_gamma)
+        # Losses - use symmetric loss to avoid prediction bias
+        self.focal_loss = AsymmetricTradingLoss(fp_weight=1.0, gamma=focal_gamma)
         self.soft_f1    = SoftF1Loss()
 
         # Validation tracking

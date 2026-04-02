@@ -419,7 +419,13 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
         returns = np.zeros(n_samples, dtype=np.float32)
         valid = current_prices > 0
         returns[valid] = ((future_prices[valid] - current_prices[valid]) / current_prices[valid]).astype(np.float32)
-        labels = (returns > 0).astype(np.int64)
+
+        # Add dead zone to reduce label noise: only label as UP/DOWN if return exceeds threshold
+        # This helps filter out noise and prevents the model from learning on meaningless small moves
+        dead_zone_threshold = 0.0001  # 0.01% - adjust based on trading costs and spreads
+        labels = np.where(returns > dead_zone_threshold, 1,
+                         np.where(returns < -dead_zone_threshold, 0,
+                                 (returns > 0).astype(np.int64))).astype(np.int64)
 
         if return_threshold > 0:
             keep_mask = np.abs(returns) >= return_threshold
