@@ -343,19 +343,24 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
             logger.error(f"{symbol} h{horizon}: no training samples after filtering")
             continue
 
+        final_feat_dim = FEAT_DIM * 2 if add_delta else FEAT_DIM  # reset each horizon
         norm_stats = _compute_normalization_stats_batched(all_features, train_idx, seq_len, add_delta)
+
+        out_dir = OUTPUT_ROOT / symbol / f"horizon_{horizon}min"
+        out_dir.mkdir(parents=True, exist_ok=True)
 
         if strip_zero_variance and norm_stats['n_zero'] > 0:
             live_idx = np.where(~norm_stats['zero_variance_mask'])[0]
             final_feat_dim = len(live_idx)
             logger.info(f"  {symbol} h{horizon}: strip_zero_variance — keeping {final_feat_dim} live features")
-            all_features = all_features[:, live_idx]
+            # Use a per-horizon view — do NOT mutate all_features (other horizons still need full 286 dims)
+            horizon_features = all_features[:, live_idx]
             norm_stats['mean'] = norm_stats['mean'][live_idx]
             norm_stats['std']  = norm_stats['std'][live_idx]
             np.save(out_dir / 'live_feature_indices.npy', live_idx)
-
-        out_dir = OUTPUT_ROOT / symbol / f"horizon_{horizon}min"
-        out_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            horizon_features = all_features
+            live_idx = None
 
         split_specs = [
             ('train', train_idx),
@@ -405,7 +410,7 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
 
             write_offset = 0
             for batch_indices in _iter_batches(split_idx):
-                batch_seq = _build_sequence_batch(all_features, batch_indices, seq_len, add_delta)
+                batch_seq = _build_sequence_batch(horizon_features, batch_indices, seq_len, add_delta)
                 seq_mem[write_offset:write_offset + len(batch_indices)] = batch_seq
 
                 if chain_mem is not None:

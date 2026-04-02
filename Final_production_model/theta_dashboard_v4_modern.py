@@ -124,6 +124,8 @@ def _load_chat_session():
 _SAVED_CHAT = _load_chat_session()
 
 AGG_FILE       = DATA_DIR / "theta_agg.csv"
+MODEL_GREEKS_FILE = DATA_DIR / "theta_model_greeks.csv"
+MODEL_TQ_FILE     = DATA_DIR / "theta_model_trade_quote.csv"
 SNAPSHOT_FILE  = DATA_DIR / "theta_snapshot.csv"
 SNAPSHOT_DIR   = DATA_DIR / "snapshots"
 STATUS_FILE    = DATA_DIR / ".fetcher_status"
@@ -182,6 +184,26 @@ S3_INTERCEPT = -3.2518
 # confirming a balanced model.  The low threshold compensates for the large negative
 # intercept (-3.2518) inherent in the LogReg.
 S3_NEUTRAL = 0.36
+AGENT_LINE_WIDTH_MODE = str(os.getenv("AGENT_LINE_WIDTH_MODE", "coef")).strip().lower()
+AGENT_GAUGE_VALUEFORMAT = ".3f"
+
+
+def _stage3_threshold_from_obj(obj, default=S3_NEUTRAL):
+    """Read the active Stage 3 threshold from a row/dict-like object."""
+    try:
+        raw = float((obj or {}).get("threshold", default) or default)
+        # Defensive fallback: some legacy rows/charts used 0.5 as a generic
+        # placeholder; our trained Stage-3 neutral is ~0.36.
+        if abs(raw - 0.5) < 1e-9:
+            return float(default)
+        return raw
+    except Exception:
+        return float(default)
+
+
+def _agent_neutral(label):
+    """Per-agent bull/bear baseline used for agent-only semantics."""
+    return float(AGENT_TRAIN_MEDIAN.get(label, 0.5))
 
 # Colors aligned with theta_dashboard_v3_10.py (production reference)
 MC = {
@@ -243,7 +265,7 @@ MARKET_OPEN_ET = (8, 30)    # 8:30 AM ET (30 min before open)
 MARKET_CLOSE_ET = (17, 0)   # 5:00 PM ET (30 min after close)
 
 
-def filter_market_hours(df, ts_col='_ts_parsed'):
+def filter_market_hours(df, ts_col='_ts_parsed', strict=False):
     """Filter DataFrame to only include rows within market hours window (8:30-17:00 ET).
     Includes 30 min before/after market session. Rows outside this window are dropped.
     Works on any df with a datetime column."""
@@ -264,7 +286,9 @@ def filter_market_hours(df, ts_col='_ts_parsed'):
     close_minutes = MARKET_CLOSE_ET[0] * 60 + MARKET_CLOSE_ET[1]  # 1020
     mask = (time_minutes >= open_minutes) & (time_minutes <= close_minutes)
     filtered = df[mask].copy()
-    return filtered if not filtered.empty else df  # fallback to unfiltered if nothing passes
+    if strict:
+        return filtered
+    return filtered if not filtered.empty else df  # compatibility fallback
 
 # ========================================
 # CONFIG  (uses script-relative paths from top of file)
@@ -506,31 +530,29 @@ def load_agg_data():
         ts_clean = df['ts'].str.replace(r'\s+[A-Z]{2,5}$', '', regex=True)
         df['_ts_parsed'] = pd.to_datetime(ts_clean, errors='coerce')
         df = df.sort_values(['_ts_parsed', 'symbol'])
-        # Filter to market hours only (8:30 AM - 5:00 PM ET)
-        df = filter_market_hours(df, '_ts_parsed')
+        # Strictly keep market-hours rows in the loader; do not leak out-of-session rows.
+        df = filter_market_hours(df, '_ts_parsed', strict=True)
         return df
     except Exception:
         return None
 
 def load_snapshot_data():
-    """Load current snapshot. Falls back to latest snapshot file on disk."""
-    # Try the live snapshot file first
-    if SNAPSHOT_FILE.exists():
-        try:
-            df = pd.read_csv(SNAPSHOT_FILE)
-            if df is not None and not df.empty:
-                return _adapt_csv_columns(df)
-        except Exception:
-            pass
-    # Fallback: load the latest snapshot from the snapshots directory
-    snaps = list_available_snapshots()
-    if snaps:
-        try:
-            df = pd.read_csv(snaps[-1][2])  # latest = last in sorted list
-            if df is not None and not df.empty:
-                return _adapt_csv_columns(df)
-        except Exception:
-            pass
+    """Load current strike-level snapshot from active source.
+
+    Source priority:
+      1) theta_snapshot.csv (dashboard-oriented live file)
+      2) theta_model_greeks.csv (fallback when snapshot file missing)
+      3) latest snapshots/snapshot_*.csv (legacy archive fallback)
+    """
+    src_path, _ = _resolve_snapshot_source()
+    if src_path is None:
+        return None
+    try:
+        df = pd.read_csv(src_path)
+        if df is not None and not df.empty:
+            return _adapt_csv_columns(df)
+    except Exception:
+        pass
     return None
 
 def list_available_snapshots():
@@ -574,6 +596,19 @@ def list_available_snapshots():
             ts_str = mtime.strftime("%H:%M:%S")
         result.append((batch_num, ts_str, f))
     return result  # sorted by filename = sorted by batch
+
+
+def _resolve_snapshot_source():
+    """Return (path, label) for active strike-level source."""
+    if SNAPSHOT_FILE.exists():
+        return SNAPSHOT_FILE, "theta_snapshot.csv"
+    if MODEL_GREEKS_FILE.exists():
+        return MODEL_GREEKS_FILE, "theta_model_greeks.csv"
+    snaps = list_available_snapshots()
+    if snaps:
+        p = snaps[-1][2]
+        return p, f"snapshots/{p.name}"
+    return None, "missing"
 
 
 def load_snapshot_by_batch(batch_id):
@@ -786,6 +821,10 @@ def empty_chart(msg, height=320):
     fig.add_annotation(text=msg, xref="paper", yref="paper", x=0.5, y=0.5,
                        showarrow=False, font=dict(size=14, color=C['text_muted']))
     fig.update_layout(**base_layout(height=height, showlegend=False))
+    # No traces => Plotly shows arbitrary default numeric axes; hide them so empty states
+    # are not mistaken for real DTE/score scales.
+    fig.update_xaxes(visible=False, showgrid=False, zeroline=False, showticklabels=False)
+    fig.update_yaxes(visible=False, showgrid=False, zeroline=False, showticklabels=False)
     return fig
 
 
@@ -2001,20 +2040,42 @@ def oi_walls_insight(options_df, symbol):
 # ========================================
 # NEW FEATURE: DTE Concentration Heatmap
 # ========================================
-def create_dte_concentration_chart(options_df, symbol):
-    """Bar chart showing OI and volume distribution across individual DTE days (0-5)."""
+def create_dte_concentration_chart(options_df, symbol, dte_filter='0_1dte'):
+    """Bar chart showing OI/volume distribution across DTE buckets respecting selected filter."""
     if options_df is None or options_df.empty:
         return empty_chart("No DTE data")
-    sym = options_df[options_df['symbol'] == symbol]
-    if sym.empty or 'dte' not in sym.columns:
+    sym_all = options_df[options_df['symbol'] == symbol]
+    if sym_all.empty or 'dte' not in sym_all.columns:
         return empty_chart("No DTE column")
-    sym = sym.copy()
-    sym['dte'] = pd.to_numeric(sym['dte'], errors='coerce')
+    sym_all = sym_all.copy()
+    sym_all['dte'] = pd.to_numeric(sym_all['dte'], errors='coerce')
+    # Strict slice: global load_data may fall back to all DTEs when the window is empty;
+    # this chart must not show fake zeros for 0–1DTE when only 2+ DTE rows exist.
+    if dte_filter == 'all':
+        sym = sym_all
+    else:
+        sym = _apply_dte_filter(sym_all, dte_filter=dte_filter, strict=True)
+        if sym.empty:
+            vmin = sym_all['dte'].min()
+            hint = ""
+            if pd.notna(vmin):
+                hint = f" Nearest expiry in snapshot: {int(vmin)} DTE (calendar days)."
+            return empty_chart(
+                "No option rows in the selected DTE window." + hint
+                + " Widen the filter or check session date (weekends can push nearest expiry to 2+ DTE)."
+            )
     sym = sym[sym['dte'].between(0, 5)]
     if sym.empty:
         return empty_chart("No valid DTE data")
     sym['dte_label'] = sym['dte'].astype(int).map(lambda d: f"{d}DTE")
-    dte_order = ['0DTE', '1DTE', '2DTE', '3DTE', '4DTE', '5DTE']
+    if dte_filter == '0dte':
+        dte_order = ['0DTE']
+    elif dte_filter == '0_1dte':
+        dte_order = ['0DTE', '1DTE']
+    elif dte_filter == '0_2dte':
+        dte_order = ['0DTE', '1DTE', '2DTE']
+    else:
+        dte_order = ['0DTE', '1DTE', '2DTE', '3DTE', '4DTE', '5DTE']
     has_oi = 'oi' in sym.columns and sym['oi'].sum() > 0
     has_vol = 'volume' in sym.columns and sym['volume'].sum() > 0
     if not has_oi and not has_vol:
@@ -2024,25 +2085,55 @@ def create_dte_concentration_chart(options_df, symbol):
         oi_by_dte = sym.groupby('dte_label')['oi'].sum().reindex(dte_order, fill_value=0)
         fig.add_trace(go.Bar(x=oi_by_dte.index, y=oi_by_dte.values,
             marker=dict(color=C['accent']), name='Open Interest', opacity=0.8,
-            text=[f"{v:,.0f}" for v in oi_by_dte.values], textposition='outside'))
+            text=[f"{v:,.0f}" for v in oi_by_dte.values], textposition='outside',
+            yaxis='y'))
     if has_vol:
         vol_by_dte = sym.groupby('dte_label')['volume'].sum().reindex(dte_order, fill_value=0)
         fig.add_trace(go.Bar(x=vol_by_dte.index, y=vol_by_dte.values,
-            marker=dict(color=C['warning']), name='Volume', opacity=0.6))
+            marker=dict(color=C['warning']), name='Volume', opacity=0.75, yaxis='y2'))
     fig.update_layout(**base_layout(height=320, barmode='group',
-        xaxis_title="Days to Expiration", yaxis_title="Contracts"))
+        xaxis_title="Days to Expiration", yaxis_title="Open Interest (contracts)"))
+    fig.update_layout(
+        yaxis2=dict(
+            title=dict(text="Volume (contracts)", font=dict(color=C['warning'])),
+            overlaying='y',
+            side='right',
+            showgrid=False,
+            rangemode='tozero',
+            tickfont=dict(color=C['warning']),
+        )
+    )
     style_axes(fig)
+    if dte_filter == 'all':
+        oi_z1 = float(sym.loc[sym['dte'].isin([0, 1]), 'oi'].sum()) if 'oi' in sym.columns else 0.0
+        vol_z1 = float(sym.loc[sym['dte'].isin([0, 1]), 'volume'].sum()) if 'volume' in sym.columns else 0.0
+        oi_r = float(sym.loc[sym['dte'] >= 2, 'oi'].sum()) if 'oi' in sym.columns else 0.0
+        vol_r = float(sym.loc[sym['dte'] >= 2, 'volume'].sum()) if 'volume' in sym.columns else 0.0
+        if oi_z1 + vol_z1 == 0 and oi_r + vol_r > 0:
+            fig.add_annotation(
+                text="0–1 DTE: no contracts in snapshot (calendar DTE; nearest listed expiries may start at 2+).",
+                xref="paper", yref="paper", x=0.5, y=-0.2, showarrow=False,
+                font=dict(size=10, color=C['text_sec']),
+                align="center",
+            )
+            fig.update_layout(margin=dict(l=60, r=40, t=30, b=72))
     return fig
 
-def dte_concentration_insight(options_df, symbol):
+def dte_concentration_insight(options_df, symbol, dte_filter='0_1dte'):
     """Generate insight for DTE distribution (0-5 DTE range)."""
     if options_df is None or options_df.empty:
         return None, None
-    sym = options_df[options_df['symbol'] == symbol]
-    if sym.empty or 'dte' not in sym.columns:
+    sym_all = options_df[options_df['symbol'] == symbol]
+    if sym_all.empty or 'dte' not in sym_all.columns:
         return None, None
-    sym = sym.copy()
-    sym['dte'] = pd.to_numeric(sym['dte'], errors='coerce')
+    sym_all = sym_all.copy()
+    sym_all['dte'] = pd.to_numeric(sym_all['dte'], errors='coerce')
+    if dte_filter == 'all':
+        sym = sym_all
+    else:
+        sym = _apply_dte_filter(sym_all, dte_filter=dte_filter, strict=True)
+        if sym.empty:
+            return None, None
     has_oi = 'oi' in sym.columns and sym['oi'].sum() > 0
     col = 'oi' if has_oi else 'volume'
     total = sym[col].sum()
@@ -2673,11 +2764,13 @@ def cum_vol_delta_insight(agg_df, symbol, window_minutes=30):
 
 
 
-def _apply_dte_filter(df, dte_filter='0_1dte'):
+def _apply_dte_filter(df, dte_filter='0_1dte', strict=False):
     """Filter a DataFrame by DTE bucket (v3.10).
     'all' = no filter, '0dte' = DTE==0 only,
     '0_1dte' = DTE <= 1 (default, best for credit spreads),
-    '0_2dte' = DTE <= 2."""
+    '0_2dte' = DTE <= 2.
+    If strict=True, return the filtered slice even when empty (no fallback to full df).
+    Non-strict fallback keeps other panels populated when the slice has no rows."""
     if df is None or df.empty or dte_filter == 'all':
         return df
     if 'dte' not in df.columns:
@@ -2686,12 +2779,14 @@ def _apply_dte_filter(df, dte_filter='0_1dte'):
     if dte_filter == '0dte':
         mask = dte_vals == 0
     elif dte_filter == '0_1dte':
-        mask = dte_vals <= 1
+        mask = (dte_vals >= 0) & (dte_vals <= 1)
     elif dte_filter == '0_2dte':
-        mask = dte_vals <= 2
+        mask = (dte_vals >= 0) & (dte_vals <= 2)
     else:
         return df
     filtered = df[mask].copy()
+    if strict:
+        return filtered
     return filtered if not filtered.empty else df
 
 
@@ -2900,6 +2995,11 @@ def _prediction_row_to_model_out(row_dict):
     threshold = _safe_float(row_dict.get("threshold", 0.36), 0.36)
     reason = str(row_dict.get("reason", "") or "")
     direction = str(row_dict.get("direction", "") or "")
+    stage2_failed_agents_raw = str(row_dict.get("stage2_failed_agents", "") or "").strip()
+    stage2_failed_agents = [
+        a.strip() for a in stage2_failed_agents_raw.split(",")
+        if a and a.strip() and a.strip().lower() != "nan"
+    ]
     if not direction:
         direction = "BULL" if pred == 1 else "BEAR"
 
@@ -2975,6 +3075,7 @@ def _prediction_row_to_model_out(row_dict):
         "vix_level": vix_level,
         "batch_id": row_dict.get("batch_id"),
         "ts": row_dict.get("ts"),
+        "stage2_failed_agents": stage2_failed_agents,
         # Confidence decomposition
         "agent_std": agent_std,
         "consensus_ratio": consensus_ratio,
@@ -3046,6 +3147,10 @@ def _prediction_history_as_roll(pred_df):
         stage2_probs = {}
         for k in agent_keys:
             stage2_probs[k] = float(d.get(f"agent_{k}_prob", 0.5) or 0.5)
+        gates = {}
+        for k in agent_keys:
+            gates[k] = float(d.get(f"gate_{k}", 1.0) or 1.0)
+        gate_2d_pinned = int(float(d.get("gate_2d_pinned", 0) or 0))
 
         ts_raw = d.get("ts", "")
         ts_dt = pd.to_datetime(ts_raw, errors="coerce")
@@ -3058,11 +3163,18 @@ def _prediction_history_as_roll(pred_df):
             "ts": ts_dt,
             "suppressed": suppressed,
             "prob": prob,
+            "threshold": float(d.get("threshold", S3_NEUTRAL) or S3_NEUTRAL),
             "confidence": confidence,
             "strength": strength,
             "stage2_probs": stage2_probs,
+            "gates": gates,
+            "gate_2d_pinned": gate_2d_pinned,
             "source_state": "SUPPRESSED" if suppressed else "CSV_PREDICTION",
             "cache_hit": False,
+            "stage2_failed_agents": [
+                a.strip() for a in str(d.get("stage2_failed_agents", "") or "").split(",")
+                if a and a.strip() and a.strip().lower() != "nan"
+            ],
             "agent_std": agent_std,
             "consensus_ratio": consensus_ratio,
             "conf_agreement": conf_agreement,
@@ -3071,6 +3183,53 @@ def _prediction_history_as_roll(pred_df):
             "conf_data_quality": conf_data_quality,
         })
     return records
+
+
+def _compute_agent_window_diagnostics(pred_history_roll, window=40):
+    """Rolling diagnostics for agent variability and winner frequency."""
+    if not pred_history_roll:
+        return None
+
+    rows = pred_history_roll[-window:]
+    total_count = len(rows)
+    suppressed_count = sum(1 for h in rows if h.get("suppressed", True))
+    live_rows = [h for h in rows if not h.get("suppressed", True)]
+    live_count = len(live_rows)
+    if live_count == 0:
+        return {
+            "total_count": total_count,
+            "live_count": 0,
+            "suppressed_ratio": 1.0,
+            "per_agent": {},
+            "winner_counts": {},
+        }
+
+    agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
+    per_agent = {}
+    for k in agent_keys:
+        vals = np.asarray(
+            [float(h.get("stage2_probs", {}).get(k, AGENT_TRAIN_MEDIAN.get(k, 0.5))) for h in live_rows],
+            dtype=np.float64,
+        )
+        per_agent[k] = {
+            "std": float(np.std(vals)) if vals.size else 0.0,
+            "span": float(np.max(vals) - np.min(vals)) if vals.size else 0.0,
+            "latest": float(vals[-1]) if vals.size else AGENT_TRAIN_MEDIAN.get(k, 0.5),
+        }
+
+    winner_counts = {k: 0 for k in agent_keys}
+    for h in live_rows:
+        s2 = h.get("stage2_probs", {}) or {}
+        winner = max(agent_keys, key=lambda a: float(s2.get(a, AGENT_TRAIN_MEDIAN.get(a, 0.5))))
+        winner_counts[winner] += 1
+
+    return {
+        "total_count": total_count,
+        "live_count": live_count,
+        "suppressed_ratio": float(suppressed_count / max(1, total_count)),
+        "per_agent": per_agent,
+        "winner_counts": winner_counts,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -3128,7 +3287,7 @@ def _generate_alerts(model_out):
     diagnostics = model_out.get("diagnostics", {}) or {}
     quality = float(diagnostics.get("quality_score", 0.0) or 0.0)
     stage2_probs = dict(model_out.get("stage2_probs", {}) or {})
-    _thr = float(model_out.get("threshold", 0.36) or 0.36)
+    _thr = _stage3_threshold_from_obj(model_out)
     direction = "UP" if prob >= _thr else "DOWN"
 
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
@@ -3280,7 +3439,7 @@ def _create_decision_engine_panel(model_out, pred_history_roll):
     quality = float(diagnostics.get("quality_score", 0.0) or 0.0)
     vix_valid = bool(diagnostics.get("vix_valid", False))
 
-    _thr = float(model_out.get("threshold", 0.36) or 0.36)
+    _thr = _stage3_threshold_from_obj(model_out)
     direction = "UP" if prob >= _thr else "DOWN"
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
 
@@ -3502,7 +3661,7 @@ def _create_agent_hud_strip(model_out, symbol, agg_df):
             if sv > 0:
                 spot_text = f"{sv:.2f}"
 
-    _thr = float(model_out.get("threshold", 0.36) or 0.36)
+    _thr = _stage3_threshold_from_obj(model_out)
     direction = "UP" if prob >= _thr else "DOWN"
     dir_color = MC["call"] if prob >= _thr else MC["put"]
 
@@ -3804,7 +3963,7 @@ def _create_model_health_panel(model_out, pred_history_roll):
     # Note: this is NOT real accuracy (no price data available in dashboard).
     # It measures directional consistency of the model output over recent history.
     non_supp = [h for h in hist if not h["suppressed"]]
-    model_thr = float(model_out.get("threshold", 0.36) or 0.36)
+    model_thr = _stage3_threshold_from_obj(model_out)
     current_dir_up = non_supp[-1]["prob"] >= model_thr if non_supp else True
     consistent = sum(1 for h in non_supp if (h["prob"] >= model_thr) == current_dir_up)
     total = len(non_supp)
@@ -3907,7 +4066,7 @@ def _create_signal_meters(model_out):
         return None
     stage2_probs = dict(model_out.get("stage2_probs", {}) or {})
     stage3_prob = float(model_out.get("prob", 0.5) or 0.5)
-    stage3_thr = float(model_out.get("threshold", 0.36) or 0.36)
+    stage3_thr = _stage3_threshold_from_obj(model_out)
     confidence = float(model_out.get("confidence", 0.0) or 0.0)  # No fake fallback
     suppressed = bool(model_out.get("suppressed", False))
     ok = bool(model_out.get("ok", False))
@@ -3936,8 +4095,8 @@ def _create_signal_meters(model_out):
         go.Indicator(
             mode="gauge+number+delta",
             value=stage3_prob,
-            number={"valueformat": ".2f", "font": {"size": 54}},
-            delta={"reference": stage3_thr, "valueformat": ".2f", "increasing": {"color": MC["call"]}, "decreasing": {"color": MC["put"]}},
+            number={"valueformat": AGENT_GAUGE_VALUEFORMAT, "font": {"size": 54}},
+            delta={"reference": stage3_thr, "valueformat": AGENT_GAUGE_VALUEFORMAT, "increasing": {"color": MC["call"]}, "decreasing": {"color": MC["put"]}},
             title={"text": f"Stage 3 {s3_arrow} ({source_state})  |  Confidence {confidence*100:.0f}%  |  dThr: {s3_delta_text}", "font": {"size": 16, "color": MC["text"]}},
             gauge={
                 "shape": "angular",
@@ -3979,7 +4138,7 @@ def _create_signal_meters(model_out):
             go.Indicator(
                 mode="gauge+number",
                 value=val,
-                number={"valueformat": ".2f", "font": {"size": 24}},
+                number={"valueformat": AGENT_GAUGE_VALUEFORMAT, "font": {"size": 24}},
                 title={"text": f"{label} {arrow}<br><span style='font-size:10px;color:{title_color}'>{delta_text}</span>", "font": {"size": 12}},
                 gauge={
                     "shape": "angular",
@@ -4071,19 +4230,19 @@ def _build_sparkline_fig(history_roll, threshold):
 # Stage 3 contribution helper
 # ---------------------------------------------------------------------------
 def _s3_top_contributors(stage2_probs, n=3):
-    """Return top-n (label, logit_contribution) sorted by abs contribution.
+    """Return top-n (label, directional_contribution) sorted by absolute value.
 
-    Each agent/cross-feature contribution = coef * (value - 0.5), so that
-    being exactly at neutral (0.5) contributes 0, above 0.5 is positive, below is negative.
+    Agent contributions are centered on each agent's own neutral baseline
+    (AGENT_TRAIN_MEDIAN) so signs match chart bull/bear semantics.
     """
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
     agent_coefs = [AGENT_S3_COEF[k] for k in agent_keys]
-    probs = [float(stage2_probs.get(k, 0.5)) for k in agent_keys]
+    probs = [float(stage2_probs.get(k, _agent_neutral(k))) for k in agent_keys]
 
     mean_p   = sum(probs) / len(probs)
     std_p    = (sum((p - mean_p) ** 2 for p in probs) / len(probs)) ** 0.5
     spread   = max(probs) - min(probs)
-    agree_up = sum(1 for p in probs if p > 0.5) / len(probs)
+    agree_up = sum(1 for k, p in zip(agent_keys, probs) if p >= _agent_neutral(k)) / len(probs)
     max_p    = max(probs)
     min_p    = min(probs)
 
@@ -4092,7 +4251,7 @@ def _s3_top_contributors(stage2_probs, n=3):
 
     contribs = []
     for k, coef, val in zip(agent_keys, agent_coefs, probs):
-        contribs.append((k, coef * (val - 0.5)))
+        contribs.append((k, coef * (val - _agent_neutral(k))))
     for lbl, coef, val in zip(cross_labels, S3_CROSS_COEF, cross_vals):
         contribs.append((lbl, coef * (val - 0.5)))
 
@@ -4111,7 +4270,7 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
     suppressed = bool(model_out.get("suppressed", False))
     ok = bool(model_out.get("ok", False))
     prob = float(model_out.get("prob", 0.5) or 0.5)
-    _thr = float(model_out.get("threshold", 0.36) or 0.36)
+    _thr = _stage3_threshold_from_obj(model_out)
     confidence = float(model_out.get("confidence", 0.0) or 0.0)
     strength = float(model_out.get("signal_strength", 0.0) or 0.0)
     direction = "BULL" if prob >= _thr else "BEAR"
@@ -4119,6 +4278,9 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
     stage2_probs = dict(model_out.get("stage2_probs", {}) or {})
     diagnostics = model_out.get("diagnostics", {}) or {}
     quality = float(diagnostics.get("quality_score", 0.0) or 0.0)
+    failed_agents = list(model_out.get("stage2_failed_agents", []) or [])
+    stage2_2d_fallback = int(model_out.get("stage2_2d_fallback", 0) or 0)
+    rolling_diag = _compute_agent_window_diagnostics(pred_history_roll or [], window=40)
 
     # Top contributors for "Why this signal?" row
     _top_contribs = _s3_top_contributors(stage2_probs) if (not suppressed and ok) else []
@@ -4221,8 +4383,7 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
             ]),
         ])
 
-    # ── Stage 3 centered bar — centered at S3_NEUTRAL (= _thr = 0.36) ──
-    # 0.36 is both the trained decision boundary and the model's neutral output.
+    # ── Stage 3 centered bar — centered at the active Stage 3 threshold (_thr) ──
     # Centering here means the bar is green whenever the model predicts BULL.
     if prob >= _thr:
         s3_score = (prob - _thr) / (1.0 - _thr)
@@ -4293,6 +4454,54 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
     if flip_badge:
         header_right_children.append(flip_badge)
 
+    # Do not show red fallback banner when only 2D is in warmup fallback.
+    only_2d_fail = (len(failed_agents) == 1 and failed_agents[0] == "2D")
+    show_failed_agents = failed_agents if not (only_2d_fail and stage2_2d_fallback == 1) else []
+    status_banner = None
+    if suppressed or show_failed_agents:
+        if suppressed:
+            banner_title = "Suppressed"
+            banner_msg = str(model_out.get("reason", "") or "prediction inputs not ready")
+            banner_color = MC["warning"]
+        else:
+            banner_title = "Fallback Active"
+            banner_msg = f"Stage2 fallback agents: {', '.join(show_failed_agents)}"
+            banner_color = MC["put"]
+        status_banner = html.Div(
+            style={
+                "backgroundColor": _hex_to_rgba(banner_color, 0.14),
+                "border": f"1px solid {_hex_to_rgba(banner_color, 0.42)}",
+                "borderRadius": "6px",
+                "padding": "6px 10px",
+                "marginBottom": "8px",
+            },
+            children=[
+                html.Span(f"{banner_title}: ", style={"fontSize": "11px", "fontWeight": 700, "color": banner_color}),
+                html.Span(banner_msg, style={"fontSize": "11px", "color": MC["text_muted"]}),
+            ],
+        )
+
+    rolling_diag_block = None
+    if rolling_diag and rolling_diag.get("live_count", 0) > 0:
+        per_agent = rolling_diag.get("per_agent", {})
+        low_var = sorted(
+            [(k, v.get("std", 0.0)) for k, v in per_agent.items() if v.get("std", 0.0) < 0.005],
+            key=lambda x: x[1],
+        )
+        winners = rolling_diag.get("winner_counts", {})
+        top_winner = max(winners.items(), key=lambda kv: kv[1])[0] if winners else "-"
+        top_winner_cnt = winners.get(top_winner, 0) if winners else 0
+        low_var_text = ", ".join([f"{k}:{s:.4f}" for k, s in low_var[:4]]) if low_var else "none"
+        rolling_diag_block = html.Div(
+            style={"fontSize": "10px", "color": MC["text_muted"], "marginBottom": "6px"},
+            children=(
+                f"Window(40) live={rolling_diag['live_count']}/{rolling_diag['total_count']} "
+                f"| suppressed={rolling_diag['suppressed_ratio']:.0%} "
+                f"| top winner={top_winner} ({top_winner_cnt}) "
+                f"| low-var agents: {low_var_text}"
+            ),
+        )
+
     return html.Div(
         className=flip_class,
         style={
@@ -4317,6 +4526,7 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
                 html.Div(style={"display": "flex", "alignItems": "center", "gap": "8px"},
                          children=header_right_children),
             ]),
+            *([status_banner] if status_banner is not None else []),
             # Stage 3 bar section
             *s3_bar_section,
             # Divider
@@ -4330,6 +4540,7 @@ def _create_model_production_panel(model_out, symbol, agg_df, pred_history_roll=
             html.Div(agent_rows),
             # Second divider
             html.Hr(style={"borderColor": MC["border"], "margin": "10px 0"}),
+            *([rolling_diag_block] if rolling_diag_block is not None else []),
             # WHY row (kept exactly as-is)
             *([
                 html.Div(
@@ -4536,7 +4747,7 @@ def _create_expected_move_chart(df_agg, symbol, model_out, pred_history_roll):
     has_prediction = model_out is not None and not suppressed and ok
     pup            = float((model_out or {}).get("prob",       0.5) or 0.5) if has_prediction else 0.5
     confidence     = float((model_out or {}).get("confidence", 0.0) or 0.0) if has_prediction else 0.0
-    _thr           = float((model_out or {}).get("threshold",  0.36) or 0.36) if has_prediction else 0.36
+    _thr           = _stage3_threshold_from_obj(model_out) if has_prediction else S3_NEUTRAL
     stronger_up    = pup >= _thr
 
     bias_factor = (0.5 + 0.22 * confidence * (1.0 if stronger_up else -1.0)) if has_prediction else 0.5
@@ -4717,7 +4928,8 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     Shows raw per-bar probability values as simple lines (no cumulative sum).
     Stage 3 probability is the ensemble output; agent lines show individual
     agent probabilities at each moment.  Line width is scaled by S3 LogReg
-    coefficient importance.  Reference line at S3 decision threshold (0.36)
+    coefficient importance. Stage 3 uses its own threshold line; each agent
+    uses its own trained neutral median as bull/bear baseline.
     provides the bull/bear boundary.
     """
     if len(pred_history_roll) < 2:
@@ -4725,10 +4937,19 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     hist = pred_history_roll
     x    = [h["ts"] for h in hist]
+    live_ts = [ts for ts, h in zip(x, hist) if ts is not None and not h.get("suppressed", True)]
+    cadence_note = "Cadence: sub-minute"
+    if len(live_ts) >= 3:
+        diffs = np.diff(np.array(live_ts, dtype="datetime64[s]")).astype("timedelta64[s]").astype(float)
+        diffs = diffs[np.isfinite(diffs) & (diffs > 0)]
+        if diffs.size > 0:
+            cadence_note = f"Cadence: ~{int(np.median(diffs))}s per live bar"
 
     # Per-agent training medians and S3 coefficients defined at module level
     _coef_max = max(AGENT_S3_COEF.values())
     def _agent_width(label):
+        if AGENT_LINE_WIDTH_MODE == "equal":
+            return 1.9
         return 0.8 + 2.2 * (AGENT_S3_COEF[label] / _coef_max)
 
     # ── Stage 3 raw probability (None for suppressed bars) ──
@@ -4736,42 +4957,48 @@ def _create_accumulated_prediction_chart(pred_history_roll):
     n_live  = sum(1 for v in s3_prob if v is not None)
 
     # Determine colour from latest live value
-    last_val = next((v for v in reversed(s3_prob) if v is not None), S3_NEUTRAL)
-    is_bull  = last_val >= S3_NEUTRAL
+    s3_thr = next(
+        (_stage3_threshold_from_obj(h) for h in reversed(hist) if not h.get("suppressed", True)),
+        S3_NEUTRAL,
+    )
+    last_val = next((v for v in reversed(s3_prob) if v is not None), s3_thr)
+    is_bull  = last_val >= s3_thr
     s3_color = MC["call"] if is_bull else MC["put"]
 
     agent_keys = ["A", "B", "C", "K", "T", "Q", "2D"]
-    AGENT_COLORS = {
-        "A":  "rgba(139,92,246,0.85)",   # violet
-        "B":  "rgba(251,146,60,0.85)",   # orange
-        "C":  "rgba(34,211,238,0.85)",   # cyan
-        "K":  "rgba(250,204,21,0.85)",   # yellow  — highest S3 weight
-        "T":  "rgba(244,114,182,0.85)",  # pink    — lowest S3 weight
-        "Q":  "rgba(99,179,237,0.85)",   # sky blue
-        "2D": "rgba(167,243,208,0.85)",  # mint
-    }
 
     fig = go.Figure()
 
     # ── Reference lines ──
-    # Bull/Bear decision boundary (0.36) — the trained threshold IS the middle line
-    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+    # Stage 3 bull/bear decision boundary (latest active threshold).
+    fig.add_hline(y=s3_thr, line_dash="dash",
                   line_color="rgba(245,158,11,0.50)", line_width=1.5,
-                  annotation_text="BULL / BEAR  0.36",
+                  annotation_text=f"S3 BULL/BEAR  {s3_thr:.2f}",
                   annotation_position="bottom left",
                   annotation_font_size=10,
                   annotation_font_color="rgba(245,158,11,0.75)")
 
     # ── 1. Agent lines — raw probability at each bar ──
     agent_endpoints = []
+    agent_color_map = {}
     for label in agent_keys:
-        neutral = AGENT_TRAIN_MEDIAN.get(label, 0.5)
+        neutral = _agent_neutral(label)
         a_prob = [
             None if h.get("suppressed", True)
             else h.get("stage2_probs", {}).get(label, neutral)
             for h in hist
         ]
         end_val = next((v for v in reversed(a_prob) if v is not None), neutral)
+        agent_color = MC["call"] if end_val >= neutral else MC["put"]
+        agent_color_map[label] = agent_color
+        # Per-agent bull/bear separators (faint) so agent semantics are visible.
+        fig.add_hline(
+            y=neutral,
+            line_dash="dot",
+            line_color=_hex_to_rgba(agent_color, 0.20),
+            line_width=0.8,
+            layer="below",
+        )
         agent_endpoints.append((label, end_val))
         fig.add_trace(go.Scatter(
             x=x, y=a_prob,
@@ -4779,7 +5006,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
             name=f"Agent {label}",
             showlegend=False,
             connectgaps=True,
-            line=dict(color=AGENT_COLORS[label], width=_agent_width(label)),
+            line=dict(color=agent_color, width=_agent_width(label)),
             hovertemplate=f"Agent {label}: %{{y:.3f}}<extra></extra>",
         ))
 
@@ -4807,14 +5034,14 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
         # Inline labels at the right end of each agent line
         for label, end_val in agent_endpoints:
-            a_probs = [h.get("stage2_probs", {}).get(label, AGENT_TRAIN_MEDIAN[label])
+            a_probs = [h.get("stage2_probs", {}).get(label, _agent_neutral(label))
                        for h in hist if not h.get("suppressed", True)]
-            latest_p  = a_probs[-1] if a_probs else AGENT_TRAIN_MEDIAN[label]
+            latest_p  = a_probs[-1] if a_probs else _agent_neutral(label)
             a_std     = float(np.std(a_probs)) if len(a_probs) > 2 else 0.0
-            t_median  = AGENT_TRAIN_MEDIAN[label]
+            t_median  = _agent_neutral(label)
             drift     = latest_p - t_median
             stuck     = a_std < 0.02
-            drift_str = f" ({drift:+.2f}vs trn)" if abs(drift) > 0.05 else ""
+            drift_str = f" ({drift:+.2f}vs med)" if abs(drift) > 0.05 else ""
             warn      = " ⚠" if stuck else ""
             fig.add_annotation(
                 x=x[-1], y=end_val,
@@ -4823,7 +5050,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 showarrow=False,
                 xanchor="left",
                 xshift=8,
-                font=dict(size=10, color=AGENT_COLORS[label]),
+                font=dict(size=10, color=agent_color_map.get(label, MC["text_muted"])),
                 align="left",
                 bgcolor="rgba(15,23,42,0.55)",
                 bordercolor=C['warning'] if stuck else "rgba(148,163,184,0.18)",
@@ -4848,12 +5075,12 @@ def _create_accumulated_prediction_chart(pred_history_roll):
         # ── Agent divergence diagnostic box (top-left) ──
         diag_lines = []
         for label, end_val in agent_endpoints:
-            a_probs_live = [h.get("stage2_probs", {}).get(label, AGENT_TRAIN_MEDIAN[label])
+            a_probs_live = [h.get("stage2_probs", {}).get(label, _agent_neutral(label))
                             for h in hist if not h.get("suppressed", True)]
             if len(a_probs_live) > 2:
                 a_std    = float(np.std(a_probs_live))
                 a_mean   = float(np.mean(a_probs_live))
-                t_median = AGENT_TRAIN_MEDIAN[label]
+                t_median = _agent_neutral(label)
                 drift    = a_mean - t_median
                 flags = []
                 if a_std < 0.02:
@@ -4863,7 +5090,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 if flags:
                     flag_str = "  ⚠ " + " | ".join(flags)
                     diag_lines.append(
-                        f"<span style='color:{AGENT_COLORS[label]}'><b>{label}</b></span>{flag_str}"
+                            f"<span style='color:{agent_color_map.get(label, MC['text'])}'><b>{label}</b></span>{flag_str}"
                     )
         if diag_lines:
             fig.add_annotation(
@@ -4876,6 +5103,26 @@ def _create_accumulated_prediction_chart(pred_history_roll):
                 xanchor="left", yanchor="top",
                 width=140,
             )
+        # Persistent gate-2D pin warning: if pinned for most recent bars, call it out.
+        recent_live = [h for h in hist if not h.get("suppressed", True)][-10:]
+        if recent_live:
+            pin_count = sum(
+                1
+                for h in recent_live
+                if int(h.get("gate_2d_pinned", 0) or 0) == 1
+                or float((h.get("gates", {}) or {}).get("2D", 1.0)) <= 1e-3
+            )
+            if pin_count >= 6:
+                fig.add_annotation(
+                    xref="paper", yref="paper", x=0.01, y=0.84,
+                    text=f"<b>Gate-2D pinned</b><br>{pin_count}/{len(recent_live)} recent live bars",
+                    showarrow=False, align="left",
+                    font=dict(size=9, color=C["warning"]),
+                    bgcolor="rgba(15,23,42,0.88)",
+                    bordercolor=C["warning"], borderwidth=1, borderpad=4,
+                    xanchor="left", yanchor="top",
+                    width=170,
+                )
 
     # ── Reading guide annotation (right margin) ──
     fig.add_annotation(
@@ -4885,15 +5132,16 @@ def _create_accumulated_prediction_chart(pred_history_roll):
             "─────────────<br>"
             "Each line = raw prob<br>"
             "at that moment<br>"
+            f"{cadence_note}<br>"
             "<br>"
-            "<b>0.36 = BULL/BEAR line</b><br>"
-            "(trained threshold)<br>"
+            f"<b>S3 BULL/BEAR = {s3_thr:.2f}</b><br>"
+            "(active Stage 3 threshold)<br>"
             "<br>"
-            "Above 0.36 = bullish<br>"
-            "Below 0.36 = bearish<br>"
+            "Agent bull/bear uses<br>"
+            "each agent median line<br>"
             "<br>"
-            "<i>Agent lines use<br>"
-            "per-agent baselines</i>"
+            "<i>S3 and agent baselines<br>"
+            "are intentionally separate</i>"
         ),
         showarrow=False, align="left",
         font=dict(size=9, color=MC["text_muted"]),
@@ -4905,7 +5153,7 @@ def _create_accumulated_prediction_chart(pred_history_roll):
 
     # ── Layout ──
     layout_cfg = base_layout(
-        title=f"Directional Signal  ({n_live} live bars)  |  BULL/BEAR threshold = 0.36 (trained)",
+        title=f"Directional Signal  ({n_live} live bars)  |  S3 BULL/BEAR threshold = {s3_thr:.2f}",
         height=340,
     )
     layout_cfg.update({
@@ -4939,8 +5187,8 @@ def _create_model_rollover_chart(pred_history_roll):
     fig.add_trace(go.Scatter(x=x, y=conf, mode="lines", name="Confidence", line=dict(color=MC["warning"])), secondary_y=False)
     fig.add_trace(go.Scatter(x=x, y=strength, mode="lines", name="Signal Strength", line=dict(color=MC["call"])), secondary_y=True)
     _thr_roll = next(
-        (float(h.get("threshold", 0.36) or 0.36) for h in reversed(hist) if not h.get("suppressed", True)),
-        0.36,
+        (_stage3_threshold_from_obj(h) for h in reversed(hist) if not h.get("suppressed", True)),
+        S3_NEUTRAL,
     )
     fig.add_hline(y=_thr_roll, line_dash="dot", line_color=MC["text_muted"], secondary_y=False,
                   annotation_text=f"thr={_thr_roll:.2f}", annotation_position="right",
@@ -4990,9 +5238,10 @@ def _model_signal_card(model_out):
         label = f"SUPPRESSED: {reason}" if reason else "SUPPRESSED"
         color = MC["warning"]
     elif ok:
-        direction = "BULL" if pred == 1 else "BEAR"
-        color = MC["call"] if pred == 1 else MC["put"]
-        label = f"{direction} {prob:.0%}"
+        _thr = _stage3_threshold_from_obj(model_out)
+        direction = "BULL" if prob >= _thr else "BEAR"
+        color = MC["call"] if prob >= _thr else MC["put"]
+        label = f"{direction} {prob:.0%} (thr {_thr:.2f})"
     else:
         label = "Model unavailable"
         color = MC["text_muted"]
@@ -5053,8 +5302,10 @@ def load_data(dte_filter="0_1dte"):
     else:
         agg_df = _cached_agg_df
 
+    snap_source_path, _snap_source_label = _resolve_snapshot_source()
+    snap_probe_path = snap_source_path if snap_source_path is not None else SNAPSHOT_FILE
     snap_changed, snap_mt, snap_sz = _file_changed(
-        SNAPSHOT_FILE, _cached_snap_mtime, _cached_snap_size, _cached_snap_ts
+        snap_probe_path, _cached_snap_mtime, _cached_snap_size, _cached_snap_ts
     )
     if snap_changed or _cached_snap_df is None:
         snap_df = load_snapshot_data()
@@ -5068,7 +5319,7 @@ def load_data(dte_filter="0_1dte"):
     else:
         snap_df = _cached_snap_df
 
-    cache_key = (dte_filter, _cached_agg_mtime, _cached_snap_mtime)
+    cache_key = (dte_filter, _cached_agg_mtime, _cached_snap_mtime, _snap_source_label)
     if cache_key in _cached_filtered_data:
         return _cached_filtered_data[cache_key]['agg'], _cached_filtered_data[cache_key]['snap']
 
@@ -5579,13 +5830,13 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     Dual-axis signal divergence chart.
 
     Left  axis — RULE-BASED SIGNAL  [-1, +1]   zero line at y=0
-    Right axis — HYBRID51 ENSEMBLE  [0.20,0.80] neutral line at prob=0.50
+    Right axis — HYBRID51 ENSEMBLE  [0.20,0.80] neutral line at active Stage 3 threshold
 
     Natural ranges from 5-year training data:
       Prob p5-p95  : 0.35 – 0.72   (normal trade range)
       Prob p10-p90 : 0.45 – 0.70   (tight range)
 
-    Each line is BLUE when bullish (rule>0 / prob>=S3_NEUTRAL), RED when bearish.
+    Each line is BLUE when bullish (rule>0 / prob>=threshold), RED when bearish.
     Shadow fill between the line and its own neutral axis:
       Both bull  → blue,  Both bear → red,  Opposite → purple (diverging).
     """
@@ -5665,7 +5916,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
                 continue
             suppressed = str(row.get("suppressed", "False")).strip().lower() in ("true", "1", "yes")
             prob = float(row.get("prob", 0.5) or 0.5)
-            thr = float(row.get("threshold", 0.36) or 0.36)
+            thr = _stage3_threshold_from_obj(row)
             hybrid_times.append(ts_val)
             hybrid_probs.append(0.5 if suppressed else prob)
             hybrid_thrs.append(thr)
@@ -5674,12 +5925,21 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
             if h.get("ts") is None:
                 continue
             prob = float(h.get("prob", 0.5) or 0.5)
-            thr = float(h.get("threshold", 0.36) or 0.36)
+            thr = _stage3_threshold_from_obj(h)
             hybrid_times.append(h["ts"])
             hybrid_probs.append(0.5 if h.get("suppressed", False) else prob)
             hybrid_thrs.append(thr)
 
-    hybrid_thr = float(hybrid_thrs[-1]) if hybrid_thrs else 0.36
+    # Guard against backward segments when batch_id timestamps are recycled/out-of-order.
+    # We sort the mapped timeline before plotting so x is monotonic.
+    if hybrid_times:
+        _hybrid_triplets = list(zip(hybrid_times, hybrid_probs, hybrid_thrs))
+        _hybrid_triplets.sort(key=lambda t: t[0])
+        hybrid_times = [t[0] for t in _hybrid_triplets]
+        hybrid_probs = [t[1] for t in _hybrid_triplets]
+        hybrid_thrs = [t[2] for t in _hybrid_triplets]
+
+    hybrid_thr = float(hybrid_thrs[-1]) if hybrid_thrs else S3_NEUTRAL
 
     # ── 1b. Compute rule composite ──────────────────────────────────────────
     rule_times  = list(sym_df["_ts_parsed"])
@@ -5765,11 +6025,11 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     NO_LINE   = dict(color="rgba(0,0,0,0)", width=0)
 
     # ── 5. Shadow fill — each segment colored by both signals' direction ───
-    # Rule neutral = 0, Hybrid neutral = S3_NEUTRAL (0.36, trained decision boundary).
+    # Rule neutral = 0, Hybrid neutral = active Stage 3 threshold.
     # Fill is the combined area of both lines toward their respective neutrals,
     # drawn on the LEFT axis scale (rule). Hybrid is mapped linearly so that
-    # prob=S3_NEUTRAL → 0, prob=0.72 → +0.6, prob=0.35 → -0.6 (p5-p95 maps to ±0.6)
-    P_CENTER = S3_NEUTRAL
+    # prob=threshold → 0, then map p95-ish probability to +0.6 on the left scale.
+    P_CENTER = hybrid_thr
     # Scale: map prob at (p95=0.715) relative to threshold to +0.6 on left axis
     P_SCALE  = 0.60 / max(0.715 - P_CENTER, 0.01)
 
@@ -5842,18 +6102,18 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         return traces
 
     def _line_segs_hybrid(xs, ys, width, name):
-        """Hybrid: on yaxis2, neutral=S3_NEUTRAL (0.36). Color by prob vs model baseline."""
+        """Hybrid on yaxis2, colored by prob vs active threshold."""
         if not xs: return []
-        result = []; seg_x, seg_y = [xs[0]], [ys[0]]; cur_pos = ys[0] >= S3_NEUTRAL
+        result = []; seg_x, seg_y = [xs[0]], [ys[0]]; cur_pos = ys[0] >= hybrid_thr
         for xi, yi in zip(xs[1:], ys[1:]):
-            np_ = yi >= S3_NEUTRAL
+            np_ = yi >= hybrid_thr
             if np_ != cur_pos:
                 x0, y0 = seg_x[-1], seg_y[-1]
                 if (yi - y0) != 0:
-                    frac = (S3_NEUTRAL - y0) / (yi - y0)
+                    frac = (hybrid_thr - y0) / (yi - y0)
                     try:    mid_x = x0 + frac * (xi - x0)
                     except: mid_x = xi
-                    seg_x.append(mid_x); seg_y.append(S3_NEUTRAL)
+                    seg_x.append(mid_x); seg_y.append(hybrid_thr)
                 result.append((list(seg_x), list(seg_y), cur_pos))
                 seg_x = [seg_x[-1], xi]; seg_y = [seg_y[-1], yi]; cur_pos = np_
             else:
@@ -5933,23 +6193,22 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
     for tr in _line_segs_hybrid(hybrid_times, hybrid_probs, width=2.0, name="Hybrid51 Probability"):
         fig.add_trace(tr)
 
-    # Model neutral reference on right axis (model baseline, not decision threshold)
-    # Bull/Bear decision boundary — trained threshold = model neutral
-    fig.add_hline(y=S3_NEUTRAL, line_dash="dash",
+    # Model bull/bear decision boundary on right axis (active Stage 3 threshold).
+    fig.add_hline(y=hybrid_thr, line_dash="dash",
                   line_color="rgba(245,158,11,0.35)", line_width=1.5,
-                  annotation_text=f"BULL/BEAR {S3_NEUTRAL:.2f}", annotation_position="right",
+                  annotation_text=f"S3 BULL/BEAR {hybrid_thr:.2f}", annotation_position="right",
                   annotation_font=dict(size=9, color="rgba(245,158,11,0.65)"))
 
     # ── 8. Layout ──────────────────────────────────────────────────────────
     last_rule   = rule_scores[-1]  if rule_scores  else 0.0
-    last_prob   = hybrid_probs[-1] if hybrid_probs else S3_NEUTRAL
-    diverging   = (last_rule >= 0) != (last_prob >= S3_NEUTRAL)
+    last_prob   = hybrid_probs[-1] if hybrid_probs else hybrid_thr
+    diverging   = (last_rule >= 0) != (last_prob >= hybrid_thr)
     status_text = "DIVERGING" if diverging else "ALIGNED"
     if hybrid_probs:
         pmin = max(0.0, float(min(hybrid_probs)))
         pmax = min(1.0, float(max(hybrid_probs)))
     else:
-        pmin, pmax = S3_NEUTRAL - 0.12, S3_NEUTRAL + 0.12
+        pmin, pmax = hybrid_thr - 0.12, hybrid_thr + 0.12
     pad = max(0.03, (pmax - pmin) * 0.18)
     y2_low = max(0.0, pmin - pad)
     y2_high = min(1.0, pmax + pad)
@@ -5959,16 +6218,16 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
         y2_high = min(1.0, center + 0.07)
     tick_candidates = sorted({
         round(y2_low, 2),
-        round((y2_low + S3_NEUTRAL) / 2.0, 2),
-        round(S3_NEUTRAL, 2),
-        round((S3_NEUTRAL + y2_high) / 2.0, 2),
+        round((y2_low + hybrid_thr) / 2.0, 2),
+        round(hybrid_thr, 2),
+        round((hybrid_thr + y2_high) / 2.0, 2),
         round(y2_high, 2),
     })
     y2_ticks = [t for t in tick_candidates if y2_low <= t <= y2_high]
     y2_ticktext = [f"{t:.2f}" for t in y2_ticks]
     for i, t in enumerate(y2_ticks):
-        if abs(t - S3_NEUTRAL) < 1e-9:
-            y2_ticktext[i] = f"{S3_NEUTRAL:.2f} BULL/BEAR"
+        if abs(t - hybrid_thr) < 1e-9:
+            y2_ticktext[i] = f"{hybrid_thr:.2f} BULL/BEAR"
 
     fig.update_layout(
         template="plotly_dark",
@@ -6020,7 +6279,7 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
                 x=1.0, y=1.06, xref="paper", yref="paper",
                 text=(
                     f"<b style='color:{BLUE if last_rule>=0 else RED}'>Rule score: {last_rule:+.2f}</b>"
-                    f"  <b style='color:{BLUE if last_prob>=S3_NEUTRAL else RED}'>Model probability: {last_prob:.3f}</b>"
+                    f"  <b style='color:{BLUE if last_prob>=hybrid_thr else RED}'>Model probability: {last_prob:.3f}</b>"
                     + f"  <b style='color:{'#8B5CF6' if diverging else MC['text_sec']}'>Status: {status_text}</b>"
                 ),
                 showarrow=False, font=dict(size=11), xanchor="right",
@@ -6049,11 +6308,11 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
                 text=f"<b>Model Prob</b>",
                 showarrow=True,
                 arrowhead=2, arrowsize=1, arrowwidth=1.2,
-                arrowcolor=BLUE if last_prob >= S3_NEUTRAL else RED,
+                arrowcolor=BLUE if last_prob >= hybrid_thr else RED,
                 ax=52, ay=-28,
-                font=dict(size=10, color=BLUE if last_prob >= S3_NEUTRAL else RED),
+                font=dict(size=10, color=BLUE if last_prob >= hybrid_thr else RED),
                 bgcolor="rgba(15,23,42,0.85)",
-                bordercolor=BLUE if last_prob >= S3_NEUTRAL else RED,
+                bordercolor=BLUE if last_prob >= hybrid_thr else RED,
                 borderwidth=1, borderpad=3,
                 xanchor="left", yanchor="middle",
             ),
@@ -6062,9 +6321,9 @@ def _create_signal_divergence_chart(agg_df, symbol, pred_source):
 
     if diverging:
         border_col = "#8B5CF6"
-    elif last_rule >= 0 and last_prob >= S3_NEUTRAL:
+    elif last_rule >= 0 and last_prob >= hybrid_thr:
         border_col = "#3B82F6"
-    elif last_rule < 0 and last_prob < S3_NEUTRAL:
+    elif last_rule < 0 and last_prob < hybrid_thr:
         border_col = "#EF4444"
     else:
         border_col = MC["border"]
@@ -6209,17 +6468,21 @@ def _create_pipeline_monitor():
     else:
         _c2, _d2 = ERR, f"dead {int(age_agg)}s · {rows_agg} rows"
 
-    # ── 3. theta_snapshot.csv written ────────────────────────────────────────
-    age_snap = _file_age(SNAPSHOT_FILE)
-    rows_snap = _file_rows(SNAPSHOT_FILE)
-    if age_snap is None:
-        _c3, _d3 = ERR, "theta_snapshot.csv missing"
-    elif age_snap < STALE_SEC:
-        _c3, _d3 = OK, f"{int(age_snap)}s ago · {rows_snap} rows"
-    elif age_snap < DEAD_SEC:
-        _c3, _d3 = WARN, f"stale {int(age_snap)}s · {rows_snap} rows"
+    # ── 3. strike-level source written (model greeks first) ──────────────────
+    _snap_src_path, _snap_src_label = _resolve_snapshot_source()
+    if _snap_src_path is None:
+        _c3, _d3 = ERR, "strike source missing"
     else:
-        _c3, _d3 = ERR, f"dead {int(age_snap)}s · {rows_snap} rows"
+        age_snap = _file_age(_snap_src_path)
+        rows_snap = _file_rows(_snap_src_path)
+        if age_snap is None:
+            _c3, _d3 = ERR, f"{_snap_src_label} missing"
+        elif age_snap < STALE_SEC:
+            _c3, _d3 = OK, f"{_snap_src_label} · {int(age_snap)}s ago · {rows_snap} rows"
+        elif age_snap < DEAD_SEC:
+            _c3, _d3 = WARN, f"{_snap_src_label} stale {int(age_snap)}s · {rows_snap} rows"
+        else:
+            _c3, _d3 = ERR, f"{_snap_src_label} dead {int(age_snap)}s · {rows_snap} rows"
 
     # ── 4. Model weights on disk ──────────────────────────────────────────────
     _model_dir = SCRIPT_DIR / "models"
@@ -6267,9 +6530,12 @@ def _create_pipeline_monitor():
             _reason     = str(_last.get("reason", "")).strip()
             _s1_miss    = int(_last.get("stage1_missing_count", 0))
             _s2_fail    = str(_last.get("stage2_failed_agents", "")).strip()
+            _s2_2d_fb   = int(_last.get("stage2_2d_fallback", 0) or 0)
             _warmup     = float(_last.get("warmup_fraction", 0))
             _latency    = float(_last.get("latency_ms", 0))
             _s2_has_fail = bool(_s2_fail) and _s2_fail.lower() not in ("false", "none", "0", "nan")
+            if _s2_has_fail and _s2_2d_fb == 1 and _s2_fail.replace(" ", "") == "2D":
+                _s2_has_fail = False
             if _suppressed and _reason.startswith("warmup"):
                 # Use total daily batch count instead of per-session warmup fraction
                 import re as _re
@@ -7078,7 +7344,7 @@ app.layout = html.Div(
                     html.Label("Symbol", style={'marginRight': '5px', 'color': MC['text_sec'], 'fontSize': '13px', 'fontWeight': 700, 'letterSpacing': '0.5px', 'textTransform': 'uppercase'}),
                     dcc.Dropdown(id='symbol-dropdown',
                         options=[{'label': 'SPXW', 'value': 'SPXW'}],
-                        value='SPXW', clearable=False, searchable=False,
+                        value='SPXW', clearable=False, searchable=True,
                         className='mc-dropdown',
                         style={'width': '140px', 'backgroundColor': MC['bg_input'], 'color': MC['text'], 'fontSize': '14px', 'fontWeight': '700'})
                 ]),
@@ -7509,6 +7775,47 @@ def manage_fetcher(start_clicks, stop_clicks, delete_clicks):
         delete_all_data()
 
     return str(time.time())
+
+
+@app.callback(
+    [Output('symbol-dropdown', 'options'),
+     Output('symbol-dropdown', 'value')],
+    [Input('interval-update', 'n_intervals'),
+     Input('action-trigger', 'children'),
+     Input('btn-refresh', 'n_clicks'),
+     Input('dte-dropdown', 'value')],
+    State('symbol-dropdown', 'value'),
+)
+def refresh_symbol_dropdown(n, trigger, manual_refresh, dte, current_symbol):
+    """Populate symbol dropdown from available data sources.
+
+    Uses all-DTE symbols by default so symbols don't disappear when a narrow DTE
+    window has no rows for a given ticker.
+    """
+    symbol_set = set()
+    try:
+        # Keep symbol discovery broad (all DTE) unless user explicitly needs all-window filtering.
+        _agg_all, _snap_all = load_data(dte_filter='all')
+        _agg_sel, _snap_sel = load_data(dte_filter=dte if dte else '0_1dte')
+    except Exception:
+        _agg_all, _snap_all = pd.DataFrame(), pd.DataFrame()
+        _agg_sel, _snap_sel = pd.DataFrame(), pd.DataFrame()
+
+    for frame in (_agg_all, _snap_all, _agg_sel, _snap_sel):
+        if frame is not None and not frame.empty and 'symbol' in frame.columns:
+            vals = frame['symbol'].dropna().astype(str).str.strip()
+            symbol_set.update([s for s in vals if s])
+
+    # Stable UI order with common index symbols first.
+    priority = ['SPXW', 'SPX', 'NDX', 'QQQ', 'SPY', 'IWM']
+    ordered = [s for s in priority if s in symbol_set]
+    ordered.extend(sorted([s for s in symbol_set if s not in set(priority)]))
+
+    if not ordered:
+        ordered = ['SPXW']
+    options = [{'label': s, 'value': s} for s in ordered]
+    value = current_symbol if current_symbol in ordered else ordered[0]
+    return options, value
 
 
 @app.callback(
@@ -8031,12 +8338,12 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
 
         # Expiration concentration
         try:
-            fig_dte = create_dte_concentration_chart(df_snap, symbol)
+            fig_dte = create_dte_concentration_chart(df_snap, symbol, dte_filter=dte)
         except Exception:
             fig_dte = None
         if fig_dte is not None:
             content.append(_mc_section_header("Expiration Concentration"))
-            txt, anom = _safe_insight(dte_concentration_insight, df_snap, symbol)
+            txt, anom = _safe_insight(dte_concentration_insight, df_snap, symbol, dte)
             _append_chart(fig_dte, '400px',
                 "Expiration Concentration: volume/OI distribution across 0DTE, 1DTE, and 2-5DTE buckets.",
                 txt,
@@ -8123,7 +8430,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
                 _append_chart(fig_roll, '360px',
                     "Model Rollover: Stage 3 probability, confidence, and signal strength over time.",
                     "",
-                    "Watch for probability crossing 0.5 with rising confidence — signals a directional regime change. Flat confidence = indecisive market.",
+                    "Watch for probability crossing its Stage 3 threshold with rising confidence — this often marks a directional regime change. Flat confidence = indecisive market.",
                     compact=False)
 
             # 6. Directional Signal Chart (instantaneous probability lines)
@@ -8133,7 +8440,7 @@ def update_dashboard(n, trigger, symbol, dte, compare, window, manual_refresh, p
                 _append_chart(fig_accum, '340px',
                     "Directional Signal: raw probability at each moment for Stage 3 ensemble and individual agents.",
                     "",
-                    "Lines above threshold (0.36) = bullish; below = bearish. Watch for agent convergence/divergence to gauge conviction.",
+                    "Stage 3 line uses the Stage 3 threshold; each agent line uses its own median baseline. Watch convergence/divergence to gauge conviction.",
                     compact=False)
 
             # 7. Model Health Panel
@@ -8383,7 +8690,7 @@ Analysis guidelines:
 1. Anchor every statement to specific numbers from the data above (P/C ratio, net_premium, GEX, prob, etc.)
 2. State directional bias clearly: BULLISH / BEARISH / NEUTRAL
 3. Quantify confidence (high/medium/low) and state what would change your view
-4. For prediction.csv: prob > 0.55 = bullish signal, prob < 0.40 = bearish signal, 0.40-0.55 = neutral zone
+4. For prediction.csv: use the threshold column for direction (prob >= threshold = bullish, prob < threshold = bearish)
 5. Agent agreement (all agents same side of their threshold) strengthens the signal
 6. Always reference the current NY time from the data
 """

@@ -1,0 +1,172 @@
+{
+  "agent_oof_avg": {
+    "accuracy": 0.59,
+    "f1": 0.5806,
+    "precision": 0.6181,
+    "recall": 0.5474,
+    "auc": 0.6182,
+    "ic": 0.2317,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.59,
+        "coverage": 1.0,
+        "n": 94856
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6184,
+        "coverage": 0.576,
+        "n": 54641
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6175,
+        "coverage": 0.1737,
+        "n": 16479
+      },
+      "conf>=0.6": {
+        "accuracy": 0.6341,
+        "coverage": 0.069,
+        "n": 6542
+      },
+      "conf>=0.8": {
+        "accuracy": 0.7126,
+        "coverage": 0.0063,
+        "n": 595
+      }
+    }
+  },
+  "v5_avg": {
+    "accuracy": 0.5879,
+    "f1": 0.5999,
+    "precision": 0.6039,
+    "recall": 0.596,
+    "auc": 0.612,
+    "ic": 0.2166,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5879,
+        "coverage": 1.0,
+        "n": 94856
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6084,
+        "coverage": 0.1214,
+        "n": 11520
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6396,
+        "coverage": 0.0404,
+        "n": 3835
+      }
+    }
+  },
+  "s1_avg": {
+    "accuracy": 0.4752,
+    "f1": 0.4377,
+    "precision": 0.4924,
+    "recall": 0.394,
+    "auc": 0.4761,
+    "ic": -0.0436,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.4752,
+        "coverage": 1.0,
+        "n": 94856
+      },
+      "conf>=0.2": {
+        "accuracy": 0.4325,
+        "coverage": 0.0849,
+        "n": 8055
+      }
+    }
+  },
+  "optimal_blend": {
+    "accuracy": 0.5903,
+    "f1": 0.5822,
+    "precision": 0.6176,
+    "recall": 0.5506,
+    "auc": 0.618,
+    "ic": 0.2311,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5903,
+        "coverage": 1.0,
+        "n": 94856
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6215,
+        "coverage": 0.5315,
+        "n": 50418
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6144,
+        "coverage": 0.1435,
+        "n": 13616
+      },
+      "conf>=0.6": {
+        "accuracy": 0.6511,
+        "coverage": 0.0512,
+        "n": 4861
+      }
+    },
+    "weights": {
+      "agent_oof": 0.85,
+      "v5": 0.15,
+      "s1": -0.0
+    }
+  },
+  "confidence_weighted": {
+    "accuracy": 0.5898,
+    "f1": 0.5782,
+    "precision": 0.6192,
+    "recall": 0.5424,
+    "auc": 0.6166,
+    "ic": 0.2276,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5898,
+        "coverage": 1.0,
+        "n": 94856
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6094,
+        "coverage": 0.6741,
+        "n": 63945
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6081,
+        "coverage": 0.2031,
+        "n": 19267
+      },
+      "conf>=0.6": {
+        "accuracy": 0.6193,
+        "coverage": 0.0797,
+        "n": 7562
+      },
+      "conf>=0.8": {
+        "accuracy": 0.7276,
+        "coverage": 0.0055,
+        "n": 525
+      }
+    }
+  },
+  "metadata": {
+    "n_val": 94855,
+    "n_test": 94856,
+    "pairs": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "TLT"
+    ],
+    "agents": [
+      "A",
+      "B",
+      "C",
+      "K",
+      "T",
+      "Q",
+      "2D"
+    ],
+    "best_method": "optimal_blend"
+  }
+}

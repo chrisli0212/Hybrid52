@@ -1,0 +1,100 @@
+{
+  "mode": "copy_from_canonical_tier3",
+  "requested_source_root": "/workspace/data/tier3_binary_2026_v1",
+  "selected_source_root": "/workspace/data/tier3_binary_2026_v1",
+  "search_root": "/workspace",
+  "discovery_candidates": [],
+  "output_root": "/workspace/data/tier3_binary_v5",
+  "horizon": "horizon_30min",
+  "symbols": [
+    "SPXW",
+    "SPY",
+    "QQQ",
+    "IWM",
+    "TLT"
+  ],
+  "copied_files": [
+    {
+      "symbol": "SPXW",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "d3cf090638a038af"
+    },
+    {
+      "symbol": "SPXW",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "6aadac9b056ca1d9"
+    },
+    {
+      "symbol": "SPY",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "f423e813416882f2"
+    },
+    {
+      "symbol": "SPY",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "7fd2249e63ce4eb8"
+    },
+    {
+      "symbol": "QQQ",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "ca746a683d21bfe2"
+    },
+    {
+      "symbol": "QQQ",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "1eaaaa668f052160"
+    },
+    {
+      "symbol": "IWM",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "c82306936123f6ee"
+    },
+    {
+      "symbol": "IWM",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "8622f45d3bb4abe2"
+    },
+    {
+      "symbol": "TLT",
+      "file": "norm_mean.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "883eb28ee3d73161"
+    },
+    {
+      "symbol": "TLT",
+      "file": "norm_std.npy",
+      "shape": [
+        325
+      ],
+      "sha16": "20b328b56a31bd45"
+    }
+  ],
+  "failed": [],
+  "timestamp": "2026-03-27T13:37:54.323679Z"
+}

@@ -5,9 +5,9 @@
     "date": "2026-03-09",
     "horizon_minutes": 30,
     "target_symbol": "SPXW",
-    "test_auc": 0.7179,
-    "test_f1": 0.6944,
-    "test_accuracy": 0.6603
+    "test_auc": 0.7221,
+    "test_f1": 0.7162,
+    "test_accuracy": 0.6100
   },
   "architecture": {
     "stage1": {
@@ -37,18 +37,22 @@
       "dropout": 0.2
     },
     "stage3": {
-      "method": "logreg",
-      "model_type": "LogisticRegression",
+      "method": "vix_gated",
+      "model_type": "RegimeGatedProbFusion",
       "meta_input_dim": 13,
       "threshold": 0.36
     }
   },
   "data_paths": {
-    "tier3_binary_root": "/workspace/data/tier3_binary_2026_duckdb",
+    "tier3_binary_root": "/workspace/Final_production_model/tier3_binary_v5",
     "vix_features_root": "/workspace/data/tier3_vix_2026_duckdb/VIXW"
   },
   "inference": {
     "batch_size": 1024,
-    "device": "cuda"
+    "device": "cuda",
+    "history_min_interval_seconds": 60,
+    "history_align_to_exchange_minute": true,
+    "history_minute_aggregate": "mean",
+    "min_warmup_fraction": 0.05
   }
 }

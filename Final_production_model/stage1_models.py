@@ -103,7 +103,15 @@ def _build_model_from_ckpt(
 class _Stage1Bundle:
     """Lightweight container for one (symbol, agent) Stage-1 model + normalisation stats."""
 
-    __slots__ = ("model", "norm_mean", "norm_std", "platt_coef", "platt_intercept")
+    __slots__ = (
+        "model",
+        "norm_mean",
+        "norm_std",
+        "platt_coef",
+        "platt_intercept",
+        "invert_signal",
+        "agent_type",
+    )
 
     def __init__(
         self,
@@ -112,9 +120,13 @@ class _Stage1Bundle:
         norm_std: Optional[np.ndarray],
         platt_coef: float = 1.0,
         platt_intercept: float = 0.0,
+        invert_signal: bool = False,
+        agent_type: str = "",
     ):
         self.model = model
         self.norm_mean = norm_mean
         self.norm_std = norm_std
         self.platt_coef = platt_coef
         self.platt_intercept = platt_intercept
+        self.invert_signal = invert_signal
+        self.agent_type = agent_type

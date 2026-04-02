@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-from .backbone import TemporalBackbone, TemporalBackboneWithAttention
+from .backbone import TemporalBackbone, TemporalBackboneWithAttention, DilatedCausalTCN
 from .agents import AgentA, AgentB, AgentC, AgentK, Agent2D, AgentT, AgentQ
 
 import sys
@@ -37,6 +37,7 @@ class IndependentAgent(nn.Module):
         use_feature_subset: bool = True,
         use_attention_backbone: bool = False,
         use_attention_pool: bool = False,
+        use_dilated_tcn: bool = True,   # default ON: DilatedCausalTCN replaces TemporalBackbone
         trade_feat_start: int = 270,
         trade_feat_end: int = 307,
         quote_feat_start: int = 307,
@@ -51,6 +52,7 @@ class IndependentAgent(nn.Module):
         self.use_feature_subset = use_feature_subset
         self.use_attention_backbone = use_attention_backbone
         self.use_attention_pool = use_attention_pool
+        self.use_dilated_tcn = use_dilated_tcn
         self.trade_feat_start = trade_feat_start
         self.trade_feat_end = trade_feat_end
         self.quote_feat_start = quote_feat_start
@@ -82,7 +84,16 @@ class IndependentAgent(nn.Module):
 
         # Temporal backbone
         if self.use_backbone:
-            if use_attention_backbone:
+            if use_dilated_tcn:
+                # DilatedCausalTCN: causal receptive field 30 bars, residual blocks
+                self.backbone = DilatedCausalTCN(
+                    feat_dim=self.subset_feat_dim,
+                    hidden_dim=128,
+                    embed_dim=temporal_dim,
+                    dilations=(1, 2, 4, 8),
+                    dropout=dropout,
+                )
+            elif use_attention_backbone:
                 self.backbone = TemporalBackboneWithAttention(
                     feat_dim=self.subset_feat_dim,
                     embed_dim=temporal_dim,

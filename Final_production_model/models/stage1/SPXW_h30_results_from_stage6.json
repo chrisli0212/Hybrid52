@@ -1,0 +1,28 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.4904,
+    "balanced_accuracy": 0.498,
+    "f1": 0.3281,
+    "auc": 0.5045,
+    "ic": 0.0042,
+    "brier": 0.250381,
+    "threshold": 0.54,
+    "quintile_mean_returns_bp": {
+      "q1": 1.2716,
+      "q2": -1.9076,
+      "q3": -0.2844,
+      "q4": 0.7444,
+      "q5": -0.4052
+    },
+    "quintile_spread_bp": -1.6767,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.4904,
+        "f1": 0.3281,
+        "coverage": 1.0,
+        "n": 36555
+      }
+    },
+    "n_params": 775642
+  }
+}

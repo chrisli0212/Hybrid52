@@ -1,0 +1,178 @@
+{
+  "all_results": {
+    "avg_4_pairs": {
+      "name": "Simple Avg (4 pairs)",
+      "accuracy": 0.5879,
+      "f1": 0.5995,
+      "precision": 0.6032,
+      "recall": 0.5959,
+      "auc": 0.6118,
+      "confidence_buckets": {
+        "conf>=0.0": {
+          "accuracy": 0.5879,
+          "coverage": 1.0,
+          "n": 96279
+        },
+        "conf>=0.2": {
+          "accuracy": 0.6072,
+          "coverage": 0.1238,
+          "n": 11916
+        },
+        "conf>=0.4": {
+          "accuracy": 0.6338,
+          "coverage": 0.0437,
+          "n": 4203
+        }
+      }
+    },
+    "logistic_regression": {
+      "name": "Logistic Regression",
+      "accuracy": 0.5891,
+      "f1": 0.5835,
+      "precision": 0.6139,
+      "recall": 0.5561,
+      "auc": 0.6168,
+      "confidence_buckets": {
+        "conf>=0.0": {
+          "accuracy": 0.5891,
+          "coverage": 1.0,
+          "n": 96279
+        },
+        "conf>=0.2": {
+          "accuracy": 0.6479,
+          "coverage": 0.2214,
+          "n": 21314
+        },
+        "conf>=0.4": {
+          "accuracy": 0.6485,
+          "coverage": 0.019,
+          "n": 1832
+        },
+        "conf>=0.6": {
+          "accuracy": 0.7438,
+          "coverage": 0.0034,
+          "n": 324
+        }
+      }
+    },
+    "logistic_C=0.1": {
+      "name": "Logistic Reg (C=0.1)",
+      "accuracy": 0.5883,
+      "f1": 0.5889,
+      "precision": 0.6095,
+      "recall": 0.5696,
+      "auc": 0.618,
+      "confidence_buckets": {
+        "conf>=0.0": {
+          "accuracy": 0.5883,
+          "coverage": 1.0,
+          "n": 96279
+        },
+        "conf>=0.2": {
+          "accuracy": 0.6556,
+          "coverage": 0.221,
+          "n": 21282
+        },
+        "conf>=0.4": {
+          "accuracy": 0.67,
+          "coverage": 0.0215,
+          "n": 2070
+        },
+        "conf>=0.6": {
+          "accuracy": 0.7014,
+          "coverage": 0.0044,
+          "n": 422
+        }
+      }
+    },
+    "logistic_C=0.01": {
+      "name": "Logistic Reg (C=0.01)",
+      "accuracy": 0.5885,
+      "f1": 0.5957,
+      "precision": 0.6062,
+      "recall": 0.5855,
+      "auc": 0.6184,
+      "confidence_buckets": {
+        "conf>=0.0": {
+          "accuracy": 0.5885,
+          "coverage": 1.0,
+          "n": 96279
+        },
+        "conf>=0.2": {
+          "accuracy": 0.6505,
+          "coverage": 0.2131,
+          "n": 20515
+        },
+        "conf>=0.4": {
+          "accuracy": 0.6668,
+          "coverage": 0.0279,
+          "n": 2686
+        },
+        "conf>=0.6": {
+          "accuracy": 0.6893,
+          "coverage": 0.0055,
+          "n": 531
+        }
+      }
+    },
+    "mlp_v2": {
+      "name": "MLP v2 (no leakage)",
+      "accuracy": 0.5872,
+      "f1": 0.622,
+      "precision": 0.5913,
+      "recall": 0.656,
+      "auc": 0.6173,
+      "confidence_buckets": {
+        "conf>=0.0": {
+          "accuracy": 0.5872,
+          "coverage": 1.0,
+          "n": 96279
+        }
+      }
+    }
+  },
+  "v5_individual": {
+    "SPY": {
+      "acc": 0.5849,
+      "f1": 0.5922,
+      "auc": 0.6076
+    },
+    "QQQ": {
+      "acc": 0.585,
+      "f1": 0.5968,
+      "auc": 0.6074
+    },
+    "IWM": {
+      "acc": 0.5866,
+      "f1": 0.5962,
+      "auc": 0.6076
+    },
+    "TLT": {
+      "acc": 0.5867,
+      "f1": 0.5977,
+      "auc": 0.6109
+    },
+    "VIXW": {
+      "acc": 0.5907,
+      "f1": 0.6807,
+      "auc": 0.628
+    }
+  },
+  "v1_stage3": {
+    "meta_mlp": {
+      "acc": 0.5872,
+      "f1": 0.6129,
+      "auc": 0.6118
+    },
+    "simple_avg": {
+      "acc": 0.5879,
+      "f1": 0.5995,
+      "auc": 0.6118
+    }
+  },
+  "best_method": "mlp_v2",
+  "feat_dim": 15,
+  "n_val_train": 77023,
+  "n_val_meta": 19256,
+  "n_test": 96279
+}

@@ -1,0 +1,133 @@
+"""
+CsvDerivedExtractor — dims 270-285 (16 dims)
+Extracts pre-computed CSV columns not captured by any other extractor:
+  270: lambda_mean        - mean leverage ratio across active chain
+  271: lambda_atm         - leverage ratio at ATM strike
+  272: lambda_skew        - (call_lambda - put_lambda) / mean
+  273: dist_atm_mean      - mean |dist_atm_pct| across active chain
+  274: dist_atm_weighted  - volume-weighted dist_atm_pct
+  275: spread_pct_mean    - mean spread_pct (liquidity proxy)
+  276: spread_pct_atm     - spread_pct at ATM strike
+  277: spread_pct_skew    - OTM_put_spread / OTM_call_spread
+  278: dte_mean           - mean days to expiration
+  279: dte_std            - DTE dispersion
+  280: cp_sign_mean       - call/put balance
+  281: mid_mean           - mean mid price
+  282: spread_atm         - spread at ATM strike
+  283: iv_std             - IV dispersion across chain
+  284: oi_mean            - mean open interest across active chain
+  285: oi_put_call_ratio  - put OI / call OI ratio
+"""
+import numpy as np
+import pandas as pd
+
+NUM_FEATURES = 16
+START_DIM = 270
+
+
+class CsvDerivedExtractor:
+    """Extracts 16 CSV-native features (dims 270-285)."""
+
+    def extract(self, greek_df: pd.DataFrame) -> np.ndarray:
+        out = np.zeros(NUM_FEATURES, dtype=np.float32)
+        if greek_df is None or len(greek_df) == 0:
+            return out
+
+        df = greek_df.copy()
+        has_lambda = ('lambda_ratio' in df.columns) or ('lambda' in df.columns)
+        has_dist   = 'dist_atm_pct' in df.columns
+        has_spct   = 'spread_pct'   in df.columns
+        right_col  = ('right' if 'right' in df.columns
+                      else 'cp_sign' if 'cp_sign' in df.columns else None)
+
+        # lambda features (270-272)
+        if has_lambda:
+            lam_col = 'lambda_ratio' if 'lambda_ratio' in df.columns else 'lambda'
+            lam = pd.to_numeric(df[lam_col], errors='coerce').fillna(0.0)
+            out[0] = float(lam.mean())
+            if 'moneyness' in df.columns:
+                mn = pd.to_numeric(df['moneyness'], errors='coerce').fillna(1.0)
+                atm_idx = (mn - 1.0).abs().idxmin()
+            elif 'delta' in df.columns:
+                dl = pd.to_numeric(df['delta'], errors='coerce').abs().fillna(0.0)
+                atm_idx = (dl - 0.5).abs().idxmin()
+            else:
+                atm_idx = df.index[len(df) // 2]
+            out[1] = float(lam.loc[atm_idx]) if atm_idx in lam.index else out[0]
+            if right_col:
+                calls = df[right_col].astype(str).str.upper().isin(['C', 'CALL', '1'])
+                puts  = df[right_col].astype(str).str.upper().isin(['P', 'PUT', '-1'])
+                c_mean = float(lam[calls].mean()) if calls.any() else 0.0
+                p_mean = float(lam[puts].mean())  if puts.any()  else 0.0
+                denom  = abs(out[0]) if abs(out[0]) > 1e-6 else 1.0
+                out[2] = (c_mean - p_mean) / denom
+
+        # dist_atm features (273-274)
+        if has_dist:
+            dist = pd.to_numeric(df['dist_atm_pct'], errors='coerce').fillna(0.0).abs()
+            out[3] = float(dist.mean())
+            if 'volume' in df.columns:
+                vol = pd.to_numeric(df['volume'], errors='coerce').fillna(0.0).clip(lower=0)
+                total_vol = vol.sum()
+                out[4] = float((dist * vol).sum() / total_vol) if total_vol > 0 else out[3]
+            else:
+                out[4] = out[3]
+
+        # spread_pct features (275-277)
+        if has_spct:
+            sp = pd.to_numeric(df['spread_pct'], errors='coerce').fillna(0.0).clip(lower=0)
+            out[5] = float(sp.mean())
+            if 'moneyness' in df.columns:
+                mn = pd.to_numeric(df['moneyness'], errors='coerce').fillna(1.0)
+                atm_idx2 = (mn - 1.0).abs().idxmin()
+                out[6] = float(sp.loc[atm_idx2]) if atm_idx2 in sp.index else out[5]
+            else:
+                out[6] = out[5]
+            if right_col and 'moneyness' in df.columns:
+                mn = pd.to_numeric(df['moneyness'], errors='coerce').fillna(1.0)
+                calls_otm = df[right_col].astype(str).str.upper().isin(['C','CALL','1']) & (mn > 1.02)
+                puts_otm  = df[right_col].astype(str).str.upper().isin(['P','PUT','-1']) & (mn < 0.98)
+                c_sp = float(sp[calls_otm].mean()) if calls_otm.any() else out[5]
+                p_sp = float(sp[puts_otm].mean())  if puts_otm.any()  else out[5]
+                out[7] = p_sp / c_sp if c_sp > 1e-6 else 1.0
+
+        # auxiliary features (278-283) — derived from live columns
+        if 'moneyness' in df.columns:
+            mn = pd.to_numeric(df['moneyness'], errors='coerce').fillna(1.0)
+            atm_idx3 = (mn - 1.0).abs().idxmin()
+        elif 'delta' in df.columns:
+            dl = pd.to_numeric(df['delta'], errors='coerce').abs().fillna(0.0)
+            atm_idx3 = (dl - 0.5).abs().idxmin()
+        else:
+            atm_idx3 = df.index[len(df) // 2]
+
+        if 'dte_int' in df.columns:
+            dte = pd.to_numeric(df['dte_int'], errors='coerce').fillna(0.0)
+            out[8] = float(dte.mean())
+            out[9] = float(dte.std()) if len(dte) > 1 else 0.0
+        if 'cp_sign' in df.columns:
+            cp = pd.to_numeric(df['cp_sign'], errors='coerce').fillna(0.0)
+            out[10] = float(cp.mean())
+        if 'mid' in df.columns:
+            mid_vals = pd.to_numeric(df['mid'], errors='coerce').fillna(0.0)
+            out[11] = float(mid_vals.mean())
+        if 'spread' in df.columns:
+            sprd = pd.to_numeric(df['spread'], errors='coerce').fillna(0.0)
+            out[12] = float(sprd.loc[atm_idx3]) if atm_idx3 in sprd.index else float(sprd.mean())
+        if 'implied_vol' in df.columns:
+            iv = pd.to_numeric(df['implied_vol'], errors='coerce').fillna(0.0)
+            out[13] = float(iv.std()) if len(iv) > 1 else 0.0
+
+        # OI enrichments (284-285)
+        oi_col = 'open_interest' if 'open_interest' in df.columns else ('oi' if 'oi' in df.columns else None)
+        if oi_col is not None:
+            oi = pd.to_numeric(df[oi_col], errors='coerce').fillna(0.0).clip(lower=0.0)
+            out[14] = float(oi.mean())
+            if right_col:
+                calls = df[right_col].astype(str).str.upper().isin(['C', 'CALL', '1'])
+                puts = df[right_col].astype(str).str.upper().isin(['P', 'PUT', '-1'])
+                c_oi = float(oi[calls].sum()) if calls.any() else 0.0
+                p_oi = float(oi[puts].sum()) if puts.any() else 0.0
+                out[15] = p_oi / c_oi if c_oi > 1e-6 else 1.0
+
+        return out

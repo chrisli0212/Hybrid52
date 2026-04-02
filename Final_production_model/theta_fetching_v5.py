@@ -48,7 +48,7 @@ TIMEZONE = ZoneInfo("America/New_York")
 os.makedirs(OUTDIR, exist_ok=True)
 os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
-# Dashboard files (fixed names - easy to find)
+# Dashboard files (legacy compatibility; endpoint archives are primary)
 AGG_FILE = os.path.join(OUTDIR, "theta_agg.csv")
 AGG_FILE_0DTE = os.path.join(OUTDIR, "theta_agg_0dte.csv")
 AGG_FILE_01DTE = os.path.join(OUTDIR, "theta_agg_0_1dte.csv")
@@ -56,9 +56,12 @@ AGG_FILE_02DTE = os.path.join(OUTDIR, "theta_agg_0_2dte.csv")
 SNAPSHOT_FILE = os.path.join(OUTDIR, "theta_snapshot.csv")
 SNAPSHOT_FILE_AI = os.path.join(OUTDIR, "theta_snapshot_0_1dte.csv")  # 0-1 DTE for AI/models
 SNAPSHOT_DIR = os.path.join(OUTDIR, "snapshots")
-os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 SNAPSHOT_HISTORY_FILE = os.path.join(OUTDIR, "theta_snapshot_history.csv")
 STATUS_FILE = os.path.join(OUTDIR, ".fetcher_status")
+os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+# Single-batch snapshots for prediction (overwritten each successful fetch; not archive/test-only).
+MODEL_GREEKS_FILE = os.path.join(OUTDIR, "theta_model_greeks.csv")
+MODEL_TRADE_QUOTE_FILE = os.path.join(OUTDIR, "theta_model_trade_quote.csv")
 KEEP_SNAPSHOT_FILES = 800  # ~6.6 hours at 30s interval
 MAX_HISTORY_ROWS = 50000  # Cap snapshot history file
 
@@ -68,9 +71,17 @@ ARCHIVE_FILE = os.path.join(ARCHIVE_DIR, f"theta_options_{SESSION_TS}.csv")
 ARCHIVE_AGG_FILE = os.path.join(ARCHIVE_DIR, f"theta_agg_{SESSION_TS}.csv")
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 ARCHIVE_PART = 1
+ENDPOINT_ARCHIVE_PARTS = {
+    "quotes": 1,
+    "greeks": 1,
+    "trades": 1,
+    "ohlc": 1,
+    "oi": 1,
+}
 
 STRIKE = "*"
 RIGHT = "both"
+# Deprecated merged-delta filter params retained for backward compatibility.
 DELTA_MIN = 0.05
 DELTA_MAX = 0.95
 
@@ -137,6 +148,36 @@ def rotate_archive_if_needed():
     except OSError:
         pass
     return current_archive_path()
+
+def _endpoint_archive_base(endpoint):
+    return os.path.join(ARCHIVE_DIR, f"theta_{endpoint}_{SESSION_TS}.csv")
+
+def current_endpoint_archive_path(endpoint):
+    part = ENDPOINT_ARCHIVE_PARTS.get(endpoint, 1)
+    base = _endpoint_archive_base(endpoint)
+    if part == 1:
+        return base
+    stem, ext = os.path.splitext(base)
+    return f"{stem}_part{part}{ext}"
+
+def rotate_endpoint_archive_if_needed(endpoint):
+    part = ENDPOINT_ARCHIVE_PARTS.get(endpoint, 1)
+    path = current_endpoint_archive_path(endpoint)
+    try:
+        if os.path.exists(path) and os.path.getsize(path) >= MAX_ARCHIVE_BYTES:
+            part += 1
+            ENDPOINT_ARCHIVE_PARTS[endpoint] = part
+    except OSError:
+        pass
+    return current_endpoint_archive_path(endpoint)
+
+def write_endpoint_archive(endpoint, df):
+    if df is None or df.empty:
+        return 0
+    out_path = rotate_endpoint_archive_if_needed(endpoint)
+    header = not os.path.exists(out_path) or os.path.getsize(out_path) == 0
+    df.to_csv(out_path, mode="a", header=header, index=False)
+    return len(df)
 
 # ==============================
 # UTILITIES
@@ -292,6 +333,122 @@ def filter_for_csv(merged_df):
         df = df[(df[vega_col] != 0) & df[vega_col].notna()]
 
     return df
+
+def _find_first_col(df, candidates):
+    if df is None or df.empty:
+        return None
+    by_lower = {str(c).lower(): c for c in df.columns}
+    for cand in candidates:
+        c = by_lower.get(str(cand).lower())
+        if c is not None:
+            return c
+    return None
+
+def _coerce_num(df, col):
+    if col is None or col not in df.columns:
+        return pd.Series(np.nan, index=df.index)
+    return pd.to_numeric(df[col], errors="coerce")
+
+def filter_greeks_endpoint(gdf):
+    if gdf is None or gdf.empty:
+        return pd.DataFrame()
+    df = gdf.copy()
+    vega_col = _find_first_col(df, ["vega"])
+    bid_col = _find_first_col(df, ["bid", "bid_greeks", "bid_quote"])
+    ask_col = _find_first_col(df, ["ask", "ask_greeks", "ask_quote"])
+    vega = _coerce_num(df, vega_col)
+    bid = _coerce_num(df, bid_col)
+    ask = _coerce_num(df, ask_col)
+    mask = vega.notna() & bid.notna() & ask.notna() & (vega != 0) & (bid != 0) & (ask != 0)
+    return df[mask].copy()
+
+def filter_trade_quote_endpoint(df_in):
+    if df_in is None or df_in.empty:
+        return pd.DataFrame()
+    # Quote and trade streams: no row filter (preserve API rows as-is).
+    return df_in.copy()
+
+def _tag_endpoint(df, endpoint, symbol, expiration, batch_id, ts):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    out = df.copy()
+    out["endpoint"] = endpoint
+    out["symbol"] = out["symbol"] if "symbol" in out.columns else symbol
+    out["expiration"] = out["expiration"] if "expiration" in out.columns else expiration
+    out["batch_id"] = int(batch_id)
+    out["ts"] = ts
+    return out
+
+
+def _latest_by_contract(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    keys = [k for k in ["symbol", "expiration", "strike", "right"] if k in df.columns]
+    if not keys:
+        return pd.DataFrame()
+    keep = keys + [c for c in cols if c in df.columns]
+    out = df[keep].copy()
+    return out.drop_duplicates(subset=keys, keep="last").reset_index(drop=True)
+
+
+def _compute_atm_strikes(gdf: pd.DataFrame) -> dict:
+    out = {}
+    if gdf is None or gdf.empty:
+        return out
+    for (sym, exp), sdf in gdf.groupby(["symbol", "expiration"]):
+        spot_col = _find_first_col(sdf, ["underlying_price", "spot"])
+        if spot_col is None:
+            continue
+        spot_vals = pd.to_numeric(sdf[spot_col], errors="coerce").dropna()
+        strike_vals = pd.to_numeric(sdf.get("strike"), errors="coerce").dropna()
+        if spot_vals.empty or strike_vals.empty:
+            continue
+        spot = float(spot_vals.iloc[-1])
+        nearest = float(strike_vals.iloc[(strike_vals - spot).abs().argsort().iloc[0]])
+        out[(str(sym), str(exp))] = nearest
+    return out
+
+
+def _build_dashboard_snapshot(greeks_df, quotes_df, trades_df, batch_id, now_ts):
+    if greeks_df is None or greeks_df.empty:
+        return pd.DataFrame()
+    keys = [k for k in ["symbol", "expiration", "strike", "right"] if k in greeks_df.columns]
+    if len(keys) < 4:
+        return pd.DataFrame()
+
+    g = greeks_df.copy()
+    q = _latest_by_contract(quotes_df, ["bid", "ask", "bid_size", "ask_size", "volume"])
+    t = _latest_by_contract(trades_df, ["price", "size", "volume", "trade_timestamp"])
+
+    if not q.empty:
+        q = q.rename(columns={c: f"{c}_q" for c in q.columns if c not in keys})
+    if not t.empty:
+        t = t.rename(columns={c: f"{c}_t" for c in t.columns if c not in keys})
+
+    merged = g
+    if not q.empty:
+        merged = merged.merge(q, on=keys, how="left")
+    if not t.empty:
+        merged = merged.merge(t, on=keys, how="left")
+
+    # Prefer trade volume where present, else quote volume, else size fallback.
+    if "volume_t" in merged.columns:
+        merged["volume"] = pd.to_numeric(merged["volume_t"], errors="coerce")
+        if "volume_q" in merged.columns:
+            vq = pd.to_numeric(merged["volume_q"], errors="coerce")
+            merged["volume"] = merged["volume"].where(merged["volume"].notna(), vq)
+    elif "volume_q" in merged.columns:
+        merged["volume"] = pd.to_numeric(merged["volume_q"], errors="coerce")
+
+    if "volume" not in merged.columns or merged["volume"].isna().all():
+        if "size_t" in merged.columns:
+            merged["volume"] = pd.to_numeric(merged["size_t"], errors="coerce")
+        elif "size_q" in merged.columns:
+            merged["volume"] = pd.to_numeric(merged["size_q"], errors="coerce")
+
+    atm_strikes = _compute_atm_strikes(g)
+    snap = enrich_for_ai(merged, batch_id, now_ts, atm_strikes)
+    return snap
 
 # ==============================
 # ENRICHMENT
@@ -501,9 +658,11 @@ def compute_batch_aggregates(df, batch_id, now_timestamp, dte_group="all"):
             avg_spread_pct = np.nan
 
         # Bid/ask size imbalance: volume-weighted
-        if not traded.empty and "bid_size" in traded.columns and "ask_size" in traded.columns:
-            bs = pd.to_numeric(traded["bid_size"], errors="coerce").fillna(0)
-            ak = pd.to_numeric(traded["ask_size"], errors="coerce").fillna(0)
+        bs_col = _find_first_col(traded, ["bid_size", "bid_size_quote"])
+        ak_col = _find_first_col(traded, ["ask_size", "ask_size_quote"])
+        if not traded.empty and bs_col and ak_col:
+            bs = pd.to_numeric(traded[bs_col], errors="coerce").fillna(0)
+            ak = pd.to_numeric(traded[ak_col], errors="coerce").fillna(0)
             total = bs + ak
             imb = ((bs - ak) / total.replace(0, np.nan)).fillna(0)
             vol_w = pd.to_numeric(traded["volume"], errors="coerce").fillna(1)
@@ -512,8 +671,9 @@ def compute_batch_aggregates(df, batch_id, now_timestamp, dte_group="all"):
             bid_ask_imbalance = np.nan
 
         # Trade aggression: (price - mid) / spread, volume-weighted
-        if not traded.empty and "price" in traded.columns and "mid" in traded.columns and "spread" in traded.columns:
-            price_v = pd.to_numeric(traded["price"], errors="coerce")
+        price_col = _find_first_col(traded, ["price", "price_trade"])
+        if not traded.empty and price_col and "mid" in traded.columns and "spread" in traded.columns:
+            price_v = pd.to_numeric(traded[price_col], errors="coerce")
             mid_v = pd.to_numeric(traded["mid"], errors="coerce")
             spread_v = pd.to_numeric(traded["spread"], errors="coerce").replace(0, np.nan)
             agg_v = ((price_v - mid_v) / spread_v).fillna(0)
@@ -523,9 +683,10 @@ def compute_batch_aggregates(df, batch_id, now_timestamp, dte_group="all"):
             trade_aggression = np.nan
 
         # Average trade size
-        if not traded.empty and "count" in traded.columns:
+        count_col = _find_first_col(traded, ["count", "size_trade", "size"])
+        if not traded.empty and count_col:
             total_vol = pd.to_numeric(traded["volume"], errors="coerce").sum()
-            total_count = pd.to_numeric(traded["count"], errors="coerce").sum()
+            total_count = pd.to_numeric(traded[count_col], errors="coerce").sum()
             avg_trade_size = round(total_vol / total_count, 2) if total_count > 0 else np.nan
         else:
             avg_trade_size = np.nan
@@ -556,9 +717,12 @@ def run_options_snapshot(client, batch_count):
 
     now_ny = datetime.now(TIMEZONE)
     now_ny_str = now_ny.strftime("%Y-%m-%d %H:%M:%S %Z")
-
-    merged_frames = []
-    atm_strikes = {}
+    greek_frames = []
+    quote_frames = []
+    trade_frames = []
+    ohlc_frames = []
+    oi_frames = []
+    agg_seed_rows = []
 
     for symbol in SYMBOLS:
         expirations = fetch_expirations(client, symbol)
@@ -572,12 +736,15 @@ def run_options_snapshot(client, batch_count):
         for exp in expirations:
             qdf = fetch_quotes(client, symbol, exp)
             gdf = fetch_greeks(client, symbol, exp)
-            if qdf.empty or gdf.empty:
-                continue
-
             ohlc_df = fetch_ohlc(client, symbol, exp)
             tdf = fetch_trades(client, symbol, exp)
             normalize_strikes(qdf, gdf, ohlc_df, tdf)
+
+            # Endpoint-specific filtering rules (no cross-endpoint merging).
+            qdf_f = filter_trade_quote_endpoint(qdf)
+            gdf_f = filter_greeks_endpoint(gdf)
+            tdf_f = filter_trade_quote_endpoint(tdf)
+            ohlc_f = ohlc_df.copy() if ohlc_df is not None else pd.DataFrame()
 
             if not oi_fetched:
                 oi_df = fetch_open_interest(client, symbol, exp)
@@ -592,132 +759,155 @@ def run_options_snapshot(client, batch_count):
                                    str(float(row["strike"])) if pd.notna(row.get("strike")) else "",
                                    str(row.get("right", "")))
                             oi_cache[key] = row[oi_col_name]
+                    oi_frames.append(_tag_endpoint(oi_df, "oi", symbol, exp, batch_count, now_ny_str))
 
-            atm = find_atm_strike(gdf)
-            if atm is not None:
-                atm_strikes[(symbol, str(exp))] = atm
-
-            keys = ["strike", "right", "expiration"]
-            merged = pd.merge(qdf, gdf, on=keys, how="inner", suffixes=("_q", "_g"))
-
-            if not ohlc_df.empty:
-                try:
-                    merged = pd.merge(merged, ohlc_df, on=keys, how="left", suffixes=("", "_ohlc"))
-                except Exception:
-                    pass
-
-            if tdf is not None and not tdf.empty:
-                try:
-                    merged = pd.merge(merged, tdf, on=keys, how="left", suffixes=("", "_t"))
-                except Exception:
-                    pass
-
-            if merged.empty:
-                continue
-
-            merged["symbol"] = symbol
-            merged = filter_for_csv(merged)
-            if not merged.empty:
-                merged_frames.append(merged)
+            if not gdf_f.empty:
+                greek_frames.append(_tag_endpoint(gdf_f, "greeks", symbol, exp, batch_count, now_ny_str))
+                # Minimal aggregate seed from greeks only (preserves per-symbol spot + IV stats).
+                agg_seed_rows.append(_tag_endpoint(gdf_f, "greeks", symbol, exp, batch_count, now_ny_str))
+            if not qdf_f.empty:
+                quote_frames.append(_tag_endpoint(qdf_f, "quotes", symbol, exp, batch_count, now_ny_str))
+            if not tdf_f.empty:
+                trade_frames.append(_tag_endpoint(tdf_f, "trades", symbol, exp, batch_count, now_ny_str))
+            if not ohlc_f.empty:
+                ohlc_frames.append(_tag_endpoint(ohlc_f, "ohlc", symbol, exp, batch_count, now_ny_str))
 
     if not oi_fetched:
         oi_fetched = True
 
-    if not merged_frames:
+    # Write endpoint-specific human archives only (no merged snapshot archives).
+    n_g = write_endpoint_archive("greeks", pd.concat(greek_frames, ignore_index=True) if greek_frames else pd.DataFrame())
+    n_q = write_endpoint_archive("quotes", pd.concat(quote_frames, ignore_index=True) if quote_frames else pd.DataFrame())
+    n_t = write_endpoint_archive("trades", pd.concat(trade_frames, ignore_index=True) if trade_frames else pd.DataFrame())
+    n_o = write_endpoint_archive("ohlc", pd.concat(ohlc_frames, ignore_index=True) if ohlc_frames else pd.DataFrame())
+    n_oi = write_endpoint_archive("oi", pd.concat(oi_frames, ignore_index=True) if oi_frames else pd.DataFrame())
+
+    if (n_g + n_q + n_t + n_o + n_oi) == 0:
         write_status("running", batch_count, "no_data")
         return
 
-    final_df = pd.concat(merged_frames, ignore_index=True)
-    final_df = enrich_for_ai(final_df, batch_count, now_ny_str, atm_strikes)
+    # Rolling model inputs: prediction_service loads these before theta_archive parts.
+    df_g_model = pd.concat(greek_frames, ignore_index=True) if greek_frames else pd.DataFrame()
+    tq_model_parts = quote_frames + trade_frames
+    df_tq_model = pd.concat(tq_model_parts, ignore_index=True) if tq_model_parts else pd.DataFrame()
+    if not df_g_model.empty:
+        df_g_model.to_csv(MODEL_GREEKS_FILE, index=False)
+        if not df_tq_model.empty:
+            df_tq_model.to_csv(MODEL_TRADE_QUOTE_FILE, index=False)
+        elif os.path.exists(MODEL_TRADE_QUOTE_FILE):
+            try:
+                os.remove(MODEL_TRADE_QUOTE_FILE)
+            except OSError:
+                pass
 
-    # === WRITE 1: Aggregate (append) - ALL DTE ===
-    agg_df = compute_batch_aggregates(final_df, batch_count, now_ny_str, dte_group="all")
+    # Dashboard/human snapshot: merged strike-level view (independent from model files).
+    df_dash_snapshot = _build_dashboard_snapshot(
+        df_g_model, pd.concat(quote_frames, ignore_index=True) if quote_frames else pd.DataFrame(),
+        pd.concat(trade_frames, ignore_index=True) if trade_frames else pd.DataFrame(),
+        batch_count, now_ny_str,
+    )
+    if not df_dash_snapshot.empty:
+        df_dash_snapshot.to_csv(SNAPSHOT_FILE, index=False)
+        # Keep 0-1 DTE helper file expected by dashboard filters.
+        if "dte" in df_dash_snapshot.columns:
+            dte_vals = pd.to_numeric(df_dash_snapshot["dte"], errors="coerce")
+            df_dash_snapshot.loc[dte_vals.between(0, 1, inclusive="both")].to_csv(
+                SNAPSHOT_FILE_AI, index=False
+            )
+        else:
+            df_dash_snapshot.to_csv(SNAPSHOT_FILE_AI, index=False)
+
+        snap_batch_file = os.path.join(SNAPSHOT_DIR, f"snapshot_{int(batch_count):06d}.csv")
+        df_dash_snapshot.to_csv(snap_batch_file, index=False)
+        if KEEP_SNAPSHOT_FILES > 0:
+            existing = sorted(
+                [p for p in os.listdir(SNAPSHOT_DIR) if p.startswith("snapshot_") and p.endswith(".csv")]
+            )
+            excess = len(existing) - KEEP_SNAPSHOT_FILES
+            for old_name in existing[:max(0, excess)]:
+                try:
+                    os.remove(os.path.join(SNAPSHOT_DIR, old_name))
+                except OSError:
+                    pass
+
+        # Optional append-only history for quick troubleshooting.
+        hist_header = not os.path.exists(SNAPSHOT_HISTORY_FILE) or os.path.getsize(SNAPSHOT_HISTORY_FILE) == 0
+        df_dash_snapshot.to_csv(SNAPSHOT_HISTORY_FILE, mode="a", header=hist_header, index=False)
+
+    # Build light aggregate output from greek seed rows for backward compatibility.
+    if agg_seed_rows:
+        agg_src = pd.concat(agg_seed_rows, ignore_index=True)
+    else:
+        agg_src = pd.DataFrame()
+
+    def _build_agg_from_greeks(df):
+        if df is None or df.empty:
+            return pd.DataFrame()
+        out_rows = []
+        now_d = datetime.now(TIMEZONE).date()
+        for sym, sdf in df.groupby("symbol"):
+            spot_col = _find_first_col(sdf, ["underlying_price", "spot"])
+            spot = float(pd.to_numeric(sdf[spot_col], errors="coerce").dropna().iloc[-1]) if spot_col and not pd.to_numeric(sdf[spot_col], errors="coerce").dropna().empty else 0.0
+            right_col = _find_first_col(sdf, ["right"])
+            iv_col = _find_first_col(sdf, ["implied_vol"])
+            call_iv = np.nan
+            put_iv = np.nan
+            if right_col and iv_col:
+                rr = sdf[right_col].astype(str).str.upper()
+                call_iv = pd.to_numeric(sdf.loc[rr.str.startswith("C"), iv_col], errors="coerce").mean()
+                put_iv = pd.to_numeric(sdf.loc[rr.str.startswith("P"), iv_col], errors="coerce").mean()
+            exp_col = _find_first_col(sdf, ["expiration"])
+            dte_val = np.nan
+            if exp_col and not sdf[exp_col].dropna().empty:
+                ex = parse_expiration(str(sdf[exp_col].dropna().iloc[-1]))
+                if ex:
+                    dte_val = (ex - now_d).days
+            out_rows.append({
+                "batch_id": int(batch_count),
+                "ts": now_ny_str,
+                "dte_group": "all",
+                "symbol": sym,
+                "spot": spot,
+                "n_contracts": int(len(sdf)),
+                "call_vol": np.nan,
+                "put_vol": np.nan,
+                "pc_ratio": np.nan,
+                "net_gex": np.nan,
+                "call_premium": np.nan,
+                "put_premium": np.nan,
+                "net_premium": np.nan,
+                "call_iv": round(call_iv, 4) if pd.notna(call_iv) else np.nan,
+                "put_iv": round(put_iv, 4) if pd.notna(put_iv) else np.nan,
+                "iv_skew": round(put_iv - call_iv, 4) if pd.notna(put_iv) and pd.notna(call_iv) else np.nan,
+                "atm_straddle": np.nan,
+                "avg_spread_pct": np.nan,
+                "bid_ask_imbalance": np.nan,
+                "trade_aggression": np.nan,
+                "avg_trade_size": np.nan,
+                "dte": dte_val,
+            })
+        return pd.DataFrame(out_rows)
+
+    if not df_dash_snapshot.empty:
+        agg_df = compute_batch_aggregates(df_dash_snapshot, int(batch_count), now_ny_str, dte_group="all")
+    else:
+        agg_df = _build_agg_from_greeks(agg_src)
     if not agg_df.empty:
         header = not os.path.exists(AGG_FILE) or os.path.getsize(AGG_FILE) == 0
         agg_df.to_csv(AGG_FILE, mode="a", header=header, index=False)
 
-    # === WRITE 1b: DTE-split aggregates (v5.2) ===
-    if "dte" in final_df.columns:
-        _dte_vals = pd.to_numeric(final_df["dte"], errors="coerce")
-
-        # 0DTE only
-        _df_0dte = final_df[_dte_vals == 0]
-        if not _df_0dte.empty:
-            _agg_0 = compute_batch_aggregates(_df_0dte, batch_count, now_ny_str, dte_group="0dte")
-            if not _agg_0.empty:
-                _hdr = not os.path.exists(AGG_FILE_0DTE) or os.path.getsize(AGG_FILE_0DTE) == 0
-                _agg_0.to_csv(AGG_FILE_0DTE, mode="a", header=_hdr, index=False)
-
-        # 0-1 DTE (for credit spread decisions + AI)
-        _df_01dte = final_df[_dte_vals <= 1]
-        if not _df_01dte.empty:
-            _agg_01 = compute_batch_aggregates(_df_01dte, batch_count, now_ny_str, dte_group="0_1dte")
-            if not _agg_01.empty:
-                _hdr = not os.path.exists(AGG_FILE_01DTE) or os.path.getsize(AGG_FILE_01DTE) == 0
-                _agg_01.to_csv(AGG_FILE_01DTE, mode="a", header=_hdr, index=False)
-
-        # 0-2 DTE
-        _df_02dte = final_df[_dte_vals <= 2]
-        if not _df_02dte.empty:
-            _agg_02 = compute_batch_aggregates(_df_02dte, batch_count, now_ny_str, dte_group="0_2dte")
-            if not _agg_02.empty:
-                _hdr = not os.path.exists(AGG_FILE_02DTE) or os.path.getsize(AGG_FILE_02DTE) == 0
-                _agg_02.to_csv(AGG_FILE_02DTE, mode="a", header=_hdr, index=False)
-
-    # === WRITE 2: Snapshot (overwrite - dashboard reads this, ALL DTE) ===
-    final_df.to_csv(SNAPSHOT_FILE, index=False)
-
-    # === WRITE 2-AI: 0-1 DTE snapshot for AI/model upload (v5.2) ===
-    if "dte" in final_df.columns:
-        _dte_snap = pd.to_numeric(final_df["dte"], errors="coerce")
-        _df_ai = final_df[_dte_snap <= 1]
-        if not _df_ai.empty:
-            _df_ai.to_csv(SNAPSHOT_FILE_AI, index=False)
-
-    # === WRITE 2b: Snapshot per-batch file (for time comparisons) ===
-    snap_path = os.path.join(SNAPSHOT_DIR, f"snapshot_{batch_count:06d}.csv")
-    final_df.to_csv(snap_path, index=False)
-
-    # Cleanup old snapshot files
-    try:
-        if KEEP_SNAPSHOT_FILES is not None:
-            old_batch = batch_count - KEEP_SNAPSHOT_FILES
-            if old_batch > 0:
-                old_path = os.path.join(SNAPSHOT_DIR, f"snapshot_{old_batch:06d}.csv")
-                if os.path.exists(old_path):
-                    os.remove(old_path)
-    except Exception:
-        pass
-
-    # === WRITE 2c: Snapshot history (append - for dashboard comparisons) ===
-    hist_header = not os.path.exists(SNAPSHOT_HISTORY_FILE) or os.path.getsize(SNAPSHOT_HISTORY_FILE) == 0
-    final_df.to_csv(SNAPSHOT_HISTORY_FILE, mode="a", header=hist_header, index=False)
-
-    # Trim history file if too large (every 100 batches)
-    if batch_count % 100 == 0:
-        try:
-            if os.path.exists(SNAPSHOT_HISTORY_FILE):
-                hist = pd.read_csv(SNAPSHOT_HISTORY_FILE)
-                if len(hist) > MAX_HISTORY_ROWS:
-                    hist = hist.tail(MAX_HISTORY_ROWS)
-                    hist.to_csv(SNAPSHOT_HISTORY_FILE, index=False)
-        except Exception:
-            pass
-
-    # === WRITE 3: Archive options (append, rotated) ===
-    archive_path = rotate_archive_if_needed()
-    header = not os.path.exists(archive_path) or os.path.getsize(archive_path) == 0
-    final_df.to_csv(archive_path, mode="a", header=header, index=False)
-
-    # === WRITE 4: Archive agg (append, per-session) ===
+    # === WRITE: Archive agg (append, per-session) ===
     if not agg_df.empty:
         agg_header = not os.path.exists(ARCHIVE_AGG_FILE) or os.path.getsize(ARCHIVE_AGG_FILE) == 0
         agg_df.to_csv(ARCHIVE_AGG_FILE, mode="a", header=agg_header, index=False)
 
-    _n0 = len(final_df[pd.to_numeric(final_df.get("dte", pd.Series()), errors="coerce") == 0]) if "dte" in final_df.columns else 0
-    _n01 = len(final_df[pd.to_numeric(final_df.get("dte", pd.Series()), errors="coerce") <= 1]) if "dte" in final_df.columns else 0
-    write_status("running", batch_count, f"{len(final_df)} rows")
-    print(f"[Batch {batch_count}] {len(final_df)} rows (0DTE:{_n0}, 0-1DTE:{_n01}, all:{len(final_df)}) | agg→{AGG_FILE} | snap→{SNAPSHOT_FILE}")
+    total_rows = n_g + n_q + n_t + n_o + n_oi
+    write_status("running", batch_count, f"{total_rows} endpoint rows")
+    print(
+        f"[Batch {batch_count}] endpoint rows g={n_g} q={n_q} t={n_t} ohlc={n_o} oi={n_oi} "
+        f"| model→{MODEL_GREEKS_FILE} + {MODEL_TRADE_QUOTE_FILE} "
+        f"| dashboard→{SNAPSHOT_FILE} | agg→{AGG_FILE} | archive→{ARCHIVE_DIR}"
+    )
 
 # ==============================
 # MAIN LOOP
@@ -730,12 +920,11 @@ def main_loop():
 
     print(f"=== Theta Fetching v5.2 (DTE-aware) ===")
     print(f"PID: {os.getpid()}")
-    print(f"Agg:         {AGG_FILE}")
-    print(f"Snapshot:    {SNAPSHOT_FILE}")
-    print(f"Snap History:{SNAPSHOT_HISTORY_FILE}")
-    print(f"Snap Dir:    {SNAPSHOT_DIR}")
-    print(f"Archive:     {ARCHIVE_DIR}")
-    print(f"Arch Agg:    {ARCHIVE_AGG_FILE}")
+    print(f"Agg (compat): {AGG_FILE}")
+    print(f"Model (pred): {MODEL_GREEKS_FILE} + {MODEL_TRADE_QUOTE_FILE}")
+    print(f"Archive Dir:  {ARCHIVE_DIR}")
+    print(f"Arch Agg:     {ARCHIVE_AGG_FILE}")
+    print(f"Endpoint cap: {MAX_ARCHIVE_BYTES // (1024*1024)}MB per file")
     print(f"Symbols:  {', '.join(SYMBOLS)}")
     print(f"Interval: {SLEEP_SECONDS}s\n")
 
@@ -759,4 +948,9 @@ def main_loop():
     print("Fetcher stopped.")
 
 if __name__ == "__main__":
+    if any(a in ("--once", "-1", "once") for a in sys.argv[1:]):
+        with httpx.Client(timeout=TIMEOUT) as client:
+            run_options_snapshot(client, 1)
+        print("Single batch complete.")
+        sys.exit(0)
     main_loop()

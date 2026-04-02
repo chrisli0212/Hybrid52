@@ -1,0 +1,42 @@
+*.csv
+*.parquet
+*.npy
+*.csv
+*.parquet
+*.npy
+# Data directories
+../data/
+../historical_data_1yr/
+../Final_production_model/daily_data/snapshots/
+../Final_production_model/daily_data/theta_archive/
+../Final_production_model/daily_data/*.csv
+../Final_production_model/predictions*.npz
+
+# Secrets
+../Final_production_model/.env
+
+# Checkpoints / results (trained models - too large)
+results/
+results_old/
+*.pt
+*.joblib
+*.npy
+*.npz
+
+# Python noise
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.bak
+*.bak2
+
+# Data files - never push
+*.parquet
+*.csv
+*.npy
+*.zip
+*.pkl
+*.h5
+*.feather
+data/
+/workspace/data/

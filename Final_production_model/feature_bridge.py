@@ -7,14 +7,32 @@ Responsibilities:
   - Extract 10-dim VIX feature vector from VIXW options data
   - Report warmup fraction and VIX spot level
 
+Training vs production cadence (Hybrid51 tier3):
+  Tier-2/3 training builds sequences from **1-minute** bars: each LSTM step is one
+  minute, so SEQ_LEN=20 spans **20 minutes** of wall time. Live fetch/poll may run
+  every 10s; without gating, each tick appends a step and the same 20 slots cover
+  only ~200s. Prefer ``history_align_to_exchange_minute`` + ``history_minute_aggregate``
+  to build one bar per NY minute (mean or last of sub-minute fetches), matching
+  tier-2 minute training. Alternatively set ``history_min_interval_seconds`` (e.g. 60)
+  for a rolling wall-clock gate while the fetcher still writes at higher frequency.
+
+VIX 10-vector (``build_vix_features``):
+  Lookbacks like ``pct_change(60)`` / ``percentile(60)`` count **deque samples**,
+  not calendar minutes. At one sample per minute they match ~60 minutes; at one
+  sample per 10s they match ~10 minutes. Use ``history_min_interval_seconds=60`` to
+  align VIX history steps with training-style minute spacing.
+
 Exports:
     FeatureBridge
 """
 
 from __future__ import annotations
 
+import time
+from datetime import datetime
 from collections import defaultdict, deque
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -25,11 +43,69 @@ ALL_SYMBOLS   = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
 SEQ_LEN       = 20
 STRIKE_BINS   = 20
 FEAT_DIM      = 325
+EXCHANGE_TZ   = ZoneInfo("America/New_York")
 
 
 # ---------------------------------------------------------------------------
 # Small helpers
 # ---------------------------------------------------------------------------
+
+
+def _ny_minute_key() -> Tuple[int, int, int, int, int]:
+    t = datetime.now(EXCHANGE_TZ)
+    return (t.year, t.month, t.day, t.hour, t.minute)
+
+
+def _contract_keys_greek(df: pd.DataFrame) -> List[str]:
+    return [k for k in ("symbol", "expiration", "strike", "right") if k in df.columns]
+
+
+def _contract_keys_tq(df: pd.DataFrame) -> List[str]:
+    return [k for k in ("symbol", "expiration", "strike", "right", "endpoint") if k in df.columns]
+
+
+def aggregate_minute_snapshots(
+    dfs: List[pd.DataFrame],
+    mode: str,
+    kind: str,
+) -> pd.DataFrame:
+    """
+    Combine multiple 10s (or sub-minute) snapshots into one training-style bar.
+
+    ``mode``:
+      - ``last``: last row per contract key (close-of-minute style on irregular keys).
+      - ``mean``: groupby contract key, numeric columns mean, other columns last.
+    """
+    clean = [d.copy() for d in dfs if d is not None and not d.empty]
+    if not clean:
+        return pd.DataFrame()
+    if len(clean) == 1:
+        return clean[0]
+
+    mode = (mode or "mean").strip().lower()
+    cat = pd.concat(clean, ignore_index=True)
+    keys = _contract_keys_greek(cat) if kind == "greek" else _contract_keys_tq(cat)
+    if not keys:
+        return clean[-1]
+
+    if mode == "last":
+        return cat.drop_duplicates(subset=keys, keep="last").reset_index(drop=True)
+
+    num_cols = cat.select_dtypes(include=[np.number]).columns.tolist()
+    skip_mean = set(keys) | {"batch_id"}
+    mean_cols = [c for c in num_cols if c not in skip_mean]
+    last_cols = [c for c in cat.columns if c not in keys and c not in mean_cols]
+    agg_map: Dict[str, str] = {c: "mean" for c in mean_cols}
+    for c in last_cols:
+        agg_map[c] = "last"
+    if not agg_map:
+        return clean[-1]
+    try:
+        out = cat.groupby(keys, dropna=False, as_index=False).agg(agg_map)
+        return out
+    except Exception:
+        return clean[-1]
+
 
 def _safe_float(val: Any, default: float = 0.0) -> float:
     try:
@@ -72,15 +148,32 @@ class FeatureBridge:
     Feature bridge using the original Hybrid51 master extractors for the
     correct 325-dim feature layout matching training.
 
-    Call sequence each tick:
-        quality = bridge.update_history(snap_df)   # update rolling histories
+        Call sequence each tick (when history advanced):
+        quality, advanced = bridge.update_history(greek_df, trade_quote_df=...)
         vix_f   = bridge.build_vix_features(...)   # build 10-dim VIX vector
         seq, ch = bridge.get_stage1_tensors(sym)   # fetch tensors for Stage-1
     """
 
-    def __init__(self, seq_len: int = SEQ_LEN, strike_bins: int = STRIKE_BINS):
+    def __init__(
+        self,
+        seq_len: int = SEQ_LEN,
+        strike_bins: int = STRIKE_BINS,
+        history_min_interval_seconds: float = 0.0,
+        history_align_to_exchange_minute: bool = False,
+        history_minute_aggregate: str = "mean",
+    ):
         self.seq_len     = seq_len
         self.strike_bins = strike_bins
+        # 0 = append on every update_history (legacy); 60 ≈ tier3 1-minute step spacing.
+        self.history_min_interval_seconds = max(0.0, float(history_min_interval_seconds))
+        self._last_hist_push_monotonic: Optional[float] = None
+
+        self.history_align_to_exchange_minute = bool(history_align_to_exchange_minute)
+        aggr = str(history_minute_aggregate or "mean").strip().lower()
+        self.history_minute_aggregate = aggr if aggr in ("last", "mean") else "mean"
+        self._minute_bucket_key: Optional[Tuple[int, int, int, int, int]] = None
+        self._minute_greek_snaps: List[pd.DataFrame] = []
+        self._minute_tq_snaps: List[pd.DataFrame] = []
 
         self.extractor = MasterFeatureExtractor(
             include_chain_2d=False,
@@ -93,8 +186,8 @@ class FeatureBridge:
 
         self._vix_spot_history: deque = deque(maxlen=512)
         self._vix_meta_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=512))
-
-        self._last_batch_id: Optional[int] = None
+        self._last_quality_scores: Dict[str, float] = {}
+        self._last_nonzero_density_scores: Dict[str, float] = {}
 
     # ------------------------------------------------------------------
     # Column helpers
@@ -175,37 +268,46 @@ class FeatureBridge:
     # Feature extraction
     # ------------------------------------------------------------------
 
-    def extract_325_features(self, snap_df: pd.DataFrame) -> Tuple[np.ndarray, float]:
+    def extract_325_features(
+        self,
+        greek_df: pd.DataFrame,
+        trade_quote_df: Optional[pd.DataFrame] = None,
+    ) -> Tuple[np.ndarray, float]:
         """
         Extract a 325-dim feature vector from one symbol's snapshot rows.
         Returns (feature_vector, quality_score ∈ [0, 1]).
         """
-        if snap_df is None or snap_df.empty:
+        if greek_df is None or greek_df.empty:
             return np.zeros(FEAT_DIM, dtype=np.float32), 0.0
 
-        df = self._adapt_columns(snap_df)
-        if df.empty:
+        df_greek = self._adapt_columns(greek_df)
+        if df_greek.empty:
             return np.zeros(FEAT_DIM, dtype=np.float32), 0.0
 
-        trade_df = self._build_trade_df(df)
+        # Never substitute greek rows for trade/quote — training used separate streams; phase-1 stays zero without real T/Q.
+        if trade_quote_df is not None and not trade_quote_df.empty:
+            df_trade_src = self._adapt_columns(trade_quote_df)
+            trade_df = self._build_trade_df(df_trade_src) if not df_trade_src.empty else None
+        else:
+            trade_df = None
 
         open_interest: Optional[float] = None
-        if "oi" in df.columns:
-            oi_val = pd.to_numeric(df["oi"], errors="coerce").sum()
+        if "oi" in df_greek.columns:
+            oi_val = pd.to_numeric(df_greek["oi"], errors="coerce").sum()
             if np.isfinite(oi_val) and oi_val > 0:
                 open_interest = float(oi_val)
 
         try:
             result: ExtractionResult = self.extractor.extract(
-                greek_df=df,
+                greek_df=df_greek,
                 trade_df=trade_df,
                 historical_snapshots=None,
                 open_interest=open_interest,
             )
-            n_base = int(np.count_nonzero(result.features[:270]))
-            n_p1   = int(np.count_nonzero(result.features[270:]))
-            completeness = (n_base + n_p1) / FEAT_DIM
-            return result.features, min(1.0, completeness)
+            # Use extractor-native quality score (NaN/inf hygiene) as completeness.
+            # Non-zero density is tracked separately as a diagnostic.
+            quality = float(np.clip(result.quality_score, 0.0, 1.0))
+            return result.features, quality
         except Exception:
             return np.zeros(FEAT_DIM, dtype=np.float32), 0.0
 
@@ -220,8 +322,23 @@ class FeatureBridge:
 
         df = self._adapt_columns(snap_df)
         channels = ["delta", "gamma", "theta", "vega", "implied_vol"]
-        if any(c not in df.columns for c in channels) or "atm_strike" not in df.columns:
+        if any(c not in df.columns for c in channels):
             return result
+
+        if "atm_strike" not in df.columns:
+            # Fallback for model-greeks stream that may not carry atm_strike:
+            # infer nearest strike from current spot/underlying_price.
+            spot_col = "underlying_price" if "underlying_price" in df.columns else ("spot" if "spot" in df.columns else None)
+            if spot_col is None or "strike" not in df.columns:
+                return result
+            spot_vals = pd.to_numeric(df[spot_col], errors="coerce").dropna()
+            strike_vals = pd.to_numeric(df["strike"], errors="coerce").dropna()
+            if spot_vals.empty or strike_vals.empty:
+                return result
+            spot_now = float(spot_vals.iloc[-1])
+            nearest = float(strike_vals.iloc[(strike_vals - spot_now).abs().argsort().iloc[0]])
+            df = df.copy()
+            df["atm_strike"] = nearest
 
         atm = _col_mean(df, "atm_strike")
         if atm <= 0:
@@ -250,28 +367,112 @@ class FeatureBridge:
     # History management
     # ------------------------------------------------------------------
 
-    def update_history(self, snap_df: pd.DataFrame) -> Dict[str, float]:
-        """
-        Process one snapshot tick: extract features and push to rolling histories.
-        Returns per-symbol quality scores.
-        """
-        if snap_df is None or snap_df.empty:
-            return {}
+    def _flush_history_step(
+        self,
+        greek_df: pd.DataFrame,
+        trade_quote_df: Optional[pd.DataFrame],
+    ) -> Tuple[Dict[str, float], bool]:
+        """Append one aggregated timestep to seq/chain deques (internal)."""
+        now = time.monotonic()
+        greek_by_sym: Dict[str, pd.DataFrame] = {}
+        if "symbol" in greek_df.columns:
+            for sym, sdf in greek_df.groupby("symbol"):
+                greek_by_sym[str(sym)] = sdf
 
-        snap_by_sym: Dict[str, pd.DataFrame] = {}
-        if "symbol" in snap_df.columns:
-            for sym, sdf in snap_df.groupby("symbol"):
-                snap_by_sym[str(sym)] = sdf
+        trade_by_sym: Dict[str, pd.DataFrame] = {}
+        if trade_quote_df is not None and not trade_quote_df.empty and "symbol" in trade_quote_df.columns:
+            for sym, sdf in trade_quote_df.groupby("symbol"):
+                trade_by_sym[str(sym)] = sdf
 
         quality_scores: Dict[str, float] = {}
+        nonzero_density_scores: Dict[str, float] = {}
         for symbol in ALL_SYMBOLS:
-            sdf = snap_by_sym.get(symbol, pd.DataFrame())
-            vec, q = self.extract_325_features(sdf)
+            sdf_greek = greek_by_sym.get(symbol, pd.DataFrame())
+            sdf_trade = trade_by_sym.get(symbol, pd.DataFrame())
+            vec, q = self.extract_325_features(sdf_greek, sdf_trade)
             quality_scores[symbol] = q
+            nonzero_density_scores[symbol] = float(np.count_nonzero(vec) / FEAT_DIM)
             self._seq_history[symbol].append(vec)
-            self._chain_history[symbol].append(self.extract_chain_slice(sdf))
+            self._chain_history[symbol].append(self.extract_chain_slice(sdf_greek))
 
-        return quality_scores
+        self._last_quality_scores = quality_scores
+        self._last_nonzero_density_scores = nonzero_density_scores
+        self._last_hist_push_monotonic = now
+        return quality_scores, True
+
+    def _update_history_exchange_minute(
+        self,
+        greek_df: pd.DataFrame,
+        trade_quote_df: Optional[pd.DataFrame],
+    ) -> Tuple[Dict[str, float], bool]:
+        """
+        Buffer sub-minute fetches; on NY minute rollover, aggregate and flush one bar.
+        """
+        mk = _ny_minute_key()
+        tq = trade_quote_df if trade_quote_df is not None else pd.DataFrame()
+        tq_snap = tq.copy() if not tq.empty else pd.DataFrame()
+
+        if self._minute_bucket_key is not None and mk < self._minute_bucket_key:
+            self._minute_bucket_key = None
+            self._minute_greek_snaps = []
+            self._minute_tq_snaps = []
+
+        if self._minute_bucket_key is None:
+            self._minute_bucket_key = mk
+            self._minute_greek_snaps = [greek_df.copy()]
+            self._minute_tq_snaps = [tq_snap]
+            return dict(self._last_quality_scores), False
+
+        if mk == self._minute_bucket_key:
+            self._minute_greek_snaps.append(greek_df.copy())
+            self._minute_tq_snaps.append(tq_snap)
+            return dict(self._last_quality_scores), False
+
+        g_agg = aggregate_minute_snapshots(
+            self._minute_greek_snaps, self.history_minute_aggregate, "greek"
+        )
+        t_nonempty = [x for x in self._minute_tq_snaps if not x.empty]
+        t_agg = (
+            aggregate_minute_snapshots(t_nonempty, self.history_minute_aggregate, "tq")
+            if t_nonempty
+            else pd.DataFrame()
+        )
+
+        self._minute_bucket_key = mk
+        self._minute_greek_snaps = [greek_df.copy()]
+        self._minute_tq_snaps = [tq_snap]
+
+        if g_agg.empty:
+            return dict(self._last_quality_scores), False
+
+        t_out: Optional[pd.DataFrame] = t_agg if not t_agg.empty else None
+        return self._flush_history_step(g_agg, t_out)
+
+    def update_history(
+        self,
+        greek_df: pd.DataFrame,
+        trade_quote_df: Optional[pd.DataFrame] = None,
+    ) -> Tuple[Dict[str, float], bool]:
+        """
+        Process one snapshot tick: extract features and push to rolling histories.
+
+        Returns (quality_scores, advanced). If ``history_align_to_exchange_minute``,
+        buffers snapshots until the NY minute rolls over, then aggregates (mean/last)
+        into one step. If only ``history_min_interval_seconds`` > 0 (no exchange
+        align), returns (last scores, False) when called inside that wall interval.
+        """
+        if greek_df is None or greek_df.empty:
+            return {}, False
+
+        if self.history_align_to_exchange_minute:
+            return self._update_history_exchange_minute(greek_df, trade_quote_df)
+
+        now = time.monotonic()
+        if self.history_min_interval_seconds > 0 and self._last_hist_push_monotonic is not None:
+            if (now - self._last_hist_push_monotonic) < self.history_min_interval_seconds:
+                return dict(self._last_quality_scores), False
+
+        return self._flush_history_step(greek_df, trade_quote_df)
 
     def get_stage1_tensors(self, symbol: str) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -280,7 +481,11 @@ class FeatureBridge:
         sequence tensor : (1, seq_len, 325)
         chain tensor    : (1, 5, strike_bins, seq_len)
 
-        Short histories are forward-filled with the oldest available frame.
+        Partial history (e.g. 3 real minutes of updates, then 17 missing): the
+        **oldest** available frame is repeated at the **past** end of the window
+        until length ``seq_len`` is reached; the **newest** timesteps are the
+        actual observations. So the LSTM always receives a full length-20 tensor
+        while using all data collected so far, up to 20 steps of real history.
         """
         hist = list(self._seq_history[symbol])
         if not hist:
@@ -313,6 +518,11 @@ class FeatureBridge:
 
         Primary source : VIXW rows in snap_df (per-contract greeks + spot).
         Fallback        : VIXW row in agg_df (aggregated iv_skew / pc_ratio).
+
+        Appends one sample to internal VIX deques per call. Indices such as 60 in
+        ``pct_change(60)`` / ``percentile(60)`` refer to **samples in the deque**;
+        wall-clock span equals 60 × (time between calls). Pair with
+        ``history_min_interval_seconds=60`` so VIX steps align with tier3 training.
         """
         vix_row: Dict[str, Any] = {}
 
@@ -412,3 +622,13 @@ class FeatureBridge:
     @property
     def vix_level(self) -> float:
         return float(self._vix_spot_history[-1]) if self._vix_spot_history else 0.0
+
+    @property
+    def nonzero_density(self) -> float:
+        if not self._last_nonzero_density_scores:
+            return 0.0
+        return float(np.mean(list(self._last_nonzero_density_scores.values())))
+
+    @property
+    def nonzero_density_by_symbol(self) -> Dict[str, float]:
+        return dict(self._last_nonzero_density_scores)

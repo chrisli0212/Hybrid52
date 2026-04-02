@@ -1,0 +1,192 @@
+[
+  {
+    "pair_name": "SPXW-SPY",
+    "test_accuracy": 0.5849,
+    "test_f1": 0.5922,
+    "test_precision": 0.6032,
+    "test_recall": 0.5817,
+    "test_auc": 0.6076,
+    "optimal_threshold": 0.3,
+    "opt_thr_f1": 0.6776,
+    "best_val_f1": 0.6479,
+    "best_val_acc": 0.5669,
+    "focal_alpha": 0.5207,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5849,
+        "coverage": 1.0,
+        "n": 131141
+      },
+      "conf>=0.2": {
+        "accuracy": 0.5963,
+        "coverage": 0.1469,
+        "n": 19263
+      },
+      "conf>=0.4": {
+        "accuracy": 0.5989,
+        "coverage": 0.0618,
+        "n": 8110
+      },
+      "conf>=0.6": {
+        "accuracy": 0.6667,
+        "coverage": 0.0194,
+        "n": 2547
+      }
+    },
+    "n_train": 393421,
+    "n_val": 131141,
+    "n_test": 131141,
+    "feat_dim": 43,
+    "elapsed_seconds": 73.2,
+    "version": "v5_focal_threshold_cross_diffs"
+  },
+  {
+    "pair_name": "SPXW-QQQ",
+    "test_accuracy": 0.585,
+    "test_f1": 0.5968,
+    "test_precision": 0.6033,
+    "test_recall": 0.5904,
+    "test_auc": 0.6074,
+    "optimal_threshold": 0.3,
+    "opt_thr_f1": 0.6813,
+    "best_val_f1": 0.6586,
+    "best_val_acc": 0.5688,
+    "focal_alpha": 0.5219,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.585,
+        "coverage": 1.0,
+        "n": 116633
+      },
+      "conf>=0.2": {
+        "accuracy": 0.5972,
+        "coverage": 0.1451,
+        "n": 16926
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6126,
+        "coverage": 0.0506,
+        "n": 5906
+      }
+    },
+    "n_train": 349896,
+    "n_val": 116632,
+    "n_test": 116633,
+    "feat_dim": 43,
+    "elapsed_seconds": 65.1,
+    "version": "v5_focal_threshold_cross_diffs"
+  },
+  {
+    "pair_name": "SPXW-IWM",
+    "test_accuracy": 0.5866,
+    "test_f1": 0.5962,
+    "test_precision": 0.6057,
+    "test_recall": 0.5869,
+    "test_auc": 0.6076,
+    "optimal_threshold": 0.3,
+    "opt_thr_f1": 0.6818,
+    "best_val_f1": 0.6531,
+    "best_val_acc": 0.5638,
+    "focal_alpha": 0.5226,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5866,
+        "coverage": 1.0,
+        "n": 113617
+      },
+      "conf>=0.2": {
+        "accuracy": 0.5962,
+        "coverage": 0.1218,
+        "n": 13843
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6184,
+        "coverage": 0.0443,
+        "n": 5034
+      }
+    },
+    "n_train": 340849,
+    "n_val": 113617,
+    "n_test": 113617,
+    "feat_dim": 43,
+    "elapsed_seconds": 63.7,
+    "version": "v5_focal_threshold_cross_diffs"
+  },
+  {
+    "pair_name": "SPXW-TLT",
+    "test_accuracy": 0.5867,
+    "test_f1": 0.5977,
+    "test_precision": 0.6024,
+    "test_recall": 0.5931,
+    "test_auc": 0.6109,
+    "optimal_threshold": 0.3101,
+    "opt_thr_f1": 0.6804,
+    "best_val_f1": 0.6601,
+    "best_val_acc": 0.5662,
+    "focal_alpha": 0.5252,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5867,
+        "coverage": 1.0,
+        "n": 96279
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6067,
+        "coverage": 0.134,
+        "n": 12905
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6286,
+        "coverage": 0.0458,
+        "n": 4413
+      },
+      "conf>=0.6": {
+        "accuracy": 0.7395,
+        "coverage": 0.0035,
+        "n": 334
+      }
+    },
+    "n_train": 288835,
+    "n_val": 96279,
+    "n_test": 96279,
+    "feat_dim": 43,
+    "elapsed_seconds": 52.2,
+    "version": "v5_focal_threshold_cross_diffs"
+  },
+  {
+    "pair_name": "SPXW-VIXW",
+    "test_accuracy": 0.5907,
+    "test_f1": 0.6807,
+    "test_precision": 0.5806,
+    "test_recall": 0.8224,
+    "test_auc": 0.628,
+    "optimal_threshold": 0.4809,
+    "opt_thr_f1": 0.6951,
+    "best_val_f1": 0.6803,
+    "best_val_acc": 0.5847,
+    "focal_alpha": 0.5274,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5907,
+        "coverage": 1.0,
+        "n": 11837
+      },
+      "conf>=0.2": {
+        "accuracy": 0.5969,
+        "coverage": 0.0706,
+        "n": 836
+      },
+      "conf>=0.4": {
+        "accuracy": 0.5178,
+        "coverage": 0.0214,
+        "n": 253
+      }
+    },
+    "n_train": 35511,
+    "n_val": 11837,
+    "n_test": 11837,
+    "feat_dim": 43,
+    "elapsed_seconds": 8.3,
+    "version": "v5_focal_threshold_cross_diffs"
+  }
+]

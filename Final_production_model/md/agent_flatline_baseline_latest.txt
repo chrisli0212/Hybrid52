@@ -1,0 +1,52 @@
+rows=300 unsuppressed=293 suppressed=7
+suppression_reasons_top:
+  warmup_1_of_20: 2
+  no_snapshot_data: 1
+  warmup_2_of_20: 1
+  warmup_3_of_20: 1
+  warmup_4_of_20: 1
+  warmup_5_of_20: 1
+std_all:
+  agent_A_prob: 0.029299
+  agent_B_prob: 0.008876
+  agent_C_prob: 0.041372
+  agent_K_prob: 0.102183
+  agent_T_prob: 0.007016
+  agent_Q_prob: 0.073878
+  agent_2D_prob: 0.035781
+span_all:
+  agent_A_prob: 0.194337
+  agent_B_prob: 0.058897
+  agent_C_prob: 0.280280
+  agent_K_prob: 0.413401
+  agent_T_prob: 0.048354
+  agent_Q_prob: 0.280203
+  agent_2D_prob: 0.234134
+std_unsuppressed:
+  agent_A_prob: 0.006087
+  agent_B_prob: 0.000171
+  agent_C_prob: 0.002970
+  agent_K_prob: 0.100760
+  agent_T_prob: 0.000635
+  agent_Q_prob: 0.074417
+  agent_2D_prob: 0.012145
+span_unsuppressed:
+  agent_A_prob: 0.041763
+  agent_B_prob: 0.000787
+  agent_C_prob: 0.015659
+  agent_K_prob: 0.413401
+  agent_T_prob: 0.002914
+  agent_Q_prob: 0.280203
+  agent_2D_prob: 0.074414
+winner_frequency_unsuppressed:
+  agent_K_prob: 261
+  agent_Q_prob: 21
+  agent_T_prob: 11
+surpass_matrix_unsuppressed (row > col counts):
+  agent_A_prob | agent_B_prob:0, agent_C_prob:293, agent_K_prob:5, agent_T_prob:0, agent_Q_prob:0, agent_2D_prob:293
+  agent_B_prob | agent_A_prob:293, agent_C_prob:293, agent_K_prob:26, agent_T_prob:0, agent_Q_prob:46, agent_2D_prob:293
+  agent_C_prob | agent_A_prob:0, agent_B_prob:0, agent_K_prob:0, agent_T_prob:0, agent_Q_prob:0, agent_2D_prob:0
+  agent_K_prob | agent_A_prob:288, agent_B_prob:267, agent_C_prob:293, agent_T_prob:263, agent_Q_prob:262, agent_2D_prob:292
+  agent_T_prob | agent_A_prob:293, agent_B_prob:293, agent_C_prob:293, agent_K_prob:30, agent_Q_prob:55, agent_2D_prob:293
+  agent_Q_prob | agent_A_prob:293, agent_B_prob:247, agent_C_prob:293, agent_K_prob:31, agent_T_prob:238, agent_2D_prob:293
+  agent_2D_prob | agent_A_prob:0, agent_B_prob:0, agent_C_prob:293, agent_K_prob:1, agent_T_prob:0, agent_Q_prob:0

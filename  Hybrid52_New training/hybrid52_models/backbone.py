@@ -56,20 +56,24 @@ class TemporalBackbone(nn.Module):
         self.input_proj = nn.Linear(feat_dim, hidden_dim)
         self.input_norm = nn.LayerNorm(hidden_dim)
 
+        # Causal conv: pad only on the LEFT so bar t never sees bar t+1..t+k
         self.dw_convs = nn.ModuleList([
             nn.Conv1d(
                 hidden_dim, hidden_dim,
                 kernel_size=k,
-                padding=k // 2,
+                padding=0,          # no built-in padding — we pad manually in forward
                 groups=hidden_dim
             )
             for k in kernel_sizes
         ])
+        self.dw_conv_pads = [k - 1 for k in kernel_sizes]  # left-only causal pad sizes
 
         self.pw_combine = nn.Conv1d(hidden_dim * len(kernel_sizes), hidden_dim, kernel_size=1)
         self.ln = nn.LayerNorm(hidden_dim)
 
-        self.pool = AttentionPool(hidden_dim) if use_attention_pool else nn.AdaptiveAvgPool1d(1)
+        # Last-timestep pool: after causal convs, position -1 has seen all 20 bars
+        # AttentionPool still available as option; last-timestep is default
+        self.pool = AttentionPool(hidden_dim) if use_attention_pool else None
 
         self.output_proj = nn.Linear(hidden_dim, embed_dim)
         self.output_norm = nn.LayerNorm(embed_dim)
@@ -87,8 +91,10 @@ class TemporalBackbone(nn.Module):
         x = x.transpose(1, 2)
 
         scale_outputs = []
-        for conv in self.dw_convs:
-            scale_out = F.gelu(conv(x))
+        for conv, pad_size in zip(self.dw_convs, self.dw_conv_pads):
+            # Causal: pad left side only so output[t] only sees input[0..t]
+            x_padded = F.pad(x, (pad_size, 0))
+            scale_out = F.gelu(conv(x_padded))
             scale_outputs.append(scale_out)
 
         x = torch.cat(scale_outputs, dim=1)
@@ -100,9 +106,9 @@ class TemporalBackbone(nn.Module):
         x = x.transpose(1, 2)
 
         if self.use_attention_pool:
-            x = self.pool(x)
+            x = self.pool(x)       # AttentionPool: (B, hidden_dim, T) → (B, hidden_dim)
         else:
-            x = self.pool(x).squeeze(-1)
+            x = x[:, :, -1]        # Last timestep: causal summary of all 20 bars
 
         x = self.output_proj(x)
         x = self.output_norm(x)
@@ -164,8 +170,9 @@ class TemporalBackboneWithAttention(nn.Module):
         x = x.transpose(1, 2)
 
         scale_outputs = []
-        for conv in self.base_backbone.dw_convs:
-            scale_out = F.gelu(conv(x))
+        for conv, pad_size in zip(self.base_backbone.dw_convs, self.base_backbone.dw_conv_pads):
+            x_padded = F.pad(x, (pad_size, 0))
+            scale_out = F.gelu(conv(x_padded))
             scale_outputs.append(scale_out)
 
         x = torch.cat(scale_outputs, dim=1)
@@ -178,7 +185,7 @@ class TemporalBackboneWithAttention(nn.Module):
         if self.base_backbone.use_attention_pool:
             x = self.base_backbone.pool(x)
         else:
-            x = self.base_backbone.pool(x).squeeze(-1)
+            x = x[:, :, -1]        # Last timestep after causal convs
 
         x = self.output_proj(x)
         x = self.output_norm(x)
@@ -188,3 +195,87 @@ class TemporalBackboneWithAttention(nn.Module):
 
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters())
+
+# ============================================================================
+# DilatedCausalTCN  —  WaveNet-style residual TCN (replaces TemporalBackbone)
+# Receptive field: kernel=2, dilations=[1,2,4,8] → covers 30 bars from 20
+# All convolutions are CAUSAL (left-pad only) — no future leakage
+# ============================================================================
+
+class CausalResidualBlock(nn.Module):
+    """Single dilated causal residual block."""
+    def __init__(self, channels: int, kernel_size: int = 2,
+                 dilation: int = 1, dropout: float = 0.1):
+        super().__init__()
+        self.causal_pad = (kernel_size - 1) * dilation
+        self.conv1 = nn.Conv1d(channels, channels, kernel_size,
+                               dilation=dilation, padding=0)
+        self.conv2 = nn.Conv1d(channels, channels, kernel_size,
+                               dilation=dilation, padding=0)
+        self.norm1 = nn.LayerNorm(channels)
+        self.norm2 = nn.LayerNorm(channels)
+        self.dropout = nn.Dropout(dropout)
+        self.skip   = nn.Conv1d(channels, channels, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, C, T)
+        residual = x
+        x = F.pad(x, (self.causal_pad, 0))
+        x = self.conv1(x)                                   # (B, C, T)
+        x = F.gelu(self.norm1(x.transpose(1, 2)).transpose(1, 2))
+        x = self.dropout(x)
+        x = F.pad(x, (self.causal_pad, 0))
+        x = self.conv2(x)
+        x = F.gelu(self.norm2(x.transpose(1, 2)).transpose(1, 2))
+        x = self.dropout(x)
+        return x + self.skip(residual)
+
+
+class DilatedCausalTCN(nn.Module):
+    """
+    Proper TCN backbone replacing TemporalBackbone.
+    - Causal dilated convolutions (no future leakage within the 20-bar window)
+    - Residual connections (stable gradients)
+    - Last-timestep readout (bar-20 = full causal summary of all 20 bars)
+    - Receptive field = 2*(1+2+4+8) = 30 bars with default settings
+
+    Drop-in replacement: same __init__ signature as TemporalBackbone.
+    """
+    def __init__(
+        self,
+        feat_dim:   int   = 158,
+        hidden_dim: int   = 128,
+        embed_dim:  int   = 128,
+        dilations:  tuple = (1, 2, 4, 8),
+        kernel_size: int  = 2,
+        dropout:    float = 0.1,
+        use_attention_pool: bool = False,   # kept for API compat, unused
+        **kwargs,                           # absorb legacy kwargs
+    ):
+        super().__init__()
+        self.input_proj = nn.Linear(feat_dim, hidden_dim)
+        self.input_norm = nn.LayerNorm(hidden_dim)
+        self.blocks = nn.ModuleList([
+            CausalResidualBlock(hidden_dim, kernel_size, d, dropout)
+            for d in dilations
+        ])
+        self.output_proj = nn.Linear(hidden_dim, embed_dim)
+        self.output_norm = nn.LayerNorm(embed_dim)
+        self.dropout_out = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, T, D)  or  (B, D) — guard for 2-D input
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+        x = F.gelu(self.input_norm(self.input_proj(x)))   # (B, T, hidden)
+        x = x.transpose(1, 2)                              # (B, hidden, T)
+        for block in self.blocks:
+            x = block(x)
+        x = x[:, :, -1]                    # last timestep — causal summary
+        x = self.output_proj(x)
+        x = self.output_norm(x)
+        return self.dropout_out(x)
+
+    def count_parameters(self) -> int:
+        return sum(p.numel() for p in self.parameters())
+
