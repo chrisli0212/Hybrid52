@@ -801,6 +801,8 @@ def main():
     print(f"  Workers: {args.workers}")
     print(f"  Chain-only: {args.chain_only}")
     print(f"  Feature dim: {FEAT_DIM}")
+    print(f"  Excluded Greek cols: {sorted(HARD_EXCLUDED_GREEK_COLS)}")
+    print(f"  Excluded TQ cols: {sorted(HARD_EXCLUDED_TQ_COLS)}")
     print(f"{'=' * 70}")
 
     results = []
