@@ -55,6 +55,11 @@ from hybrid55_preprocessing.feature_config_v2 import (
     TOTAL_FEATURES,
     FEATURE_SCHEMA_VERSION,
 )
+from hybrid55_preprocessing.data_validation import (
+    get_excluded_columns,
+    get_trade_quote_excluded_columns,
+)
+from hybrid55_preprocessing.quality_checks import DataQualityChecker
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -66,8 +71,9 @@ ALL_SYMBOLS = ["SPXW", "SPY", "QQQ", "IWM", "TLT"]
 
 # Global counter for extraction errors (multiprocessing-safe via return value inspection)
 _EXTRACTION_ERROR_SAMPLE_LIMIT = 5  # log first N unique error messages per worker
-HARD_EXCLUDED_GREEK_COLS = {"vera", "speed", "zomma", "dual_gamma", "iv_error", "endpoint", "batch_id", "ts"}
-HARD_EXCLUDED_TQ_COLS = {"bid_condition", "ask_condition", "ext_condition1", "ext_condition2", "ext_condition3", "ext_condition4", "endpoint", "batch_id", "ts"}
+# Use centralized column exclusion from hybrid55_preprocessing.data_validation
+HARD_EXCLUDED_GREEK_COLS = set(get_excluded_columns())
+HARD_EXCLUDED_TQ_COLS = set(get_trade_quote_excluded_columns())
 RECOVERED_GREEK_COLS = ["rho", "epsilon", "vomma", "veta", "color", "dual_delta", "d1", "d2", "ultima"]
 
 
@@ -712,6 +718,33 @@ def process_symbol(symbol, tier1_root, output_root, n_workers, chain_only=False)
     sample = np.array([np.array(f) for f in minutes_df['features'].iloc[:1000]])
     useful = int((np.std(sample, axis=0) >= 1e-8).sum())
     has_tq = (minutes_df['trade_count'] > 0).sum()
+
+    # Enhanced validation using DataQualityChecker from hybrid55_preprocessing
+    try:
+        all_features = np.array([np.array(f) for f in minutes_df['features']])
+        quality_checker = DataQualityChecker(
+            missing_threshold=0.05,
+            zero_threshold=0.95,
+            constant_threshold=1e-10
+        )
+        quality_report = quality_checker.check_features(all_features)
+
+        logger.info(f"{symbol}: Quality - overall={quality_report.overall_quality:.2%}, "
+                   f"missing={quality_report.missing_pct:.2%}, zero={quality_report.zero_pct:.2%}, "
+                   f"inf={quality_report.inf_pct:.2%}")
+
+        if quality_report.errors:
+            logger.error(f"{symbol}: Quality errors: {'; '.join(quality_report.errors[:3])}")
+        if quality_report.warnings and len(quality_report.warnings) > 5:
+            logger.warning(f"{symbol}: {len(quality_report.warnings)} quality warnings detected")
+
+        # Save quality report
+        quality_report_path = output_root / f"{symbol}_quality_report.json"
+        from hybrid55_preprocessing.quality_checks import save_quality_report
+        save_quality_report(quality_report, str(quality_report_path))
+        logger.info(f"{symbol}: Quality report saved to {quality_report_path}")
+    except Exception as e:
+        logger.warning(f"{symbol}: Quality check failed: {e}")
 
     if useful == 0:
         logger.error(

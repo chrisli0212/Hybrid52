@@ -17,7 +17,17 @@ import time
 import datetime as dt
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import sys
 import duckdb
+
+# Add path for hybrid55_preprocessing imports
+ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
+
+from hybrid55_preprocessing.data_validation import (
+    get_excluded_columns,
+    get_trade_quote_excluded_columns,
+)
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 SOURCE_ROOT = Path("/workspace/data/theta_data_3year")

@@ -42,6 +42,7 @@ from hybrid55_preprocessing.feature_config_v2 import (
     FEATURE_GROUPS,
     FeatureGroup,
 )
+from hybrid55_preprocessing.quality_checks import DataQualityChecker, validate_preprocessed_data
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -371,12 +372,44 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
         
     gc.collect()
 
-    # Clean NaN/Inf
+    # Enhanced NaN/Inf detection and replacement with quality metrics
     nan_count = np.isnan(all_features).sum()
     inf_count = np.isinf(all_features).sum()
+    total_elements = all_features.size
+
     if nan_count > 0 or inf_count > 0:
-        logger.warning(f"{symbol}: Replacing {nan_count} NaN, {inf_count} Inf with 0")
+        nan_pct = 100.0 * nan_count / total_elements
+        inf_pct = 100.0 * inf_count / total_elements
+
+        if nan_pct > 5.0 or inf_pct > 5.0:
+            logger.error(f"{symbol}: HIGH NaN/Inf contamination - NaN: {nan_count} ({nan_pct:.2f}%), "
+                        f"Inf: {inf_count} ({inf_pct:.2f}%)")
+        else:
+            logger.warning(f"{symbol}: Replacing {nan_count} NaN ({nan_pct:.3f}%), "
+                          f"{inf_count} Inf ({inf_pct:.3f}%) with 0")
+
         all_features = np.nan_to_num(all_features, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Run quality check before sequence building
+    try:
+        quality_checker = DataQualityChecker(
+            missing_threshold=0.05,
+            zero_threshold=0.95,
+            constant_threshold=1e-10
+        )
+        quality_report = quality_checker.check_features(all_features)
+
+        logger.info(f"{symbol}: Pre-sequence quality - overall={quality_report.overall_quality:.2%}, "
+                   f"zero={quality_report.zero_pct:.2%}")
+
+        if quality_report.errors:
+            logger.error(f"{symbol}: Pre-sequence quality errors: {'; '.join(quality_report.errors[:3])}")
+
+        n_high_zero_features = sum(1 for fm in quality_report.feature_metrics if fm.zero_pct > 0.95)
+        if n_high_zero_features > FEAT_DIM * 0.2:
+            logger.warning(f"{symbol}: {n_high_zero_features}/{FEAT_DIM} features are >95% zero")
+    except Exception as e:
+        logger.warning(f"{symbol}: Pre-sequence quality check failed: {e}")
 
     tq_idx = _modality_indices(FEAT_DIM, MODALITY_RANGES.get("tq", []))
     csv_idx = np.arange(CSV_FEAT_START, min(CSV_FEAT_END, FEAT_DIM), dtype=np.int64)
@@ -619,6 +652,32 @@ def build_binary_sequences(symbol: str, horizons: list, seq_len: int = SEQ_LEN,
         }
         with open(out_dir / 'metadata.json', 'w') as f:
             json.dump(metadata, f, indent=2)
+
+        # Save quality report for sequences
+        try:
+            quality_report_path = out_dir / 'quality_report.json'
+            from hybrid55_preprocessing.quality_checks import save_quality_report
+
+            # Load a sample of the sequences for quality check
+            X_train_sample = np.load(out_dir / 'X_train.npy', mmap_mode='r')
+            sample_size = min(10000, len(X_train_sample))
+            X_sample = X_train_sample[:sample_size]
+
+            quality_checker = DataQualityChecker(
+                missing_threshold=0.05,
+                zero_threshold=0.95,
+                constant_threshold=1e-10
+            )
+            quality_dict = quality_checker.check_sequence(X_sample,
+                chain_2d=np.load(out_dir / 'chain_2d_train.npy', mmap_mode='r')[:sample_size]
+                if (out_dir / 'chain_2d_train.npy').exists() else None)
+
+            with open(quality_report_path, 'w') as qf:
+                json.dump(quality_dict, qf, indent=2)
+
+            logger.info(f"  Quality report saved to {quality_report_path}")
+        except Exception as e:
+            logger.warning(f"  Failed to save quality report: {e}")
 
         results[f'h{horizon}'] = metadata
 

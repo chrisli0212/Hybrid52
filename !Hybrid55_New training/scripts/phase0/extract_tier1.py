@@ -12,8 +12,18 @@ import argparse
 from pathlib import Path
 import time
 import datetime as _dt
+import sys
 
 import duckdb
+
+# Add path for hybrid55_preprocessing imports
+ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
+
+from hybrid55_preprocessing.data_validation import (
+    get_excluded_columns,
+    get_trade_quote_excluded_columns,
+)
 
 # Legacy consolidated DBs — used only when --db-path is not supplied.
 # For Hybrid52, always pass --db-path (per-symbol DB from data_in_2026/).
