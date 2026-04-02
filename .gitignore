@@ -32,4 +32,5 @@ historical_data/
 testdata/
 *.csv
 *.parquet
+*.duckdb
 data/
