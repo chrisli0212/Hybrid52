@@ -1,0 +1,6887 @@
+{
+  "agent_B_classifier": {
+    "accuracy": 0.5596,
+    "balanced_accuracy": 0.5,
+    "f1": 0.7176,
+    "auc": 0.5105,
+    "ic": 0.0356,
+    "brier": 0.24721,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "pred_pos_out_of_band": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 0.6835,
+      "q2": 1.7866,
+      "q3": 1.6318,
+      "q4": 1.3441,
+      "q5": 2.817
+    },
+    "quintile_spread_bp": 2.1335,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5596,
+        "f1": 0.7176,
+        "coverage": 1.0,
+        "n": 10000
+      }
+    },
+    "probability_summary": {
+      "n": 10000,
+      "mean": 0.531998,
+      "std": 0.0,
+      "min": 0.531997,
+      "max": 0.531999,
+      "quantiles": {
+        "p00": 0.531997,
+        "p01": 0.531998,
+        "p05": 0.531998,
+        "p10": 0.531998,
+        "p25": 0.531998,
+        "p50": 0.531998,
+        "p75": 0.531998,
+        "p90": 0.531998,
+        "p95": 0.531998,
+        "p99": 0.531998,
+        "p100": 0.531999
+      }
+    },
+    "threshold_curve": [
+      {
+        "threshold": 0.05,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.06,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.07,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.08,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.09,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.1,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.11,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.12,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.13,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.14,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.15,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.16,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.17,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.18,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.19,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.2,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.21,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.22,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.23,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.24,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.25,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.26,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.27,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.28,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.29,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.3,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.31,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.32,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.33,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.34,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.35,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.36,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.37,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.38,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.39,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.4,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.41,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.42,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.43,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.44,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.45,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.46,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.47,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.48,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.49,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.5,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.51,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.52,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.53,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.54,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.55,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.56,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.57,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.58,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.59,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.6,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.61,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.62,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.63,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.64,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.65,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.66,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.67,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.68,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.69,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.7,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.71,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.72,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.73,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.74,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.75,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.76,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.77,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.78,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.79,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.8,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.81,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.82,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.83,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.84,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.85,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.86,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.87,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.88,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.89,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.9,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.91,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.92,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.93,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.94,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.95,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      }
+    ],
+    "n_params": 977594,
+    "val_threshold_diagnostics": {
+      "objective": "mcc",
+      "objective_value": 0.0,
+      "selected_threshold": 0.05,
+      "selected_pred_pos_rate": 1.0,
+      "selected_metrics": {
+        "mcc": 0.0,
+        "f1": 0.694517,
+        "balanced_acc": 0.5
+      },
+      "probability_summary": {
+        "n": 10000,
+        "mean": 0.531998,
+        "std": 0.0,
+        "min": 0.531998,
+        "max": 0.531998,
+        "quantiles": {
+          "p00": 0.531998,
+          "p01": 0.531998,
+          "p05": 0.531998,
+          "p10": 0.531998,
+          "p25": 0.531998,
+          "p50": 0.531998,
+          "p75": 0.531998,
+          "p90": 0.531998,
+          "p95": 0.531998,
+          "p99": 0.531998,
+          "p100": 0.531998
+        }
+      },
+      "threshold_curve": [
+        {
+          "threshold": 0.05,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.06,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.07,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.08,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.09,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.1,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.11,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.12,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.13,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.14,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.15,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.16,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.17,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.18,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.19,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.2,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.21,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.22,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.23,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.24,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.25,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.26,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.27,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.28,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.29,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.3,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.31,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.32,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.33,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.34,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.35,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.36,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.37,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.38,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.39,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.4,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.41,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.42,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.43,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.44,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.45,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.46,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.47,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.48,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.49,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.5,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.51,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.52,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.53,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.54,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.55,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.56,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.57,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.58,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.59,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.6,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.61,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.62,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.63,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.64,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.65,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.66,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.67,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.68,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.69,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.7,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.71,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.72,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.73,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.74,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.75,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.76,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.77,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.78,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.79,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.8,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.81,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.82,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.83,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.84,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.85,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.86,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.87,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.88,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.89,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.9,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.91,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.92,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.93,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.94,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.95,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        }
+      ]
+    }
+  },
+  "agent_C_classifier": {
+    "accuracy": 0.5596,
+    "balanced_accuracy": 0.5,
+    "f1": 0.7176,
+    "auc": 0.5137,
+    "ic": 0.0128,
+    "brier": 0.24721,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "pred_pos_out_of_band": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 1.8682,
+      "q2": 0.8073,
+      "q3": 1.2858,
+      "q4": 2.48,
+      "q5": 1.8217
+    },
+    "quintile_spread_bp": -0.0465,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5596,
+        "f1": 0.7176,
+        "coverage": 1.0,
+        "n": 10000
+      }
+    },
+    "probability_summary": {
+      "n": 10000,
+      "mean": 0.531998,
+      "std": 0.0,
+      "min": 0.531998,
+      "max": 0.531998,
+      "quantiles": {
+        "p00": 0.531998,
+        "p01": 0.531998,
+        "p05": 0.531998,
+        "p10": 0.531998,
+        "p25": 0.531998,
+        "p50": 0.531998,
+        "p75": 0.531998,
+        "p90": 0.531998,
+        "p95": 0.531998,
+        "p99": 0.531998,
+        "p100": 0.531998
+      }
+    },
+    "threshold_curve": [
+      {
+        "threshold": 0.05,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.06,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.07,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.08,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.09,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.1,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.11,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.12,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.13,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.14,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.15,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.16,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.17,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.18,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.19,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.2,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.21,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.22,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.23,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.24,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.25,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.26,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.27,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.28,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.29,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.3,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.31,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.32,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.33,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.34,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.35,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.36,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.37,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.38,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.39,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.4,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.41,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.42,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.43,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.44,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.45,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.46,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.47,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.48,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.49,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.5,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.51,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.52,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.53,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.54,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.55,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.56,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.57,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.58,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.59,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.6,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.61,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.62,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.63,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.64,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.65,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.66,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.67,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.68,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.69,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.7,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.71,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.72,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.73,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.74,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.75,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.76,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.77,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.78,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.79,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.8,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.81,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.82,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.83,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.84,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.85,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.86,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.87,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.88,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.89,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.9,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.91,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.92,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.93,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.94,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.95,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      }
+    ],
+    "n_params": 693354,
+    "val_threshold_diagnostics": {
+      "objective": "mcc",
+      "objective_value": 0.0,
+      "selected_threshold": 0.05,
+      "selected_pred_pos_rate": 1.0,
+      "selected_metrics": {
+        "mcc": 0.0,
+        "f1": 0.694517,
+        "balanced_acc": 0.5
+      },
+      "probability_summary": {
+        "n": 10000,
+        "mean": 0.531998,
+        "std": 0.0,
+        "min": 0.531998,
+        "max": 0.531998,
+        "quantiles": {
+          "p00": 0.531998,
+          "p01": 0.531998,
+          "p05": 0.531998,
+          "p10": 0.531998,
+          "p25": 0.531998,
+          "p50": 0.531998,
+          "p75": 0.531998,
+          "p90": 0.531998,
+          "p95": 0.531998,
+          "p99": 0.531998,
+          "p100": 0.531998
+        }
+      },
+      "threshold_curve": [
+        {
+          "threshold": 0.05,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.06,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.07,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.08,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.09,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.1,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.11,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.12,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.13,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.14,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.15,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.16,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.17,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.18,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.19,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.2,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.21,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.22,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.23,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.24,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.25,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.26,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.27,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.28,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.29,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.3,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.31,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.32,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.33,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.34,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.35,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.36,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.37,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.38,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.39,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.4,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.41,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.42,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.43,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.44,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.45,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.46,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.47,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.48,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.49,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.5,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.51,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.52,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.53,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.54,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.55,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.56,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.57,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.58,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.59,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.6,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.61,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.62,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.63,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.64,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.65,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.66,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.67,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.68,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.69,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.7,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.71,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.72,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.73,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.74,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.75,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.76,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.77,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.78,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.79,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.8,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.81,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.82,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.83,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.84,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.85,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.86,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.87,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.88,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.89,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.9,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.91,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.92,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.93,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.94,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.95,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        }
+      ]
+    }
+  },
+  "agent_TQ_classifier": {
+    "accuracy": 0.5212,
+    "balanced_accuracy": 0.4949,
+    "f1": 0.6259,
+    "auc": 0.5033,
+    "ic": 0.024,
+    "brier": 0.24722,
+    "threshold": 0.53,
+    "pred_pos_rate": 0.7202,
+    "pred_neg_rate": 0.2798,
+    "degenerate_prediction": false,
+    "pred_pos_out_of_band": true,
+    "matches_all_up_baseline": false,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 1.2552,
+      "q2": 2.5787,
+      "q3": 2.0284,
+      "q4": 1.1488,
+      "q5": 1.2519
+    },
+    "quintile_spread_bp": -0.0033,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5212,
+        "f1": 0.6259,
+        "coverage": 1.0,
+        "n": 10000
+      }
+    },
+    "probability_summary": {
+      "n": 10000,
+      "mean": 0.532363,
+      "std": 0.006882,
+      "min": 0.489615,
+      "max": 0.553581,
+      "quantiles": {
+        "p00": 0.489615,
+        "p01": 0.509968,
+        "p05": 0.518827,
+        "p10": 0.523187,
+        "p25": 0.529204,
+        "p50": 0.533672,
+        "p75": 0.537011,
+        "p90": 0.539548,
+        "p95": 0.540964,
+        "p99": 0.543523,
+        "p100": 0.553581
+      }
+    },
+    "threshold_curve": [
+      {
+        "threshold": 0.05,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.06,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.07,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.08,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.09,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.1,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.11,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.12,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.13,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.14,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.15,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.16,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.17,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.18,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.19,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.2,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.21,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.22,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.23,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.24,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.25,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.26,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.27,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.28,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.29,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.3,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.31,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.32,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.33,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.34,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.35,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.36,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.37,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.38,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.39,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.4,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.41,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.42,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.43,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.44,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.45,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.46,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.47,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.48,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.49,
+        "pred_pos_rate": 0.9999,
+        "mcc": -0.008872,
+        "f1": 0.717538,
+        "balanced_acc": 0.499911
+      },
+      {
+        "threshold": 0.5,
+        "pred_pos_rate": 0.9989,
+        "mcc": 0.007022,
+        "f1": 0.717485,
+        "balanced_acc": 0.500234
+      },
+      {
+        "threshold": 0.51,
+        "pred_pos_rate": 0.9899,
+        "mcc": 0.01112,
+        "f1": 0.715715,
+        "balanced_acc": 0.50112
+      },
+      {
+        "threshold": 0.52,
+        "pred_pos_rate": 0.9396,
+        "mcc": 0.011837,
+        "f1": 0.703308,
+        "balanced_acc": 0.50284
+      },
+      {
+        "threshold": 0.53,
+        "pred_pos_rate": 0.7202,
+        "mcc": -0.011326,
+        "f1": 0.625879,
+        "balanced_acc": 0.494879
+      },
+      {
+        "threshold": 0.54,
+        "pred_pos_rate": 0.0807,
+        "mcc": 0.001777,
+        "f1": 0.141809,
+        "balanced_acc": 0.500487
+      },
+      {
+        "threshold": 0.55,
+        "pred_pos_rate": 0.0003,
+        "mcc": -0.007896,
+        "f1": 0.000357,
+        "balanced_acc": 0.499862
+      },
+      {
+        "threshold": 0.56,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.57,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.58,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.59,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.6,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.61,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.62,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.63,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.64,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.65,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.66,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.67,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.68,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.69,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.7,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.71,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.72,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.73,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.74,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.75,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.76,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.77,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.78,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.79,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.8,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.81,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.82,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.83,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.84,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.85,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.86,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.87,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.88,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.89,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.9,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.91,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.92,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.93,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.94,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.95,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      }
+    ],
+    "n_params": 179698,
+    "val_threshold_diagnostics": {
+      "objective": "mcc",
+      "objective_value": 0.028036,
+      "selected_threshold": 0.53,
+      "selected_pred_pos_rate": 0.7093,
+      "selected_metrics": {
+        "mcc": 0.028036,
+        "f1": 0.618223,
+        "balanced_acc": 0.512757
+      },
+      "probability_summary": {
+        "n": 10000,
+        "mean": 0.531993,
+        "std": 0.006025,
+        "min": 0.484581,
+        "max": 0.54749,
+        "quantiles": {
+          "p00": 0.484581,
+          "p01": 0.511886,
+          "p05": 0.520404,
+          "p10": 0.524306,
+          "p25": 0.529192,
+          "p50": 0.533019,
+          "p75": 0.536014,
+          "p90": 0.538339,
+          "p95": 0.5397,
+          "p99": 0.542352,
+          "p100": 0.54749
+        }
+      },
+      "threshold_curve": [
+        {
+          "threshold": 0.05,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.06,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.07,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.08,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.09,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.1,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.11,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.12,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.13,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.14,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.15,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.16,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.17,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.18,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.19,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.2,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.21,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.22,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.23,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.24,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.25,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.26,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.27,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.28,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.29,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.3,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.31,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.32,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.33,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.34,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.35,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.36,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.37,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.38,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.39,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.4,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.41,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.42,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.43,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.44,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.45,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.46,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.47,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.48,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.49,
+          "pred_pos_rate": 0.9999,
+          "mcc": 0.010662,
+          "f1": 0.694562,
+          "balanced_acc": 0.500107
+        },
+        {
+          "threshold": 0.5,
+          "pred_pos_rate": 0.9995,
+          "mcc": -0.003048,
+          "f1": 0.694352,
+          "balanced_acc": 0.499932
+        },
+        {
+          "threshold": 0.51,
+          "pred_pos_rate": 0.9941,
+          "mcc": -0.017303,
+          "f1": 0.692222,
+          "balanced_acc": 0.498672
+        },
+        {
+          "threshold": 0.52,
+          "pred_pos_rate": 0.9545,
+          "mcc": 0.025061,
+          "f1": 0.686714,
+          "balanced_acc": 0.505233
+        },
+        {
+          "threshold": 0.53,
+          "pred_pos_rate": 0.7093,
+          "mcc": 0.028036,
+          "f1": 0.618223,
+          "balanced_acc": 0.512757
+        },
+        {
+          "threshold": 0.54,
+          "pred_pos_rate": 0.0425,
+          "mcc": 0.011822,
+          "f1": 0.082855,
+          "balanced_acc": 0.50239
+        },
+        {
+          "threshold": 0.55,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.56,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.57,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.58,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.59,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.6,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.61,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.62,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.63,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.64,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.65,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.66,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.67,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.68,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.69,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.7,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.71,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.72,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.73,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.74,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.75,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.76,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.77,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.78,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.79,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.8,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.81,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.82,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.83,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.84,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.85,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.86,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.87,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.88,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.89,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.9,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.91,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.92,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.93,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.94,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.95,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        }
+      ]
+    }
+  },
+  "agent_H_classifier": {
+    "accuracy": 0.5596,
+    "balanced_accuracy": 0.5,
+    "f1": 0.7176,
+    "auc": 0.5108,
+    "ic": 0.0195,
+    "brier": 0.247211,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "pred_pos_out_of_band": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 2.4634,
+      "q2": 1.7453,
+      "q3": 1.4986,
+      "q4": 0.8918,
+      "q5": 1.6639
+    },
+    "quintile_spread_bp": -0.7995,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5596,
+        "f1": 0.7176,
+        "coverage": 1.0,
+        "n": 10000
+      }
+    },
+    "probability_summary": {
+      "n": 10000,
+      "mean": 0.531992,
+      "std": 3.1e-05,
+      "min": 0.531837,
+      "max": 0.532134,
+      "quantiles": {
+        "p00": 0.531837,
+        "p01": 0.531929,
+        "p05": 0.531948,
+        "p10": 0.531956,
+        "p25": 0.531971,
+        "p50": 0.531989,
+        "p75": 0.53201,
+        "p90": 0.532032,
+        "p95": 0.532047,
+        "p99": 0.532075,
+        "p100": 0.532134
+      }
+    },
+    "threshold_curve": [
+      {
+        "threshold": 0.05,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.06,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.07,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.08,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.09,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.1,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.11,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.12,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.13,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.14,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.15,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.16,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.17,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.18,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.19,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.2,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.21,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.22,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.23,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.24,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.25,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.26,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.27,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.28,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.29,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.3,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.31,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.32,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.33,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.34,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.35,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.36,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.37,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.38,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.39,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.4,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.41,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.42,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.43,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.44,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.45,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.46,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.47,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.48,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.49,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.5,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.51,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.52,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.53,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.54,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.55,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.56,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.57,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.58,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.59,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.6,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.61,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.62,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.63,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.64,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.65,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.66,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.67,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.68,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.69,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.7,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.71,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.72,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.73,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.74,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.75,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.76,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.77,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.78,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.79,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.8,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.81,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.82,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.83,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.84,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.85,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.86,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.87,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.88,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.89,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.9,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.91,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.92,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.93,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.94,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.95,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      }
+    ],
+    "n_params": 98682,
+    "val_threshold_diagnostics": {
+      "objective": "mcc",
+      "objective_value": 0.0,
+      "selected_threshold": 0.05,
+      "selected_pred_pos_rate": 1.0,
+      "selected_metrics": {
+        "mcc": 0.0,
+        "f1": 0.694517,
+        "balanced_acc": 0.5
+      },
+      "probability_summary": {
+        "n": 10000,
+        "mean": 0.531991,
+        "std": 3.1e-05,
+        "min": 0.531852,
+        "max": 0.532181,
+        "quantiles": {
+          "p00": 0.531852,
+          "p01": 0.531931,
+          "p05": 0.531947,
+          "p10": 0.531955,
+          "p25": 0.531969,
+          "p50": 0.531987,
+          "p75": 0.532009,
+          "p90": 0.532032,
+          "p95": 0.532048,
+          "p99": 0.532078,
+          "p100": 0.532181
+        }
+      },
+      "threshold_curve": [
+        {
+          "threshold": 0.05,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.06,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.07,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.08,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.09,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.1,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.11,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.12,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.13,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.14,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.15,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.16,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.17,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.18,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.19,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.2,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.21,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.22,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.23,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.24,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.25,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.26,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.27,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.28,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.29,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.3,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.31,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.32,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.33,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.34,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.35,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.36,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.37,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.38,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.39,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.4,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.41,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.42,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.43,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.44,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.45,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.46,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.47,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.48,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.49,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.5,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.51,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.52,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.53,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.54,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.55,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.56,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.57,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.58,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.59,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.6,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.61,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.62,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.63,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.64,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.65,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.66,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.67,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.68,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.69,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.7,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.71,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.72,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.73,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.74,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.75,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.76,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.77,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.78,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.79,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.8,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.81,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.82,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.83,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.84,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.85,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.86,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.87,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.88,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.89,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.9,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.91,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.92,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.93,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.94,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.95,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        }
+      ]
+    }
+  },
+  "agent_2D_classifier": {
+    "accuracy": 0.5596,
+    "balanced_accuracy": 0.5,
+    "f1": 0.7176,
+    "auc": 0.5039,
+    "ic": 0.0327,
+    "brier": 0.24721,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "pred_pos_out_of_band": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 1.0382,
+      "q2": 0.8336,
+      "q3": 1.6668,
+      "q4": 2.1283,
+      "q5": 2.5962
+    },
+    "quintile_spread_bp": 1.558,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5596,
+        "f1": 0.7176,
+        "coverage": 1.0,
+        "n": 10000
+      }
+    },
+    "probability_summary": {
+      "n": 10000,
+      "mean": 0.531998,
+      "std": 0.0,
+      "min": 0.531998,
+      "max": 0.531998,
+      "quantiles": {
+        "p00": 0.531998,
+        "p01": 0.531998,
+        "p05": 0.531998,
+        "p10": 0.531998,
+        "p25": 0.531998,
+        "p50": 0.531998,
+        "p75": 0.531998,
+        "p90": 0.531998,
+        "p95": 0.531998,
+        "p99": 0.531998,
+        "p100": 0.531998
+      }
+    },
+    "threshold_curve": [
+      {
+        "threshold": 0.05,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.06,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.07,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.08,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.09,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.1,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.11,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.12,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.13,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.14,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.15,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.16,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.17,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.18,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.19,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.2,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.21,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.22,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.23,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.24,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.25,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.26,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.27,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.28,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.29,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.3,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.31,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.32,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.33,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.34,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.35,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.36,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.37,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.38,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.39,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.4,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.41,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.42,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.43,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.44,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.45,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.46,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.47,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.48,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.49,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.5,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.51,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.52,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.53,
+        "pred_pos_rate": 1.0,
+        "mcc": 0.0,
+        "f1": 0.71762,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.54,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.55,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.56,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.57,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.58,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.59,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.6,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.61,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.62,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.63,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.64,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.65,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.66,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.67,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.68,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.69,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.7,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.71,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.72,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.73,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.74,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.75,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.76,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.77,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.78,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.79,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.8,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.81,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.82,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.83,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.84,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.85,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.86,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.87,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.88,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.89,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.9,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.91,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.92,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.93,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.94,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      },
+      {
+        "threshold": 0.95,
+        "pred_pos_rate": 0.0,
+        "mcc": 0.0,
+        "f1": 0.0,
+        "balanced_acc": 0.5
+      }
+    ],
+    "n_params": 678469,
+    "val_threshold_diagnostics": {
+      "objective": "mcc",
+      "objective_value": 0.0,
+      "selected_threshold": 0.05,
+      "selected_pred_pos_rate": 1.0,
+      "selected_metrics": {
+        "mcc": 0.0,
+        "f1": 0.694517,
+        "balanced_acc": 0.5
+      },
+      "probability_summary": {
+        "n": 10000,
+        "mean": 0.531998,
+        "std": 0.0,
+        "min": 0.531998,
+        "max": 0.531998,
+        "quantiles": {
+          "p00": 0.531998,
+          "p01": 0.531998,
+          "p05": 0.531998,
+          "p10": 0.531998,
+          "p25": 0.531998,
+          "p50": 0.531998,
+          "p75": 0.531998,
+          "p90": 0.531998,
+          "p95": 0.531998,
+          "p99": 0.531998,
+          "p100": 0.531998
+        }
+      },
+      "threshold_curve": [
+        {
+          "threshold": 0.05,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.06,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.07,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.08,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.09,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.1,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.11,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.12,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.13,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.14,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.15,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.16,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.17,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.18,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.19,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.2,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.21,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.22,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.23,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.24,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.25,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.26,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.27,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.28,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.29,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.3,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.31,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.32,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.33,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.34,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.35,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.36,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.37,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.38,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.39,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.4,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.41,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.42,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.43,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.44,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.45,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.46,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.47,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.48,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.49,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.5,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.51,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.52,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.53,
+          "pred_pos_rate": 1.0,
+          "mcc": 0.0,
+          "f1": 0.694517,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.54,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.55,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.56,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.57,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.58,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.59,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.6,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.61,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.62,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.63,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.64,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.65,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.66,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.67,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.68,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.69,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.7,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.71,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.72,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.73,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.74,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.75,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.76,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.77,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.78,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.79,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.8,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.81,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.82,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.83,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.84,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.85,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.86,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.87,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.88,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.89,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.9,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.91,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.92,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.93,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.94,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        },
+        {
+          "threshold": 0.95,
+          "pred_pos_rate": 0.0,
+          "mcc": 0.0,
+          "f1": 0.0,
+          "balanced_acc": 0.5
+        }
+      ]
+    }
+  },
+  "_diagnostics": {
+    "label_up_ratio": 0.5596,
+    "baseline_all_up": {
+      "accuracy": 0.5596,
+      "f1": 0.7176,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.4404,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "threshold_objective": "mcc",
+    "deg_penalty_weight": 0.4,
+    "deg_target_pos_min": 0.35,
+    "deg_target_pos_max": 0.65,
+    "smoke_samples": 10000
+  }
+}

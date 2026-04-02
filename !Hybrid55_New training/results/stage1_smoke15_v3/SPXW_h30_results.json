@@ -1,0 +1,404 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.6543,
+    "balanced_accuracy": 0.5702,
+    "f1": 0.7605,
+    "auc": 0.6534,
+    "ic": 0.3477,
+    "brier": 0.199426,
+    "threshold": 0.74,
+    "pred_pos_rate": 0.7188,
+    "pred_neg_rate": 0.2812,
+    "degenerate_prediction": false,
+    "matches_all_up_baseline": false,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 4.2611,
+      "q2": 3.3667,
+      "q3": 5.3542,
+      "q4": 8.4922,
+      "q5": 19.746
+    },
+    "quintile_spread_bp": 15.4848,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.6543,
+        "f1": 0.7605,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.6543,
+        "f1": 0.7605,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.6543,
+        "f1": 0.7605,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 594333
+  },
+  "agent_B_classifier": {
+    "accuracy": 0.7246,
+    "balanced_accuracy": 0.5,
+    "f1": 0.8403,
+    "auc": 0.3069,
+    "ic": -0.2051,
+    "brier": 0.199795,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 10.6481,
+      "q2": 7.481,
+      "q3": 12.1422,
+      "q4": 0.5807,
+      "q5": 10.2653
+    },
+    "quintile_spread_bp": -0.3828,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 977594
+  },
+  "agent_C_classifier": {
+    "accuracy": 0.7246,
+    "balanced_accuracy": 0.5,
+    "f1": 0.8403,
+    "auc": 0.378,
+    "ic": -0.2309,
+    "brier": 0.199794,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 4.8151,
+      "q2": 5.337,
+      "q3": 7.7716,
+      "q4": 9.1552,
+      "q5": 14.1165
+    },
+    "quintile_spread_bp": 9.3014,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 693354
+  },
+  "agent_K_classifier": {
+    "accuracy": 0.4062,
+    "balanced_accuracy": 0.5375,
+    "f1": 0.3745,
+    "auc": 0.4742,
+    "ic": -0.037,
+    "brier": 0.415521,
+    "threshold": 0.26,
+    "pred_pos_rate": 0.2246,
+    "pred_neg_rate": 0.7754,
+    "degenerate_prediction": false,
+    "matches_all_up_baseline": false,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 10.2143,
+      "q2": 8.3333,
+      "q3": 5.0856,
+      "q4": 4.7169,
+      "q5": 12.7631
+    },
+    "quintile_spread_bp": 2.5488,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.4062,
+        "f1": 0.3745,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.4062,
+        "f1": 0.3745,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.4062,
+        "f1": 0.3745,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 247226
+  },
+  "agent_TQ_classifier": {
+    "accuracy": 0.623,
+    "balanced_accuracy": 0.4695,
+    "f1": 0.7572,
+    "auc": 0.5831,
+    "ic": 0.0752,
+    "brier": 0.199921,
+    "threshold": 0.74,
+    "pred_pos_rate": 0.8281,
+    "pred_neg_rate": 0.1719,
+    "degenerate_prediction": false,
+    "matches_all_up_baseline": false,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 9.0245,
+      "q2": 9.579,
+      "q3": 5.7746,
+      "q4": 5.5751,
+      "q5": 11.1594
+    },
+    "quintile_spread_bp": 2.1349,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.623,
+        "f1": 0.7572,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.623,
+        "f1": 0.7572,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.623,
+        "f1": 0.7572,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 179698
+  },
+  "agent_H_classifier": {
+    "accuracy": 0.3711,
+    "balanced_accuracy": 0.4935,
+    "f1": 0.3374,
+    "auc": 0.4682,
+    "ic": 0.0811,
+    "brier": 0.415567,
+    "threshold": 0.26,
+    "pred_pos_rate": 0.2246,
+    "pred_neg_rate": 0.7754,
+    "degenerate_prediction": false,
+    "matches_all_up_baseline": false,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 6.1724,
+      "q2": 6.0694,
+      "q3": 9.0139,
+      "q4": 9.2332,
+      "q5": 10.6862
+    },
+    "quintile_spread_bp": 4.5138,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.3711,
+        "f1": 0.3374,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.3711,
+        "f1": 0.3374,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.3711,
+        "f1": 0.3374,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 98682
+  },
+  "agent_2D_classifier": {
+    "accuracy": 0.7246,
+    "balanced_accuracy": 0.5,
+    "f1": 0.8403,
+    "auc": 0.5724,
+    "ic": 0.1454,
+    "brier": 0.199795,
+    "threshold": 0.05,
+    "pred_pos_rate": 1.0,
+    "pred_neg_rate": 0.0,
+    "degenerate_prediction": true,
+    "matches_all_up_baseline": true,
+    "matches_all_down_baseline": false,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "quintile_mean_returns_bp": {
+      "q1": 12.3361,
+      "q2": 9.1074,
+      "q3": 7.78,
+      "q4": 5.2932,
+      "q5": 6.5681
+    },
+    "quintile_spread_bp": -5.768,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.2": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      },
+      "conf>=0.4": {
+        "accuracy": 0.7246,
+        "f1": 0.8403,
+        "coverage": 1.0,
+        "n": 512
+      }
+    },
+    "n_params": 678469
+  },
+  "_diagnostics": {
+    "label_up_ratio": 0.7246,
+    "baseline_all_up": {
+      "accuracy": 0.7246,
+      "f1": 0.8403,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "baseline_all_down": {
+      "accuracy": 0.2754,
+      "f1": 0.0,
+      "balanced_accuracy": 0.5,
+      "mcc": 0.0
+    },
+    "threshold_objective": "mcc",
+    "smoke_samples": 512
+  }
+}

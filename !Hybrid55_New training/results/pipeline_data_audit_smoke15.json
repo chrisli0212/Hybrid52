@@ -1,0 +1,442 @@
+{
+  "symbol": "SPXW",
+  "scope": "medium smoke15 pipeline audit",
+  "stages": [
+    {
+      "stage": "fetch_output",
+      "status": "FAIL",
+      "checks": [
+        {
+          "check": "raw_fetch_files_present",
+          "value": 0,
+          "pass": false
+        }
+      ],
+      "notes": "No raw fetch artifacts found in source symbol directory; fetch->duckdb handoff cannot be independently verified from this workspace snapshot."
+    },
+    {
+      "stage": "duckdb_tables",
+      "status": "PASS",
+      "checks": [
+        {
+          "check": "greeks_all.duckdb_exists",
+          "value": "/workspace/data/theta_data_3year/SPXW/greeks_all.duckdb",
+          "pass": true
+        },
+        {
+          "check": "greeks_all.duckdb:greeks_all_table_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "greeks_all.duckdb:greeks_all_row_count_gt0",
+          "value": 153510120,
+          "pass": true
+        },
+        {
+          "check": "trade_quote.duckdb_exists",
+          "value": "/workspace/data/theta_data_3year/SPXW/trade_quote.duckdb",
+          "pass": true
+        },
+        {
+          "check": "trade_quote.duckdb:trades_table_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "trade_quote.duckdb:trades_row_count_gt0",
+          "value": 198799486,
+          "pass": true
+        },
+        {
+          "check": "trade_quote.duckdb:quotes_table_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "trade_quote.duckdb:quotes_row_count_gt0",
+          "value": 51473633,
+          "pass": true
+        },
+        {
+          "check": "ohlcv.duckdb_exists",
+          "value": "/workspace/data/theta_data_3year/SPXW/ohlcv.duckdb",
+          "pass": true
+        },
+        {
+          "check": "ohlcv.duckdb:ohlcv_table_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "ohlcv.duckdb:ohlcv_row_count_gt0",
+          "value": 148848226,
+          "pass": true
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "stage": "tier1_parquet",
+      "status": "PASS",
+      "checks": [
+        {
+          "check": "tier1_greek_file_count",
+          "value": 15,
+          "pass": true
+        },
+        {
+          "check": "tier1_tq_file_count",
+          "value": 15,
+          "pass": true
+        },
+        {
+          "check": "tier1_ohlc_file_count",
+          "value": 15,
+          "pass": true
+        },
+        {
+          "check": "tier1_common_dates_count",
+          "value": 15,
+          "pass": true
+        },
+        {
+          "check": "2024-09-25_greek.parquet_rows_gt0",
+          "value": 36788,
+          "pass": true
+        },
+        {
+          "check": "2024-09-26_greek.parquet_rows_gt0",
+          "value": 20938,
+          "pass": true
+        },
+        {
+          "check": "2024-09-27_greek.parquet_rows_gt0",
+          "value": 22053,
+          "pass": true
+        },
+        {
+          "check": "2024-09-30_greek.parquet_rows_gt0",
+          "value": 69354,
+          "pass": true
+        },
+        {
+          "check": "2024-10-01_greek.parquet_rows_gt0",
+          "value": 95663,
+          "pass": true
+        },
+        {
+          "check": "2024-10-02_greek.parquet_rows_gt0",
+          "value": 57603,
+          "pass": true
+        },
+        {
+          "check": "2024-10-03_greek.parquet_rows_gt0",
+          "value": 33699,
+          "pass": true
+        },
+        {
+          "check": "2024-10-04_greek.parquet_rows_gt0",
+          "value": 29484,
+          "pass": true
+        },
+        {
+          "check": "2024-10-07_greek.parquet_rows_gt0",
+          "value": 80120,
+          "pass": true
+        },
+        {
+          "check": "2024-10-08_greek.parquet_rows_gt0",
+          "value": 79555,
+          "pass": true
+        },
+        {
+          "check": "2024-10-09_greek.parquet_rows_gt0",
+          "value": 52936,
+          "pass": true
+        },
+        {
+          "check": "2024-10-10_greek.parquet_rows_gt0",
+          "value": 24426,
+          "pass": true
+        },
+        {
+          "check": "2024-10-11_greek.parquet_rows_gt0",
+          "value": 22838,
+          "pass": true
+        },
+        {
+          "check": "2024-10-14_greek.parquet_rows_gt0",
+          "value": 57208,
+          "pass": true
+        },
+        {
+          "check": "2024-10-15_greek.parquet_rows_gt0",
+          "value": 67080,
+          "pass": true
+        },
+        {
+          "check": "2024-09-25_tq.parquet_rows_gt0",
+          "value": 525529,
+          "pass": true
+        },
+        {
+          "check": "2024-09-26_tq.parquet_rows_gt0",
+          "value": 537095,
+          "pass": true
+        },
+        {
+          "check": "2024-09-27_tq.parquet_rows_gt0",
+          "value": 562613,
+          "pass": true
+        },
+        {
+          "check": "2024-09-30_tq.parquet_rows_gt0",
+          "value": 638899,
+          "pass": true
+        },
+        {
+          "check": "2024-10-01_tq.parquet_rows_gt0",
+          "value": 768003,
+          "pass": true
+        },
+        {
+          "check": "2024-10-02_tq.parquet_rows_gt0",
+          "value": 588670,
+          "pass": true
+        },
+        {
+          "check": "2024-10-03_tq.parquet_rows_gt0",
+          "value": 585731,
+          "pass": true
+        },
+        {
+          "check": "2024-10-04_tq.parquet_rows_gt0",
+          "value": 621640,
+          "pass": true
+        },
+        {
+          "check": "2024-10-07_tq.parquet_rows_gt0",
+          "value": 671576,
+          "pass": true
+        },
+        {
+          "check": "2024-10-08_tq.parquet_rows_gt0",
+          "value": 639989,
+          "pass": true
+        },
+        {
+          "check": "2024-10-09_tq.parquet_rows_gt0",
+          "value": 632388,
+          "pass": true
+        },
+        {
+          "check": "2024-10-10_tq.parquet_rows_gt0",
+          "value": 583549,
+          "pass": true
+        },
+        {
+          "check": "2024-10-11_tq.parquet_rows_gt0",
+          "value": 563288,
+          "pass": true
+        },
+        {
+          "check": "2024-10-14_tq.parquet_rows_gt0",
+          "value": 566438,
+          "pass": true
+        },
+        {
+          "check": "2024-10-15_tq.parquet_rows_gt0",
+          "value": 773860,
+          "pass": true
+        },
+        {
+          "check": "2024-09-25_ohlc.parquet_rows_gt0",
+          "value": 296769,
+          "pass": true
+        },
+        {
+          "check": "2024-09-26_ohlc.parquet_rows_gt0",
+          "value": 205275,
+          "pass": true
+        },
+        {
+          "check": "2024-09-27_ohlc.parquet_rows_gt0",
+          "value": 283866,
+          "pass": true
+        },
+        {
+          "check": "2024-09-30_ohlc.parquet_rows_gt0",
+          "value": 403512,
+          "pass": true
+        },
+        {
+          "check": "2024-10-01_ohlc.parquet_rows_gt0",
+          "value": 412896,
+          "pass": true
+        },
+        {
+          "check": "2024-10-02_ohlc.parquet_rows_gt0",
+          "value": 310063,
+          "pass": true
+        },
+        {
+          "check": "2024-10-03_ohlc.parquet_rows_gt0",
+          "value": 216223,
+          "pass": true
+        },
+        {
+          "check": "2024-10-04_ohlc.parquet_rows_gt0",
+          "value": 227171,
+          "pass": true
+        },
+        {
+          "check": "2024-10-07_ohlc.parquet_rows_gt0",
+          "value": 369495,
+          "pass": true
+        },
+        {
+          "check": "2024-10-08_ohlc.parquet_rows_gt0",
+          "value": 369886,
+          "pass": true
+        },
+        {
+          "check": "2024-10-09_ohlc.parquet_rows_gt0",
+          "value": 310454,
+          "pass": true
+        },
+        {
+          "check": "2024-10-10_ohlc.parquet_rows_gt0",
+          "value": 208794,
+          "pass": true
+        },
+        {
+          "check": "2024-10-11_ohlc.parquet_rows_gt0",
+          "value": 226389,
+          "pass": true
+        },
+        {
+          "check": "2024-10-14_ohlc.parquet_rows_gt0",
+          "value": 389436,
+          "pass": true
+        },
+        {
+          "check": "2024-10-15_ohlc.parquet_rows_gt0",
+          "value": 428536,
+          "pass": true
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "stage": "tier2_nonzero_map",
+      "status": "PASS",
+      "checks": [
+        {
+          "check": "tier2_minutes_file_exists",
+          "value": "/workspace/data/tier2_hybrid55_smoke15/SPXW_minutes.parquet",
+          "pass": true
+        },
+        {
+          "check": "tier2_feature_dim_311",
+          "value": 311,
+          "pass": true
+        },
+        {
+          "check": "tier2_no_nan",
+          "value": false,
+          "pass": true
+        },
+        {
+          "check": "tier2_live_features_gt0",
+          "value": 169,
+          "pass": true
+        },
+        {
+          "check": "tier2_live_feature_rate_ge_0.30",
+          "value": 0.5434,
+          "pass": true
+        },
+        {
+          "check": "tier2_ohlc_live_features_gt0",
+          "value": 11,
+          "pass": true
+        },
+        {
+          "check": "tier2_tq_live_features_gt0",
+          "value": 62,
+          "pass": true
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "stage": "tier3_live_mask_continuity",
+      "status": "PASS",
+      "checks": [
+        {
+          "check": "tier3_dir_exists",
+          "value": "/workspace/data/tier3_hybrid55_smoke15_nostrip/SPXW/horizon_30min",
+          "pass": true
+        },
+        {
+          "check": "tier3_zero_mask_dim_311",
+          "value": 311,
+          "pass": true
+        },
+        {
+          "check": "tier3_live_indices_consistent_with_mask",
+          "value": 1,
+          "pass": true
+        },
+        {
+          "check": "tier2_tier3_live_jaccard_ge_0.95",
+          "value": 1.0,
+          "pass": true
+        },
+        {
+          "check": "tier3_live_indices_greek_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_greek_indices_subset_of_live",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_live_indices_tq_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_tq_indices_subset_of_live",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_live_indices_ohlc_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_ohlc_indices_subset_of_live",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_chain_norm_mean_exists",
+          "value": true,
+          "pass": true
+        },
+        {
+          "check": "tier3_chain_norm_std_exists",
+          "value": true,
+          "pass": true
+        }
+      ],
+      "notes": ""
+    }
+  ],
+  "overall_status": "FAIL"
+}

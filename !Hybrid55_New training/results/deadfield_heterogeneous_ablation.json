@@ -1,0 +1,82 @@
+{
+  "feature_schema_version": "hybrid55_v1_live_raw_guarded_311",
+  "total_features": 311,
+  "dead_raw_tier1_fields": [
+    "batch_id",
+    "dual_gamma",
+    "endpoint",
+    "iv_error",
+    "speed",
+    "ts",
+    "vera",
+    "zomma"
+  ],
+  "dead_named_feature_indices": [],
+  "agent_rows": [
+    {
+      "agent": "A",
+      "subset_dim": 130,
+      "use_backbone": true,
+      "n_params_total": 586657,
+      "n_params_backbone": 365056,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "B",
+      "subset_dim": 75,
+      "use_backbone": false,
+      "n_params_total": 969918,
+      "n_params_backbone": 0,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "C",
+      "subset_dim": 69,
+      "use_backbone": true,
+      "n_params_total": 685678,
+      "n_params_backbone": 357248,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "K",
+      "subset_dim": 75,
+      "use_backbone": false,
+      "n_params_total": 239550,
+      "n_params_backbone": 0,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "TQ",
+      "subset_dim": 70,
+      "use_backbone": false,
+      "n_params_total": 172022,
+      "n_params_backbone": 0,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "H",
+      "subset_dim": 11,
+      "use_backbone": false,
+      "n_params_total": 91006,
+      "n_params_backbone": 0,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "M",
+      "subset_dim": 146,
+      "use_backbone": true,
+      "n_params_total": 676328,
+      "n_params_backbone": 502488,
+      "dead_named_overlap": 0
+    },
+    {
+      "agent": "2D",
+      "subset_dim": 0,
+      "use_backbone": false,
+      "n_params_total": 670793,
+      "n_params_backbone": 0,
+      "dead_named_overlap": 0
+    }
+  ],
+  "synthetic_logit_corr_A_vs_M": -0.025921647364875955
+}

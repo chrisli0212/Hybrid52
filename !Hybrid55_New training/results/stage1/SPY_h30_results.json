@@ -1,0 +1,57 @@
+{
+  "agent_A_classifier": {
+    "accuracy": 0.5,
+    "balanced_accuracy": 0.5,
+    "f1": 0.6667,
+    "auc": 0.5413,
+    "ic": -0.1041,
+    "brier": 0.249975,
+    "threshold": 0.3,
+    "quintile_mean_returns_bp": {
+      "q1": 3.8362,
+      "q2": -2.2415,
+      "q3": 2.1543,
+      "q4": -1.8871,
+      "q5": -2.8779
+    },
+    "quintile_spread_bp": -6.714,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5,
+        "f1": 0.6667,
+        "coverage": 1.0,
+        "n": 256
+      }
+    },
+    "n_params": 594333
+  },
+  "agent_TQ_classifier": {
+    "accuracy": 0.5195,
+    "balanced_accuracy": 0.5195,
+    "f1": 0.5176,
+    "auc": 0.4901,
+    "ic": 0.0616,
+    "brier": 0.249994,
+    "threshold": 0.5,
+    "quintile_mean_returns_bp": {
+      "q1": -2.6986,
+      "q2": 5.3099,
+      "q3": 1.4825,
+      "q4": 1.1965,
+      "q5": -6.1783
+    },
+    "quintile_spread_bp": -3.4797,
+    "confidence_buckets": {
+      "conf>=0.0": {
+        "accuracy": 0.5195,
+        "f1": 0.5176,
+        "coverage": 1.0,
+        "n": 256
+      }
+    },
+    "n_params": 200548
+  },
+  "agent_H_classifier": {
+    "error": "index out of range in self"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "best_method": "avg_agents",
+  "agents_used": [
+    "A"
+  ],
+  "n_val": 256,
+  "n_test": 256,
+  "meta_input_dim": 13,
+  "enable_vix_gated": false,
+  "vix_data_root": "/workspace/data/tier3_vix_v4/VIXW",
+  "val_selection_scores": {
+    "avg_agents": 1.1666666666666665,
+    "logreg_C=0.01": 1.1666666666666665,
+    "logreg_C=0.1": 1.1666666666666665,
+    "mlp": 1.1666666666666665
+  },
+  "all_results": {
+    "avg_agents": {
+      "name": "Simple Avg (1 agents)",
+      "val": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.2500726878643036,
+        "threshold": 0.3,
+        "auc": 0.4891357421875,
+        "ic": -0.018817593450043225
+      },
+      "test": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25008678436279297,
+        "threshold": 0.3,
+        "auc": 0.47186279296875,
+        "ic": -0.04873545269926926
+      }
+    },
+    "logreg_C=0.01": {
+      "name": "LogReg (C=0.01)",
+      "val": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25,
+        "threshold": 0.3,
+        "auc": 0.5,
+        "ic": NaN
+      },
+      "test": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25,
+        "threshold": 0.3,
+        "auc": 0.5,
+        "ic": NaN
+      }
+    },
+    "logreg_C=0.1": {
+      "name": "LogReg (C=0.1)",
+      "val": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25,
+        "threshold": 0.3,
+        "auc": 0.5,
+        "ic": NaN
+      },
+      "test": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25,
+        "threshold": 0.3,
+        "auc": 0.5,
+        "ic": NaN
+      }
+    },
+    "mlp": {
+      "name": "MLP",
+      "val": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.25042980909347534,
+        "threshold": 0.3,
+        "auc": 0.511016845703125,
+        "ic": 0.019081963973052087
+      },
+      "test": {
+        "accuracy": 0.5,
+        "f1": 0.6666666666666666,
+        "brier": 0.2504296600818634,
+        "threshold": 0.3,
+        "auc": 0.528350830078125,
+        "ic": 0.049105742549746756
+      }
+    }
+  }
+}
