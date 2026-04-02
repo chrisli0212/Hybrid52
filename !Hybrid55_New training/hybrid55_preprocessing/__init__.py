@@ -1,97 +1,36 @@
 """
-Hybrid51 Preprocessing Package
-Feature engineering pipeline for options data with 270 features.
+Hybrid55 Preprocessing Package — Per-Agent Architecture
+
+Shared extractors live in `extractors/`.
+Per-agent feature configs + assemblers live in `agents/`.
+
+Version: 0.3.0
 """
 
-from .feature_config_v2 import (
-    TOTAL_FEATURES,
-    FEATURE_GROUPS,
-    FeatureGroup,
-    DELTA_BUCKETS,
-    GREEKS_FOR_BUCKETING,
-    ATM_GREEKS,
-    MONEYNESS_LEVELS,
-    DTE_BUCKETS,
-    CHAIN_2D_CONFIG,
-    get_feature_names,
-)
-
-from .data_validation import (
+from .extractors.data_validation import (
     get_usable_greek_columns,
     get_excluded_columns,
-    get_metadata_columns,
-    get_feature_columns_by_group,
-    validate_greek_columns,
+    get_trade_quote_excluded_columns,
 )
 
-from .master_extractor import (
-    MasterFeatureExtractor,
-    ExtractionResult,
-    extract_all_features,
-)
+from .agents.agent_a.extractor import AgentAExtractor
+from .agents.agent_b.extractor import AgentBExtractor
+from .agents.agent_c.extractor import AgentCExtractor
+from .agents.agent_h.extractor import AgentHExtractor
+from .agents.agent_k.extractor import AgentKExtractor
+from .agents.agent_tq.extractor import AgentTQExtractor
+from .agents.agent_2d.extractor import Agent2DExtractor
 
-from .sequence_pipeline import (
-    SequenceConfig,
-    Sequence,
-    SequenceCreator,
-    StreamingSequenceCreator,
-)
-
-from .chain_2d import Chain2DProcessor
-
-from .quality_checks import (
-    DataQualityChecker,
-    DataQualityReport,
-    validate_preprocessed_data,
-    print_quality_summary,
-)
-
-try:
-    from .training_pipeline import (
-        Hybrid51Dataset,
-        BalancedSampler,
-        create_data_loaders,
-        save_processed_data,
-        load_processed_data,
-        PreprocessingPipeline,
-    )
-except (ImportError, OSError):
-    pass
-
+__version__ = "0.3.0"
 __all__ = [
-    'TOTAL_FEATURES',
-    'FEATURE_GROUPS',
-    'FeatureGroup',
-    'DELTA_BUCKETS',
-    'GREEKS_FOR_BUCKETING',
-    'ATM_GREEKS',
-    'MONEYNESS_LEVELS',
-    'DTE_BUCKETS',
-    'CHAIN_2D_CONFIG',
-    'get_feature_names',
-    'get_usable_greek_columns',
-    'get_excluded_columns',
-    'get_metadata_columns',
-    'get_feature_columns_by_group',
-    'validate_greek_columns',
-    'MasterFeatureExtractor',
-    'ExtractionResult',
-    'extract_all_features',
-    'SequenceConfig',
-    'Sequence',
-    'SequenceCreator',
-    'StreamingSequenceCreator',
-    'Chain2DProcessor',
-    'DataQualityChecker',
-    'DataQualityReport',
-    'validate_preprocessed_data',
-    'print_quality_summary',
-    'Hybrid51Dataset',
-    'BalancedSampler',
-    'create_data_loaders',
-    'save_processed_data',
-    'load_processed_data',
-    'PreprocessingPipeline',
+    "AgentAExtractor",
+    "AgentBExtractor",
+    "AgentCExtractor",
+    "AgentHExtractor",
+    "AgentKExtractor",
+    "AgentTQExtractor",
+    "Agent2DExtractor",
+    "get_usable_greek_columns",
+    "get_excluded_columns",
+    "get_trade_quote_excluded_columns",
 ]
-
-__version__ = '0.1.0'
